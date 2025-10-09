@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}Register - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Registration Card -->
+            <div class="auth-card shadow-lg">
+                <div class="card-body p-5">
+                    <div class="text-center mb-5">
+                        <div class="mb-4">
+                            <i class="fas fa-user-plus text-primary" style="font-size: 4rem;"></i>
+                        </div>
+                        <h2 class="fw-bold text-primary mb-3">Create Your Account</h2>
+                        <p class="text-muted">Join MedGuardian and start managing your medications smartly</p>
+                    </div>
+
+                    <!-- Registration Form -->
+                    <form method="POST" action="{{ url_for('auth.register') }}" class="needs-validation" novalidate>
+                        <div class="row g-4">
+                            <!-- Username -->
+                            <div class="col-md-6">
+                                <label for="username" class="form-label">
+                                    <i class="fas fa-user me-2"></i>Username
+                                </label>
+                                <input type="text" class="form-control" id="username" name="username" 
+                                       required minlength="3" maxlength="50">
+                                <div class="invalid-feedback">
+                                    Please enter a valid username (3-50 characters)
+                                </div>
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">
+                                    <i class="fas fa-envelope me-2"></i>Email Address
+                                </label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       required>
+                                <div class="invalid-feedback">
+                                    Please enter a valid email address
+                                </div>
+                            </div>
+
+                            <!-- Password -->
+                            <div class="col-md-6">
+                                <label for="password" class="form-label">
+                                    <i class="fas fa-lock me-2"></i>Password
+                                </label>
+                                <input type="password" class="form-control" id="password" name="password" 
+                                       required minlength="6">
+                                <div class="invalid-feedback">
+                                    Password must be at least 6 characters long
+                                </div>
+                            </div>
+
+                            <!-- Confirm Password -->
+                            <div class="col-md-6">
+                                <label for="confirm_password" class="form-label">
+                                    <i class="fas fa-lock me-2"></i>Confirm Password
+                                </label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
+                                       required>
+                                <div class="invalid-feedback">
+                                    Passwords do not match
+                                </div>
+                            </div>
+
+                            <!-- Role Selection -->
+                            <div class="col-12">
+                                <label for="role" class="form-label">
+                                    <i class="fas fa-user-tag me-2"></i>I am a:
+                                </label>
+                                <select class="form-select form-select-lg" id="role" name="role" required>
+                                    <option value="" disabled selected>Choose your role...</option>
+                                    <option value="senior">👴 Senior Citizen</option>
+                                    <option value="caregiver">👨‍⚕️ Caregiver/Family Member</option>
+                                </select>
+                                <div class="form-text">
+                                    Seniors: Manage your own medications and reminders
+                                    <br>
+                                    Caregivers: Help manage medications for others
+                                </div>
+                                <div class="invalid-feedback">
+                                    Please select your role
+                                </div>
+                            </div>
+
+                            <!-- Personal Information (optional) -->
+                            <div class="col-md-6">
+                                <label for="first_name" class="form-label">
+                                    <i class="fas fa-id-card me-2"></i>First Name
+                                </label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" 
+                                       placeholder="Optional">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="last_name" class="form-label">
+                                    <i class="fas fa-id-card me-2"></i>Last Name
+                                </label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" 
+                                       placeholder="Optional">
+                            </div>
+
+                            <!-- Emergency Contact -->
+                            <div class="col-12">
+                                <label for="emergency_contact" class="form-label">
+                                    <i class="fas fa-phone-alt me-2"></i>Emergency Contact
+                                </label>
+                                <input type="text" class="form-control" id="emergency_contact" name="emergency_contact" 
+                                       placeholder="Phone number of emergency contact">
+                                <div class="form-text">
+                                    (Optional: Provide for safety purposes)
+                                </div>
+                            </div>
+
+                            <!-- Terms and Conditions -->
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="terms" required>
+                                    <label class="form-check-label" for="terms">
+                                        I agree to the <a href="#" class="text-primary">Terms of Service</a> and 
+                                        <a href="#" class="text-primary">Privacy Policy</a>
+                                    </label>
+                                </div>
+                                <div class="invalid-feedback">
+                                    You must agree to the terms and conditions
+                                </div>
+                            </div>
+
+                            <!-- Newsletter Subscription -->
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="newsletter" name="newsletter">
+                                    <label class="form-check-label" for="newsletter">
+                                        Subscribe to our newsletter for medication tips and updates
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2 mt-5">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Create Account
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Alternative Registration -->
+                    <div class="text-center mt-4">
+                        <p class="mb-0">Or register with:</p>
+                        <div class="d-flex justify-content-center gap-3 mt-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm">
+                                <i class="fab fa-google me-2"></i>Google
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm">
+                                <i class="fab fa-facebook me-2"></i>Facebook
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm">
+                                <i class="fab fa-apple me-2"></i>Apple
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Login Link -->
+            <div class="text-center mt-4">
+                <p class="mb-0 text-muted">
+                    Already have an account? 
+                    <a href="{{ url_for('auth.login') }}" class="text-primary fw-bold">
+                        Sign in here
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Password Strength Indicator -->
+<div class="d-none" id="password-strength">
+    <div class="progress mt-2" style="height: 5px;">
+        <div class="progress-bar" id="strength-bar" role="progressbar" style="width: 0%"></div>
+    </div>
+    <small class="text-muted mt-1 d-block" id="strength-text"></small>
+</div>
+
+<script>
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()
+
+// Password strength checker
+const passwordInput = document.getElementById('password');
+const strengthBar = document.getElementById('strength-bar');
+const strengthText = document.getElementById('strength-text');
+
+if (passwordInput) {
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        let strength = 0;
+        
+        // Check password length
+        if (password.length >= 8) strength += 25;
+        if (password.length >= 12) strength += 25;
+        
+        // Check for character types
+        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 25;
+        if (/[0-9]/.test(password)) strength += 12.5;
+        if (/[^A-Za-z0-9]/.test(password)) strength += 12.5;
+        
+        // Update strength bar
+        strengthBar.style.width = strength + '%';
+        
+        // Update color and text
+        if (strength < 25) {
+            strengthBar.className = 'progress-bar bg-danger';
+            strengthText.textContent = 'Weak password';
+            strengthText.className = 'text-danger mt-1 d-block';
+        } else if (strength < 50) {
+            strengthBar.className = 'progress-bar bg-warning';
+            strengthText.textContent = 'Fair password';
+            strengthText.className = 'text-warning mt-1 d-block';
+        } else if (strength < 75) {
+            strengthBar.className = 'progress-bar bg-info';
+            strengthText.textContent = 'Good password';
+            strengthText.className = 'text-info mt-1 d-block';
+        } else {
+            strengthBar.className = 'progress-bar bg-success';
+            strengthText.textContent = 'Strong password';
+            strengthText.className = 'text-success mt-1 d-block';
+        }
+    });
+}
+
+// Password confirmation validation
+const confirmPasswordInput = document.getElementById('confirm_password');
+if (confirmPasswordInput) {
+    confirmPasswordInput.addEventListener('input', function() {
+        const password = passwordInput.value;
+        const confirmPassword = this.value;
+        
+        if (password !== confirmPassword) {
+            this.setCustomValidity('Passwords do not match');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+}
+</script>
+
+<style>
+.auth-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.form-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.auth-card .card-body {
+    padding: 3rem;
+}
+</style>
+{% endblock %}

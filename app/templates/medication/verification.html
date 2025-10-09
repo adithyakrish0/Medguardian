@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Medication Verification System</h2>
+    <p>Use your camera to verify medications</p>
+    
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Camera Feed</h5>
+                    <div id="camera-container">
+                        <video id="video" width="100%" autoplay></video>
+                        <canvas id="canvas" style="display:none;"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        <button id="start-camera" class="btn btn-primary">Start Camera</button>
+                        <button id="capture" class="btn btn-success" disabled>Capture & Verify</button>
+                        <button id="stop-camera" class="btn btn-danger" disabled>Stop Camera</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Verification Results</h5>
+                    <div id="verification-results">
+                        <p>Click "Capture & Verify" to test medication</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h5 class="card-title">Test Specific Medication</h5>
+                    <div class="form-group">
+                        <label for="medication-select">Select Medication:</label>
+                        <select id="medication-select" class="form-control">
+                            {% for med in medications %}
+                            <option value="{{ med.id }}">{{ med.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button id="verify-selected" class="btn btn-primary mt-2">Verify Selected Medication</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let stream = null;
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    
+    // Camera controls
+    document.getElementById('start-camera').addEventListener('click', async () => {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            document.getElementById('start-camera').disabled = true;
+            document.getElementById('capture').disabled = false;
+            document.getElementById('stop-camera').disabled = false;
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            alert("Could not access camera: " + err.message);
+        }
+    });
+    
+    document.getElementById('capture').addEventListener('click', () => {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append('image', blob, 'capture.jpg');
+            
+            const medicationId = document.getElementById('medication-select').value;
+            
+            try {
+                const response = await fetch(`/medication/verify-medication/${medicationId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                document.getElementById('verification-results').innerHTML = `
+                    <div class="alert ${result.success ? 'alert-success' : 'alert-danger'}">
+                        <h4>Verification Result</h4>
+                        <p><strong>Success:</strong> ${result.success}</p>
+                        <p><strong>Message:</strong> ${result.message}</p>
+                        <p><strong>Detected Bottles:</strong> ${result.detected_bottles}</p>
+                        <p><strong>Barcode Verified:</strong> ${result.barcode_verified}</p>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('verification-results').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h4>Error</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }, 'image/jpeg');
+    });
+    
+    document.getElementById('stop-camera').addEventListener('click', () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            document.getElementById('start-camera').disabled = false;
+            document.getElementById('capture').disabled = true;
+            document.getElementById('stop-camera').disabled = true;
+        }
+    });
+    
+    // Verify selected medication without camera
+    document.getElementById('verify-selected').addEventListener('click', async () => {
+        const medicationId = document.getElementById('medication-select').value;
+        
+        try {
+            const response = await fetch(`/medication/verify-medication/${medicationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            const result = await response.json();
+            
+            document.getElementById('verification-results').innerHTML = `
+                <div class="alert ${result.success ? 'alert-success' : 'alert-danger'}">
+                    <h4>Verification Result</h4>
+                    <p><strong>Success:</strong> ${result.success}</p>
+                    <p><strong>Message:</strong> ${result.message}</p>
+                    <p><strong>Detected Bottles:</strong> ${result.detected_bottles}</p>
+                    <p><strong>Barcode Verified:</strong> ${result.barcode_verified}</p>
+                </div>
+            `;
+        } catch (error) {
+            document.getElementById('verification-results').innerHTML = `
+                <div class="alert alert-danger">
+                    <h4>Error</h4>
+                    <p>${error.message}</p>
+                </div>
+            `;
+        }
+    });
+</script>
+{% endblock %}

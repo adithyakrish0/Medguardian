@@ -1,0 +1,533 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Medication - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-3">
+                <i class="fas fa-edit text-primary me-2"></i>
+                Edit Medication
+            </h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('medication.list_medications') }}">Medications</a></li>
+                    <li class="breadcrumb-item active">Edit Medication</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Edit Medication Form -->
+            <div class="card shadow-sm">
+                <div class="card-body p-5">
+                    <h4 class="card-title mb-4">
+                        <i class="fas fa-pencil-alt text-primary me-2"></i>
+                        Modify Medication Details
+                    </h4>
+                    
+                    <form method="POST" action="{{ url_for('medication.edit_medication', id=medication.id) }}" class="needs-validation" novalidate>
+                        <!-- Medication Name -->
+                        <div class="mb-4">
+                            <label for="name" class="form-label">
+                                <i class="fas fa-prescription-bottle me-2"></i>Medication Name
+                            </label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   required value="{{ medication.name }}" placeholder="e.g., Metformin, Lisinopril, Aspirin">
+                            <div class="form-text">Enter the exact name of the medication</div>
+                            <div class="invalid-feedback">
+                                Please provide the medication name
+                            </div>
+                        </div>
+
+                        <!-- Dosage -->
+                        <div class="mb-4">
+                            <label for="dosage" class="form-label">
+                                <i class="fas fa-weight me-2"></i>Dosage
+                            </label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="dosage" name="dosage" 
+                                       required value="{{ medication.dosage }}" placeholder="e.g., 10mg, 1 tablet, 5ml">
+                                <span class="input-group-text">mg/tablet/ml</span>
+                            </div>
+                            <div class="form-text">Specify the dosage amount and unit</div>
+                            <div class="invalid-feedback">
+                                Please provide the dosage information
+                            </div>
+                        </div>
+
+                        <!-- Frequency Selection -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-clock me-2"></i>How Often?
+                            </label>
+                            
+                            <!-- Quick Frequency Presets -->
+                            <div class="mb-3">
+                                <label class="form-label small">Quick frequency presets:</label>
+                                <div class="d-flex flex-wrap gap-2 mb-2">
+                                    <button type="button" class="btn btn-outline-primary preset-frequency btn-sm" 
+                                            data-frequency="Once daily" data-times='["08:00"]' data-periods='["morning"]'>
+                                        <i class="fas fa-sun me-1"></i>Once Daily
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary preset-frequency btn-sm" 
+                                            data-frequency="Twice daily" data-times='["08:00", "20:00"]' data-periods='["morning", "evening"]'>
+                                        <i class="fas fa-sync-alt me-1"></i>Twice Daily
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary preset-frequency btn-sm" 
+                                            data-frequency="Three times daily" data-times='["08:00", "12:00", "18:00"]' data-periods='["morning", "afternoon", "evening"]'>
+                                        <i class="fas fa-clock me-1"></i>Three Times
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary preset-frequency btn-sm" 
+                                            data-frequency="Four times daily" data-times='["08:00", "12:00", "16:00", "20:00"]' data-periods='["morning", "afternoon", "evening", "night"]'>
+                                        <i class="fas fa-calendar-alt me-1"></i>Four Times
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary preset-frequency btn-sm" 
+                                            data-frequency="Every 6 hours" data-times='["06:00", "12:00", "18:00", "00:00"]' data-periods='["morning", "afternoon", "evening", "night"]'>
+                                        <i class="fas fa-hourglass-half me-1"></i>Every 6h
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary preset-frequency btn-sm" 
+                                            data-frequency="Every 8 hours" data-times='["08:00", "16:00", "00:00"]' data-periods='["morning", "evening", "night"]'>
+                                        <i class="fas fa-hourglass-start me-1"></i>Every 8h
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary preset-frequency btn-sm" 
+                                            data-frequency="Every 12 hours" data-times='["08:00", "20:00"]' data-periods='["morning", "evening"]'>
+                                        <i class="fas fa-moon me-1"></i>Every 12h
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary preset-frequency btn-sm" 
+                                            data-frequency="As needed" data-times='[]' data-periods='[]'>
+                                        <i class="fas fa-hand-paper me-1"></i>As Needed
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info preset-frequency-custom btn-sm">
+                                        <i class="fas fa-plus me-1"></i>Custom
+                                    </button>
+                                </div>
+                                <small class="text-muted">Click a preset to set frequency and timing automatically</small>
+                            </div>
+                            
+                            <!-- Selected Frequency Display -->
+                            <div id="selected-frequency" class="alert alert-info d-none">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Selected:</strong> <span id="frequency-display"></span>
+                            </div>
+                            
+                            <!-- Hidden frequency field -->
+                            <input type="hidden" id="frequency" name="frequency" value="{{ medication.frequency or '' }}">
+
+                        <!-- Instructions -->
+                        <div class="mb-4">
+                            <label for="instructions" class="form-label">
+                                <i class="fas fa-clipboard-list me-2"></i>Special Instructions
+                            </label>
+                            <textarea class="form-control" id="instructions" name="instructions" rows="3" 
+                                      placeholder="e.g., Take with food, Avoid alcohol, Take before bed...">{{ medication.instructions or '' }}</textarea>
+                            <div class="form-text">Any special instructions or precautions</div>
+                        </div>
+
+                        <!-- Medication Schedule -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-calendar-alt me-2"></i>When to take this medication
+                            </label>
+                            
+                            <!-- Time Period Selection -->
+                            <div class="mb-3">
+                                <label class="form-label small">Select time periods:</label>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="morning" id="morning" 
+                                                   {% if medication.morning %}checked{% endif %}>
+                                            <label class="form-check-label" for="morning">
+                                                <i class="fas fa-sun text-warning me-1"></i>Morning
+                                                <small class="text-muted d-block">(7-9 AM)</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="afternoon" id="afternoon" 
+                                                   {% if medication.afternoon %}checked{% endif %}>
+                                            <label class="form-check-label" for="afternoon">
+                                                <i class="fas fa-cloud-sun text-info me-1"></i>Afternoon
+                                                <small class="text-muted d-block">(12-2 PM)</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="evening" id="evening" 
+                                                   {% if medication.evening %}checked{% endif %}>
+                                            <label class="form-check-label" for="evening">
+                                                <i class="fas fa-cloud text-primary me-1"></i>Evening
+                                                <small class="text-muted d-block">(6-8 PM)</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="night" id="night" 
+                                                   {% if medication.night %}checked{% endif %}>
+                                            <label class="form-check-label" for="night">
+                                                <i class="fas fa-moon text-secondary me-1"></i>Night
+                                                <small class="text-muted d-block">(9-12 AM)</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Custom Times -->
+                            <div class="mb-3">
+                                <label class="form-label small">Or specify exact times:</label>
+                                <div id="custom-times-container">
+                                    <div class="input-group mb-2">
+                                        <input type="time" class="form-control" name="custom_time[]" placeholder="HH:MM">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="addCustomTime()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Add specific times (e.g., 08:30, 14:15, 20:00)</small>
+                            </div>
+
+                            <!-- Quick Time Presets -->
+                            <div class="mb-3">
+                                <label class="form-label small">Quick presets:</label>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["08:00"]'>Morning</button>
+                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["12:00", "18:00"]'>Twice Daily</button>
+                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["08:00", "12:00", "18:00"]'>Three Times</button>
+                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["08:00", "12:00", "16:00", "20:00"]'>Four Times</button>
+                                </div>
+                            </div>
+
+                            <div class="form-text mt-2">You can select time periods AND/OR add specific custom times</div>
+                        </div>
+
+                        <!-- Start Date -->
+                        <div class="mb-4">
+                            <label for="start_date" class="form-label">
+                                <i class="fas fa-play-circle me-2"></i>Start Date
+                            </label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                   required value="{{ medication.start_date or today }}">
+                            <div class="form-text">When should this medication regimen start</div>
+                            <div class="invalid-feedback">
+                                Please provide a start date
+                            </div>
+                        </div>
+
+                        <!-- End Date (Optional) -->
+                        <div class="mb-4">
+                            <label for="end_date" class="form-label">
+                                <i class="fas fa-stop-circle me-2"></i>End Date (Optional)
+                            </label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" 
+                                   value="{{ medication.end_date or '' }}">
+                            <div class="form-text">Leave empty if this is a long-term medication</div>
+                        </div>
+
+                        <!-- Priority -->
+                        <div class="mb-4">
+                            <label for="priority" class="form-label">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Priority Level
+                            </label>
+                            <select class="form-select" id="priority" name="priority">
+                                <option value="low" {% if medication.priority == 'low' %}selected{% endif %}>Low Priority</option>
+                                <option value="medium" {% if medication.priority == 'medium' %}selected{% endif %}>Medium Priority</option>
+                                <option value="high" {% if medication.priority == 'high' %}selected{% endif %}>High Priority</option>
+                                <option value="critical" {% if medication.priority == 'critical' %}selected{% endif %}>Critical</option>
+                            </select>
+                            <div class="form-text">Importance level for medication adherence</div>
+                        </div>
+
+                        <!-- Warning Section -->
+                        <div class="alert alert-warning mb-4" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Important:</strong> Changes to medication details will affect all future doses and reminders. 
+                            Please ensure all information is accurate before saving.
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Update Medication
+                            </button>
+                            <a href="{{ url_for('medication.list_medications') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Medications
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Information Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-info-circle text-primary me-2"></i>
+                        Editing Medication
+                    </h5>
+                    <p class="card-text">
+                        You are editing the following medication:
+                    </p>
+                    <div class="alert alert-info small">
+                        <strong>Medication:</strong> {{ medication.name }}<br>
+                        <strong>Dosage:</strong> {{ medication.dosage }}<br>
+                        <strong>Frequency:</strong> {{ medication.frequency }}
+                    </div>
+                    <p class="card-text">
+                        Make changes carefully to avoid confusion with medication schedules.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Changes Warning -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-exclamation-circle text-warning me-2"></i>
+                        Important Notes
+                    </h5>
+                    <div class="small">
+                        <ul class="mb-0">
+                            <li class="mb-2">Changes will affect all future medication schedules</li>
+                            <li class="mb-2">Existing doses and logs will remain unchanged</li>
+                            <li class="mb-2">New reminders will be created based on updated schedule</li>
+                            <li class="mb-2">Contact your healthcare provider for significant changes</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-bolt text-success me-2"></i>
+                        Quick Actions
+                    </h5>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('medication.add_medication') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-2"></i>Add New Medication
+                        </a>
+                        <a href="{{ url_for('medication.list_medications') }}" class="btn btn-outline-info">
+                            <i class="fas fa-list me-2"></i>View All Medications
+                        </a>
+                        <a href="#" class="btn btn-outline-warning">
+                            <i class="fas fa-bell me-2"></i>Reminder Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-label {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-color-dark);
+    border-color: var(--primary-color-dark);
+}
+
+.alert-warning {
+    border-left: 4px solid #ffc107;
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.alert-info {
+    border-left: 4px solid #17a2b8;
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+}
+</style>
+
+<script>
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()
+
+// Custom time management
+function addCustomTime() {
+    const container = document.getElementById('custom-times-container');
+    const newTimeInput = document.createElement('div');
+    newTimeInput.className = 'input-group mb-2';
+    newTimeInput.innerHTML = `
+        <input type="time" class="form-control" name="custom_time[]" placeholder="HH:MM">
+        <button type="button" class="btn btn-outline-danger" onclick="removeCustomTime(this)">
+            <i class="fas fa-trash"></i>
+        </button>
+    `;
+    container.appendChild(newTimeInput);
+}
+
+function removeCustomTime(button) {
+    button.parentElement.remove();
+}
+
+// Quick preset functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Frequency preset functionality
+    const frequencyButtons = document.querySelectorAll('.preset-frequency');
+    frequencyButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const frequency = this.dataset.frequency;
+            const times = JSON.parse(this.dataset.times || '[]');
+            const periods = JSON.parse(this.dataset.periods || '[]');
+            
+            // Set frequency
+            document.getElementById('frequency').value = frequency;
+            
+            // Update display
+            document.getElementById('frequency-display').textContent = frequency;
+            document.getElementById('selected-frequency').classList.remove('d-none');
+            
+            // Clear existing time periods and custom times
+            document.querySelectorAll('input[name="morning"], input[name="afternoon"], input[name="evening"], input[name="night"]').forEach(cb => cb.checked = false);
+            document.getElementById('custom-times-container').innerHTML = `
+                <div class="input-group mb-2">
+                    <input type="time" class="form-control" name="custom_time[]" placeholder="HH:MM">
+                    <button type="button" class="btn btn-outline-secondary" onclick="addCustomTime()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            `;
+            
+            // Set time periods
+            periods.forEach(period => {
+                const checkbox = document.querySelector(`input[name="${period}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+            
+            // Set custom times
+            const container = document.getElementById('custom-times-container');
+            container.innerHTML = ''; // Clear first
+            times.forEach(time => {
+                const timeInput = document.createElement('div');
+                timeInput.className = 'input-group mb-2';
+                timeInput.innerHTML = `
+                    <input type="time" class="form-control" name="custom_time[]" value="${time}">
+                    <button type="button" class="btn btn-outline-danger" onclick="removeCustomTime(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(timeInput);
+            });
+            
+            // Remove active state from all buttons
+            frequencyButtons.forEach(btn => btn.classList.remove('active', 'btn-primary'));
+            frequencyButtons.forEach(btn => btn.classList.add('btn-outline-primary'));
+            
+            // Add active state to clicked button
+            this.classList.remove('btn-outline-primary');
+            this.classList.add('active', 'btn-primary');
+        });
+    });
+    
+    // Custom frequency button
+    document.querySelector('.preset-frequency-custom').addEventListener('click', function() {
+        document.getElementById('frequency').value = 'Custom';
+        document.getElementById('frequency-display').textContent = 'Custom Schedule';
+        document.getElementById('selected-frequency').classList.remove('d-none');
+        
+        // Clear all presets
+        document.querySelectorAll('.preset-frequency').forEach(btn => {
+            btn.classList.remove('active', 'btn-primary');
+            btn.classList.add('btn-outline-primary');
+        });
+        
+        // Clear all time periods and custom times
+        document.querySelectorAll('input[name="morning"], input[name="afternoon"], input[name="evening"], input[name="night"]').forEach(cb => cb.checked = false);
+        document.getElementById('custom-times-container').innerHTML = `
+            <div class="input-group mb-2">
+                <input type="time" class="form-control" name="custom_time[]" placeholder="HH:MM">
+                <button type="button" class="btn btn-outline-secondary" onclick="addCustomTime()">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    // Time preset functionality
+    const presetButtons = document.querySelectorAll('.preset-time');
+    presetButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const times = JSON.parse(this.dataset.times);
+            const container = document.getElementById('custom-times-container');
+            
+            // Clear existing custom times
+            container.innerHTML = '';
+            
+            // Add new custom times
+            times.forEach(time => {
+                const timeInput = document.createElement('div');
+                timeInput.className = 'input-group mb-2';
+                timeInput.innerHTML = `
+                    <input type="time" class="form-control" name="custom_time[]" value="${time}">
+                    <button type="button" class="btn btn-outline-danger" onclick="removeCustomTime(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(timeInput);
+            });
+        });
+    });
+});
+
+// Show confirmation dialog on form submission
+document.querySelector('form').addEventListener('submit', function(e) {
+    if (confirm('Are you sure you want to update this medication? Changes will affect future medication schedules.')) {
+        return true;
+    } else {
+        e.preventDefault();
+        return false;
+    }
+});
+</script>
+{% endblock %}

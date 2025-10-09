@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>My Medications</h2>
+    <p class="text-muted">Welcome, {{ current_user.username }}!</p>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-info">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Top action buttons -->
+    <div class="mb-3">
+        <a href="{{ url_for('medication.add_medication') }}" class="btn btn-primary">Add New Medication</a>
+        <a href="{{ url_for('medication.realtime_verification') }}" class="btn btn-success ml-2">Real-time Verification</a>
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary ml-2">Back to Dashboard</a>
+    </div>
+
+    {% if medications %}
+    <table class="table table-striped table-hover">
+        <thead class="thead-dark">
+            <tr>
+                <th>Name</th>
+                <th>Dosage</th>
+                <th>Frequency</th>
+                <th>Schedule</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for med in medications %}
+            <tr>
+                <td>{{ med.name }}</td>
+                <td>{{ med.dosage }}</td>
+                <td>{{ med.frequency }}</td>
+                <td>
+                    {% if med.morning %}<span class="badge badge-light">Morning</span>{% endif %}
+                    {% if med.afternoon %}<span class="badge badge-light">Afternoon</span>{% endif %}
+                    {% if med.evening %}<span class="badge badge-light">Evening</span>{% endif %}
+                    {% if med.night %}<span class="badge badge-light">Night</span>{% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('medication.edit_medication', id=med.id) }}" class="btn btn-sm btn-warning">Edit</a>
+                    
+                    <form action="{{ url_for('medication.confirm_medication', medication_id=med.id) }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-success">Taken</button>
+                    </form>
+                    
+                    <form action="{{ url_for('medication.delete_medication', id=med.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this medication?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                    
+                    <button class="btn btn-sm btn-info verify-btn" data-id="{{ med.id }}">Verify</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-secondary">
+        You don't have any medications added yet.
+        <a href="{{ url_for('medication.add_medication') }}" class="btn btn-sm btn-outline-primary ml-2">Add Your First Medication</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Verification button handler
+    document.querySelectorAll('.verify-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const medicationId = this.getAttribute('data-id');
+            try {
+                const response = await fetch(`/medication/verify-medication/${medicationId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                
+                alert(`Verification Result:\nSuccess: ${result.success}\nMessage: ${result.message}\nDetected Bottles: ${result.detected_bottles}\nBarcode Verified: ${result.barcode_verified}`);
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        });
+    });
+</script>
+{% endblock %}

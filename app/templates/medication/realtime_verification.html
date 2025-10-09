@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Real-time Medication Verification - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h2>Real-time Medication Verification</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label for="medication-select">Select Medication:</label>
+                <select id="medication-select" class="form-control">
+                    {% for medication in medications %}
+                    <option value="{{ medication.id }}">{{ medication.name }} - {{ medication.dosage }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mt-4">
+                <button id="start-camera" class="btn btn-primary">Start Camera</button>
+                <button id="stop-camera" class="btn btn-danger" disabled>Stop Camera</button>
+                <button id="verify-medication" class="btn btn-success" disabled>Verify Medication</button>
+            </div>
+            
+            <div class="mt-4 position-relative">
+                <video id="camera-feed" width="640" height="480" autoplay style="display: none;"></video>
+                <canvas id="detection-canvas" width="640" height="480" style="display: none; position: absolute; top: 0; left: 0;"></canvas>
+            </div>
+            
+            <div id="verification-result" class="mt-4" style="display: none;">
+                <h3>Verification Result:</h3>
+                <div id="result-message"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const startBtn = document.getElementById('start-camera');
+        const stopBtn = document.getElementById('stop-camera');
+        const verifyBtn = document.getElementById('verify-medication');
+        const video = document.getElementById('camera-feed');
+        const canvas = document.getElementById('detection-canvas');
+        const ctx = canvas.getContext('2d');
+        const resultContainer = document.getElementById('verification-result');
+        const resultMessage = document.getElementById('result-message');
+        const medicationSelect = document.getElementById('medication-select');
+        
+        let stream = null;
+        let detectionInterval = null;
+        
+        startBtn.addEventListener('click', async function() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                canvas.style.display = 'block';
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                verifyBtn.disabled = false;
+                
+                // Start real-time detection
+                detectionInterval = setInterval(captureAndDetect, 200); // Process every 200ms
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                resultContainer.style.display = 'block';
+                resultMessage.textContent = 'Error accessing camera: ' + err.message;
+                resultMessage.className = 'alert alert-danger';
+            }
+        });
+        
+        stopBtn.addEventListener('click', function() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.style.display = 'none';
+                canvas.style.display = 'none';
+                
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                verifyBtn.disabled = true;
+                
+                // Stop detection
+                if (detectionInterval) {
+                    clearInterval(detectionInterval);
+                    detectionInterval = null;
+                }
+            }
+        });
+        
+        verifyBtn.addEventListener('click', async function() {
+            const medicationId = medicationSelect.value;
+            
+            // Capture current frame
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to blob and send to server
+            canvas.toBlob(async function(blob) {
+                const formData = new FormData();
+                formData.append('image', blob, 'capture.jpg');
+                
+                try {
+                    verifyBtn.disabled = true;
+                    verifyBtn.textContent = 'Verifying...';
+                    
+                    const response = await fetch(`/medication/verify-medication/${medicationId}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    // Display result
+                    resultContainer.style.display = 'block';
+                    if (result.success) {
+                        resultMessage.textContent = 'Verification successful! ' + result.message;
+                        resultMessage.className = 'alert alert-success';
+                    } else {
+                        resultMessage.textContent = 'Verification failed: ' + result.message;
+                        resultMessage.className = 'alert alert-danger';
+                    }
+                    
+                    verifyBtn.disabled = false;
+                    verifyBtn.textContent = 'Verify Medication';
+                } catch (err) {
+                    console.error('Error during verification:', err);
+                    resultContainer.style.display = 'block';
+                    resultMessage.textContent = 'Error during verification: ' + err.message;
+                    resultMessage.className = 'alert alert-danger';
+                    
+                    verifyBtn.disabled = false;
+                    verifyBtn.textContent = 'Verify Medication';
+                }
+            }, 'image/jpeg');
+        });
+        
+        function captureAndDetect() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Get image data
+                const imageData = canvas.toDataURL('image/jpeg');
+                
+                // Send to server for detection
+                fetch('/medication/detect-pills', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Clear canvas
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Redraw video frame
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Draw detections
+                    if (data.detections && data.detections.length > 0) {
+                        ctx.strokeStyle = '#00FF00';
+                        ctx.lineWidth = 2;
+                        ctx.font = '16px Arial';
+                        ctx.fillStyle = '#00FF00';
+                        
+                        data.detections.forEach(detection => {
+                            const [x1, y1, x2, y2, confidence] = detection;
+                            
+                            // Draw bounding box
+                            ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+                            
+                            // Draw label
+                            ctx.fillText(`Pill: ${confidence.toFixed(2)}`, x1, y1 - 5);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error in detection:', error);
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

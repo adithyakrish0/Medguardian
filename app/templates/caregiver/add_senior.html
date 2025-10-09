@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Add Senior - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-3">
+                <i class="fas fa-user-plus text-primary me-2"></i>
+                Add Senior to Dashboard
+            </h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.caregiver_seniors') }}">Manage Seniors</a></li>
+                    <li class="breadcrumb-item active">Add Senior</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Add Senior Form -->
+            <div class="card shadow-sm">
+                <div class="card-body p-5">
+                    <h4 class="card-title mb-4">
+                        <i class="fas fa-user-plus text-primary me-2"></i>
+                        Add Senior Citizen
+                    </h4>
+                    
+                    <form method="POST" action="{{ url_for('main.add_senior') }}" class="needs-validation" novalidate>
+                        <!-- Senior Username -->
+                        <div class="mb-4">
+                            <label for="senior_username" class="form-label">
+                                <i class="fas fa-user me-2"></i>Senior Username
+                            </label>
+                            <input type="text" class="form-control" id="senior_username" name="senior_username" 
+                                   required placeholder="Enter senior's username">
+                            <div class="form-text">
+                                The username of the senior citizen you want to add to your dashboard
+                            </div>
+                            <div class="invalid-feedback">
+                                Please enter the username of the senior citizen
+                            </div>
+                        </div>
+
+                        <!-- Relationship Type -->
+                        <div class="mb-4">
+                            <label for="relationship_type" class="form-label">
+                                <i class="fas fa-heart me-2"></i>Relationship Type
+                            </label>
+                            <select class="form-select" id="relationship_type" name="relationship_type" required>
+                                <option value="" disabled selected>Select your relationship...</option>
+                                <option value="primary">Primary Caregiver</option>
+                                <option value="family">Family Member</option>
+                                <option value="friend">Friend</option>
+                                <option value="professional">Professional Caregiver</option>
+                                <option value="volunteer">Volunteer</option>
+                            </select>
+                            <div class="invalid-feedback">
+                                Please select your relationship type
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-4">
+                            <label for="notes" class="form-label">
+                                <i class="fas fa-sticky-note me-2"></i>Notes (Optional)
+                            </label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                      placeholder="Any additional information about this relationship or the senior..."></textarea>
+                            <div class="form-text">
+                                Add any special notes, emergency contacts, or important information
+                            </div>
+                        </div>
+
+                        <!-- Available Seniors Info -->
+                        {% if available_seniors %}
+                            <div class="alert alert-info mb-4">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Available Seniors:</strong> Select one of the following usernames:
+                                <div class="mt-2">
+                                    {% for senior in available_seniors %}
+                                        <span class="badge bg-primary me-1">{{ senior.username }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning mb-4">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>No available seniors found.</strong> All registered senior citizens are already assigned to you.
+                                <div class="mt-2">
+                                    <a href="{{ url_for('main.caregiver_seniors') }}" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-list me-2"></i>View Current Assignments
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" 
+                                    {% if not available_seniors %}disabled{% endif %}>
+                                <i class="fas fa-user-plus me-2"></i>Add Senior to Dashboard
+                            </button>
+                            <a href="{{ url_for('main.caregiver_seniors') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Manage Seniors
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Info Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-info-circle text-primary me-2"></i>
+                        How to Add a Senior
+                    </h5>
+                    <ol class="small">
+                        <li>Make sure the senior citizen is already registered on the platform</li>
+                        <li>Enter their exact username</li>
+                        <li>Specify your relationship to them</li>
+                        <li>Add any relevant notes (optional)</li>
+                        <li>Click "Add Senior to Dashboard"</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <!-- Requirements Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        Requirements
+                    </h5>
+                    <ul class="small">
+                        <li>The senior must have a registered account</li>
+                        <li>Their account role must be "Senior Citizen"</li>
+                        <li>They must not be already assigned to you</li>
+                        <li>You must know their exact username</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Help Card -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-question-circle text-info me-2"></i>
+                        Need Help?
+                    </h5>
+                    <p class="small">
+                        If you don't see the senior you're looking for, make sure they've registered first and that you have their correct username.
+                    </p>
+                    <p class="small">
+                        <a href="#" class="text-primary">Learn more about managing seniors</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()
+</script>
+{% endblock %}
