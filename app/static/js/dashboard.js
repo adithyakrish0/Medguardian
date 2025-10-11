@@ -348,10 +348,11 @@ function markMedicationTaken() {
 }
 
 function snoozeReminder() {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('medicationReminderModal'));
-    modal.hide();
+    // Get modal instance and hide it properly
+    const modalElement = document.getElementById('medicationReminderModal');
+    const modal = bootstrap.Modal.getInstance(modalElement);
     
-    // Stop alarm sound
+    // Stop any existing alarm sound
     const alarmSound = document.getElementById('alarmSound');
     if (alarmSound) {
         alarmSound.pause();
@@ -364,19 +365,31 @@ function snoozeReminder() {
         alarmBanner.style.display = 'none';
     }
     
+    // Hide modal properly
+    if (modal) {
+        modal.hide();
+    }
+    
+    // Clear any existing snooze interval
+    if (window.snoozeInterval) {
+        clearInterval(window.snoozeInterval);
+    }
+    
     // Show snooze message
     const infoElement = document.getElementById('next-medication-info');
     infoElement.innerHTML = "<p class='mb-0 text-warning'><strong>⏰ Reminder snoozed for 5 minutes</strong></p>" +
                            "<small class='text-muted'>We'll remind you again soon.</small>";
     
+    // Reset timer style
+    const timerElement = document.getElementById('countdown-timer');
+    timerElement.className = "display-1 fw-bold text-warning mb-2 animate-pulse";
+    
     // Reset timer to snooze time (5 minutes from now)
     const now = new Date().getTime();
     const snoozeTime = now + (5 * 60 * 1000); // 5 minutes
-    const timerElement = document.getElementById('countdown-timer');
-    const progressElement = document.getElementById('countdown-progress');
     
     // Update countdown every second
-    const snoozeInterval = setInterval(() => {
+    window.snoozeInterval = setInterval(() => {
         const currentTime = new Date().getTime();
         const difference = snoozeTime - currentTime;
         
@@ -391,13 +404,27 @@ function snoozeReminder() {
             
             // Update progress bar
             const snoozeProgress = Math.min(100, ((5 * 60 * 1000 - difference) / (5 * 60 * 1000)) * 100);
-            progressElement.style.width = snoozeProgress + "%";
+            const progressElement = document.getElementById('countdown-progress');
+            if (progressElement) {
+                progressElement.style.width = snoozeProgress + "%";
+            }
         } else {
             // Snooze time is up
-            clearInterval(snoozeInterval);
+            clearInterval(window.snoozeInterval);
+            delete window.snoozeInterval;
+            
             timerElement.textContent = "00:00:00";
-            progressElement.style.width = "100%";
-            showTimeUpAlarm(); // Show the alarm again
+            timerElement.className = "display-1 fw-bold text-danger mb-2 animate-pulse";
+            
+            const progressElement = document.getElementById('countdown-progress');
+            if (progressElement) {
+                progressElement.style.width = "100%";
+            }
+            
+            // Show the alarm again after a short delay
+            setTimeout(() => {
+                showTimeUpAlarm();
+            }, 1000);
         }
     }, 1000);
 }
