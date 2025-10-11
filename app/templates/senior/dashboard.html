@@ -91,6 +91,28 @@
         </div>
     </div>
 
+    <!-- Next Medication Countdown -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-primary">
+                <div class="card-body text-center py-4">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-clock text-primary me-2"></i>Next Medication
+                    </h5>
+                    <div id="countdown-timer" class="display-1 fw-bold text-primary mb-2">
+                        --:--:--
+                    </div>
+                    <div id="next-medication-info" class="text-muted">
+                        <p class="mb-0">No upcoming medications scheduled</p>
+                    </div>
+                    <div class="progress mt-3" style="height: 10px;">
+                        <div id="countdown-progress" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Today's Schedule -->
     <div class="row mb-4">
         <div class="col-lg-8">
@@ -110,21 +132,33 @@
                                         <div>
                                             <h6 class="mb-1">{{ med.name }}</h6>
                                             <small class="text-muted">{{ med.dosage }} • {{ med.frequency }}</small>
+                                            {% if med.scheduled_times %}
+                                                <br><small class="text-info"><i class="fas fa-clock me-1"></i>
+                                                    {% for time_info in med.scheduled_times %}
+                                                        {{ time_info.time }}{% if not loop.last %}, {% endif %}
+                                                    {% endfor %}
+                                                </small>
+                                            {% endif %}
                                             {% if med.instructions %}
                                                 <br><small class="text-info"><i class="fas fa-info-circle me-1"></i>{{ med.instructions }}</small>
                                             {% endif %}
                                         </div>
                                     </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        {% if med.taken %}
-                                            <span class="badge bg-success">Taken</span>
-                                        {% else %}
-                                            <span class="badge bg-warning">Pending</span>
-                                        {% endif %}
-                                        <button class="btn btn-sm btn-outline-primary" onclick="confirmMedication({{ med.id }})">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                    </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            {% if med.taken %}
+                                                <span class="badge bg-success">Taken</span>
+                                            {% elif med.is_available %}
+                                                <span class="badge bg-warning">Pending</span>
+                                                <button class="btn btn-sm btn-outline-primary" onclick="confirmMedication({{ med.id }})" title="Mark as taken">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            {% else %}
+                                                <span class="badge bg-secondary" data-bs-toggle="tooltip" title="{{ med.availability_reason }}">Scheduled</span>
+                                                <button class="btn btn-sm btn-outline-secondary" disabled title="Not yet available - {{ med.availability_reason }}">
+                                                    <i class="fas fa-clock"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
                                 </div>
                             {% endfor %}
                         </div>
@@ -143,35 +177,58 @@
             <div class="card shadow-sm">
                 <div class="card-header bg-info text-white">
                     <h4 class="mb-0">
-                        <i class="fas fa-clock me-2"></i>Upcoming
+                        <i class="fas fa-clock me-2"></i>Next Upcoming Doses
                     </h4>
+                    <small class="opacity-75">Next 6 doses within 24 hours</small>
                 </div>
                 <div class="card-body">
                     {% if upcoming_medications %}
                         <div class="list-group list-group-flush">
-                            {% for med in upcoming_medications[:3] %}
-                                <div class="list-group-item">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
+                            {% for med in upcoming_medications %}
+                                <div class="list-group-item {% if loop.first %}border-primary border-start-3 border-end-3 border-bottom-3{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
                                             <h6 class="mb-1">{{ med.name }}</h6>
-                                            <small class="text-muted">{{ med.time }}</small>
+                                            <small class="text-muted d-block">
+                                                <i class="fas fa-pills me-1"></i>{{ med.dosage }}
+                                            </small>
+                                            <div class="d-flex align-items-center gap-2 mt-1">
+                                                {% if med.is_custom %}
+                                                    <span class="badge bg-success" title="Custom time">
+                                                        <i class="fas fa-clock me-1"></i>Custom
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-primary" title="Scheduled time">
+                                                        <i class="fas fa-calendar me-1"></i>{{ med.period }}
+                                                    </span>
+                                                {% endif %}
+                                                <small class="text-info">
+                                                    <i class="fas fa-clock me-1"></i>{{ med.time }}
+                                                </small>
+                                            </div>
                                         </div>
-                                        <i class="fas fa-bell text-info"></i>
+                                        <div class="text-end">
+                                            {% if loop.first %}
+                                                <span class="badge bg-warning text-dark">Next</span>
+                                            {% endif %}
+                                            <i class="fas fa-chevron-right text-muted mt-2"></i>
+                                        </div>
                                     </div>
                                 </div>
                             {% endfor %}
-                            {% if upcoming_medications|length > 3 %}
-                                <div class="text-center mt-3">
-                                    <a href="{{ url_for('medication.list_medications') }}" class="btn btn-sm btn-outline-info">
-                                        View All
-                                    </a>
-                                </div>
-                            {% endif %}
                         </div>
+                        {% if upcoming_medications|length >= 6 %}
+                            <div class="text-center mt-3">
+                                <a href="{{ url_for('medication.list_medications') }}" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-list me-1"></i>View All Medications
+                                </a>
+                            </div>
+                        {% endif %}
                     {% else %}
                         <div class="text-center py-4">
-                            <i class="fas fa-bell-slash text-muted" style="font-size: 3rem;"></i>
-                            <p class="mt-3 text-muted">No upcoming medications</p>
+                            <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                            <p class="mt-3 text-muted">No medications scheduled for the next 24 hours</p>
+                            <small class="text-info">✅ Rest day - no doses due</small>
                         </div>
                     {% endif %}
                 </div>
@@ -245,183 +302,11 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<!-- Hidden data element for upcoming medications -->
+<div id="upcoming-medications-data" data-medications='{{ upcoming_medications|tojson|safe }}'></div>
 <script>
-let currentMedicationId = null;
-let socket = null;
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize socket connection for real-time alarms
-    socket = io();
-    
-    // Listen for medication alarms
-    socket.on('medication_alarm', function(data) {
-        showMedicationAlarm(data);
-    });
-    
-    // Listen for audio alarms
-    socket.on('audio_alarm', function(data) {
-        playAudioAlarm(data);
-    });
-    
-    // Listen for browser notifications
-    socket.on('browser_notification', function(data) {
-        showBrowserNotification(data);
-    });
-    
-    // Initialize compliance chart
-    initializeComplianceChart();
-});
-
-function showMedicationAlarm(data) {
-    const banner = document.getElementById('alarmBanner');
-    const message = document.getElementById('alarmMessage');
-    
-    if (data.medication) {
-        message.innerHTML = `
-            <strong>${data.medication.name}</strong> (${data.medication.dosage}) - ${data.medication.instructions || 'No specific instructions'}
-            <br><small class="text-muted">Alarm triggered at ${data.time}</small>
-        `;
-        
-        banner.style.display = 'block';
-        banner.scrollIntoView({ behavior: 'smooth' });
-        
-        // Play audio alarm
-        playAlarmSound(data.medication.priority);
-    }
-}
-
-function acknowledgeAlarm() {
-    const banner = document.getElementById('alarmBanner');
-    const activeAlarm = getActiveAlarm();
-    
-    if (activeAlarm) {
-        fetch(`/medication/acknowledge-alarm/${activeAlarm.medication.id}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                banner.style.display = 'none';
-                updateMedicationStatus(activeAlarm.medication.id, 'taken');
-            }
-        });
-    }
-}
-
-function snoozeAlarm() {
-    const banner = document.getElementById('alarmBanner');
-    banner.style.display = 'none';
-    
-    // Optionally, snooze for 5 minutes
-    setTimeout(() => {
-        banner.style.display = 'block';
-    }, 5 * 60 * 1000); // 5 minutes
-}
-
-function confirmMedication(medicationId) {
-    currentMedicationId = medicationId;
-    const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
-    modal.show();
-}
-
-function confirmMedicationSubmit() {
-    if (currentMedicationId) {
-        fetch(`/medication/confirm-medication/${currentMedicationId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error confirming medication');
-            }
-        });
-    }
-    bootstrap.Modal.getInstance(document.getElementById('confirmationModal')).hide();
-}
-
-function updateMedicationStatus(medicationId, status) {
-    const medicationElement = document.getElementById(`medication-${medicationId}`);
-    if (medicationElement) {
-        const badge = medicationElement.querySelector('.badge');
-        if (badge) {
-            badge.className = `badge bg-${status === 'taken' ? 'success' : 'warning'}`;
-            badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-        }
-    }
-}
-
-function getActiveAlarm() {
-    // This would typically come from the backend
-    return {
-        medication: {
-            id: currentMedicationId,
-            name: 'Sample Medication',
-            dosage: '10mg',
-            priority: 'medium'
-        }
-    };
-}
-
-function playAlarmSound(priority) {
-    const audio = new Audio('/static/audio/alarm.mp3');
-    audio.volume = priority === 'critical' ? 0.8 : 0.5;
-    audio.play().catch(e => console.log('Audio play failed:', e));
-}
-
-function showBrowserNotification(data) {
-    if ('Notification' in window) {
-        if (Notification.permission === 'granted') {
-            new Notification(data.title, {
-                body: data.body,
-                icon: '/static/images/pill-icon.png'
-            });
-        } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                    new Notification(data.title, {
-                        body: data.body,
-                        icon: '/static/images/pill-icon.png'
-                    });
-                }
-            });
-        }
-    }
-}
-
-function initializeComplianceChart() {
-    const ctx = document.getElementById('complianceChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Taken', 'Missed'],
-            datasets: [{
-                data: [{{ taken_count }}, {{ missed_count }}],
-                backgroundColor: ['#28a745', '#ffc107'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-}
-
-function showReminderSettings() {
-    alert('Reminder settings coming soon!');
-}
+// Set global variable for upcoming medications with error handling
+window.upcomingMedications = JSON.parse('{{ upcoming_medications|tojson|safe }}' || '[]');
 </script>
 {% endblock %}
