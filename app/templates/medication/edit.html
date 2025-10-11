@@ -184,30 +184,33 @@
 
                             <!-- Custom Times -->
                             <div class="mb-3">
-                                <label class="form-label small">Or specify exact times:</label>
-                                <div id="custom-times-container">
-                                    <div class="input-group mb-2">
-                                        <input type="time" class="form-control" name="custom_time[]" placeholder="HH:MM">
-                                        <button type="button" class="btn btn-outline-secondary" onclick="addCustomTime()">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
+                                <label class="form-label small">
+                                    <i class="fas fa-clock me-1"></i>Custom Reminder Times
+                                </label>
+                                <div id="custom-times-container" data-existing-times="{{ medication.custom_times or '' }}">
+                                    <!-- Pre-populated custom times will be loaded here -->
                                 </div>
-                                <small class="text-muted">Add specific times (e.g., 08:30, 14:15, 20:00)</small>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addCustomTime()">
+                                    <i class="fas fa-plus me-1"></i>Add Custom Time
+                                </button>
+                                <small class="text-muted mt-2 d-block">Set specific times (e.g., 09:54, 14:30, 21:00). Leave time periods unchecked for custom times only.</small>
                             </div>
 
                             <!-- Quick Time Presets -->
                             <div class="mb-3">
-                                <label class="form-label small">Quick presets:</label>
+                                <label class="form-label small">Quick preset times:</label>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["08:00"]'>Morning</button>
-                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["12:00", "18:00"]'>Twice Daily</button>
-                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["08:00", "12:00", "18:00"]'>Three Times</button>
-                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["08:00", "12:00", "16:00", "20:00"]'>Four Times</button>
+                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["08:00"]'>8:00 AM</button>
+                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["12:00"]'>12:00 PM</button>
+                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["18:00"]'>6:00 PM</button>
+                                    <button type="button" class="btn btn-outline-primary preset-time" data-times='["21:00"]'>9:00 PM</button>
                                 </div>
                             </div>
 
-                            <div class="form-text mt-2">You can select time periods AND/OR add specific custom times</div>
+                            <div class="form-text mt-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <strong>Recommendation:</strong> For precise timing, use custom times instead of time periods.
+                            </div>
                         </div>
 
                         <!-- Start Date -->
@@ -411,8 +414,38 @@ function removeCustomTime(button) {
     button.parentElement.remove();
 }
 
-// Quick preset functionality
+// Load existing custom times when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Load existing custom times from data attribute
+    const container = document.getElementById('custom-times-container');
+    const existingTimesData = container.getAttribute('data-existing-times');
+    
+    let existingCustomTimes = [];
+    if (existingTimesData) {
+        try {
+            existingCustomTimes = JSON.parse(existingTimesData);
+        } catch (e) {
+            console.error('Error parsing custom times:', e);
+            existingCustomTimes = [];
+        }
+    }
+    
+    if (existingCustomTimes && existingCustomTimes.length > 0) {
+        container.innerHTML = ''; // Clear any existing inputs
+        
+        existingCustomTimes.forEach(time => {
+            const timeInput = document.createElement('div');
+            timeInput.className = 'input-group mb-2';
+            timeInput.innerHTML = `
+                <input type="time" class="form-control" name="custom_time[]" value="${time}">
+                <button type="button" class="btn btn-outline-danger" onclick="removeCustomTime(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(timeInput);
+        });
+    }
+    
     // Frequency preset functionality
     const frequencyButtons = document.querySelectorAll('.preset-frequency');
     frequencyButtons.forEach(button => {
