@@ -277,12 +277,60 @@ function showNoMedications() {
 function showTimeUpAlarm() {
     const timerElement = document.getElementById('countdown-timer');
     const infoElement = document.getElementById('next-medication-info');
+    const modal = document.getElementById('medicationReminderModal');
+    const alarmSound = document.getElementById('alarmSound');
     
+    // Update countdown display
     timerElement.className = "display-1 fw-bold text-danger mb-2 animate-pulse";
     infoElement.innerHTML = "<p class='mb-0 text-danger'><strong>⚠️ Time to take your medication!</strong></p>" +
-                           "<small class='text-muted'>Page will refresh in 5 seconds...</small>";
+                           "<small class='text-muted'>Modal will appear shortly...</small>";
     
-    // Show alarm banner if it exists
+    // Set medication details in modal if available
+    if (window.upcomingMedications && window.upcomingMedications.length > 0) {
+        const nextMed = window.upcomingMedications[0];
+        document.getElementById('reminderMedicationName').textContent = `Time to take ${nextMed.name}`;
+        document.getElementById('reminderMedicationDetails').textContent = `${nextMed.dosage} • ${nextMed.period} • ${nextMed.time}`;
+    }
+    
+    // Play alarm sound
+    try {
+        if (alarmSound) {
+            // Reset and play sound
+            alarmSound.currentTime = 0;
+            alarmSound.play().catch(e => console.log('Audio play failed:', e));
+            
+            // Loop sound for 10 seconds
+            let playCount = 0;
+            const maxPlays = 20; // 10 seconds (20 * 500ms)
+            const playInterval = setInterval(() => {
+                if (playCount < maxPlays) {
+                    alarmSound.currentTime = 0;
+                    alarmSound.play().catch(e => console.log('Audio play failed:', e));
+                    playCount++;
+                } else {
+                    clearInterval(playInterval);
+                }
+            }, 500);
+        }
+    } catch (e) {
+        console.log('Audio error:', e);
+    }
+    
+    // Show the modal after a short delay
+    setTimeout(() => {
+        if (modal) {
+            const modalInstance = new bootstrap.Modal(modal);
+            modalInstance.show();
+            
+            // Focus on the "I've Taken It" button
+            const takenButton = modal.querySelector('.btn-success');
+            if (takenButton) {
+                takenButton.focus();
+            }
+        }
+    }, 1000);
+    
+    // Also show alarm banner for additional visibility
     const alarmBanner = document.getElementById('alarmBanner');
     if (alarmBanner) {
         alarmBanner.style.display = 'block';
@@ -290,6 +338,101 @@ function showTimeUpAlarm() {
     }
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// New functions for modal interactions
+function markMedicationTaken() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('medicationReminderModal'));
+    modal.hide();
+    
+    // Get the first medication ID from upcoming medications
+    if (window.upcomingMedications && window.upcomingMedications.length > 0) {
+        const firstMedId = window.upcomingMedications[0].id;
+        confirmMedication(firstMedId);
+    }
+}
+
+function snoozeReminder() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('medicationReminderModal'));
+    modal.hide();
+    
+    // Stop alarm sound
+    const alarmSound = document.getElementById('alarmSound');
+    if (alarmSound) {
+        alarmSound.pause();
+        alarmSound.currentTime = 0;
+    }
+    
+    // Hide alarm banner
+    const alarmBanner = document.getElementById('alarmBanner');
+    if (alarmBanner) {
+        alarmBanner.style.display = 'none';
+    }
+    
+    // Show snooze message
+    const infoElement = document.getElementById('next-medication-info');
+    infoElement.innerHTML = "<p class='mb-0 text-warning'><strong>⏰ Reminder snoozed for 5 minutes</strong></p>" +
+                           "<small class='text-muted'>We'll remind you again soon.</small>";
+    
+    // Reset timer to snooze time (5 minutes from now)
+    const now = new Date().getTime();
+    const snoozeTime = now + (5 * 60 * 1000); // 5 minutes
+    const timerElement = document.getElementById('countdown-timer');
+    const progressElement = document.getElementById('countdown-progress');
+    
+    // Update countdown every second
+    const snoozeInterval = setInterval(() => {
+        const currentTime = new Date().getTime();
+        const difference = snoozeTime - currentTime;
+        
+        if (difference > 0) {
+            const hours = Math.floor(difference / (1000 * 60 * 60));
+            const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+            
+            timerElement.textContent = hours.toString().padStart(2, '0') + ":" + 
+                                     minutes.toString().padStart(2, '0') + ":" + 
+                                     seconds.toString().padStart(2, '0');
+            
+            // Update progress bar
+            const snoozeProgress = Math.min(100, ((5 * 60 * 1000 - difference) / (5 * 60 * 1000)) * 100);
+            progressElement.style.width = snoozeProgress + "%";
+        } else {
+            // Snooze time is up
+            clearInterval(snoozeInterval);
+            timerElement.textContent = "00:00:00";
+            progressElement.style.width = "100%";
+            showTimeUpAlarm(); // Show the alarm again
+        }
+    }, 1000);
+}
+
+function dismissReminder() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('medicationReminderModal'));
+    modal.hide();
+    
+    // Stop alarm sound
+    const alarmSound = document.getElementById('alarmSound');
+    if (alarmSound) {
+        alarmSound.pause();
+        alarmSound.currentTime = 0;
+    }
+    
+    // Hide alarm banner
+    const alarmBanner = document.getElementById('alarmBanner');
+    if (alarmBanner) {
+        alarmBanner.style.display = 'none';
+    }
+    
+    // Show dismissed message
+    const infoElement = document.getElementById('next-medication-info');
+    infoElement.innerHTML = "<p class='mb-0 text-muted'>⏰ Reminder dismissed</p>" +
+                           "<small class='text-muted'>You'll be reminded at the next scheduled time.</small>";
+    
+    // Reset to normal state
+    setTimeout(() => {
+        showNoMedications();
+    }, 3000);
 }
 
 function initializeComplianceChart() {
