@@ -254,13 +254,8 @@ function updateCountdown(targetTime, timerElement, infoElement, progressElement)
         timerElement.textContent = "00:00:00";
         progressElement.style.width = "100%";
         
-        // Time's up - show alarm
+        // Time's up - show alarm (no automatic refresh!)
         showTimeUpAlarm();
-        
-        // Refresh the page to update medication states
-        setTimeout(function() {
-            location.reload();
-        }, 5000);
     }
 }
 
@@ -299,9 +294,9 @@ function showTimeUpAlarm() {
             alarmSound.currentTime = 0;
             alarmSound.play().catch(e => console.log('Audio play failed:', e));
             
-            // Loop sound for 10 seconds
+            // Loop sound for 15 seconds for better attention
             let playCount = 0;
-            const maxPlays = 20; // 10 seconds (20 * 500ms)
+            const maxPlays = 30; // 15 seconds (30 * 500ms)
             const playInterval = setInterval(() => {
                 if (playCount < maxPlays) {
                     alarmSound.currentTime = 0;
