@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+
+{% block title %}Medication Reminder - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-0">
+    <!-- Full Screen Medication Reminder -->
+    <div class="min-vh-100 d-flex flex-column bg-gradient-to-br from-blue-50 to-indigo-100">
+        <!-- Header Section -->
+        <div class="text-center py-5">
+            <div class="mb-4">
+                <div class="display-1 text-primary mb-3">
+                    <i class="fas fa-pills"></i>
+                </div>
+                <h1 class="display-4 fw-bold text-primary mb-2">
+                    Time for Your Medication
+                </h1>
+                <p class="lead text-muted">
+                    Please take your medication as scheduled
+                </p>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-grow-1 container">
+            <div class="row justify-content-center align-items-center min-vh-50">
+                <div class="col-lg-10">
+                    <!-- Main Medication Card -->
+                    <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                        <div class="card-body p-5">
+                            <!-- Medication Information -->
+                            <div class="text-center mb-5">
+                                <div class="mb-4">
+                                    <div class="display-3 fw-bold text-primary mb-3">
+                                        {{ medication.name|default("Your Medication") }}
+                                    </div>
+                                    <div class="h4 text-muted mb-3">
+                                        {{ medication.dosage|default("Dosage information") }}
+                                    </div>
+                                    <div class="h5 text-muted">
+                                        <i class="far fa-clock me-2"></i>
+                                        {{ medication.time|default("Now") }}
+                                    </div>
+                                </div>
+                                
+                                <!-- Priority Indicator -->
+                                {% if medication.priority == 'critical' %}
+                                <div class="alert alert-danger border-0 rounded-3 mb-4">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Critical Medication</strong> - Please take as soon as possible
+                                </div>
+                                {% elif medication.priority == 'high' %}
+                                <div class="alert alert-warning border-0 rounded-3 mb-4">
+                                    <i class="fas fa-exclamation-circle me-2"></i>
+                                    <strong>High Priority</strong> - Important to take on time
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-grid gap-3 mb-5">
+                                <button type="button" class="btn btn-success btn-lg rounded-3 py-3" id="taken-btn">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <span class="fs-5 fw-bold">I've Taken It</span>
+                                </button>
+                                
+                                <button type="button" class="btn btn-warning btn-lg rounded-3 py-3" id="snooze-btn">
+                                    <i class="fas fa-clock me-2"></i>
+                                    <span class="fs-5 fw-bold">Snooze for 5 minutes</span>
+                                </button>
+                                
+                                <button type="button" class="btn btn-outline-secondary btn-lg rounded-3 py-3" id="dismiss-btn">
+                                    <i class="fas fa-times-circle me-2"></i>
+                                    <span class="fs-5 fw-bold">Dismiss for now</span>
+                                </button>
+                            </div>
+
+                            <!-- Progress Section -->
+                            <div class="mb-5">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">Reminder Progress</span>
+                                    <span class="text-muted" id="time-remaining">5:00</span>
+                                </div>
+                                <div class="progress rounded-3" style="height: 10px;">
+                                    <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" style="width: 0%" id="progress-bar"></div>
+                                </div>
+                            </div>
+
+                            <!-- Medication Details -->
+                            <div class="row mb-5">
+                                <div class="col-md-6">
+                                    <div class="card bg-light rounded-3 h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-calendar-alt fa-2x text-primary mb-3"></i>
+                                            <h6 class="card-title">Frequency</h6>
+                                            <p class="card-text fs-5">{{ medication.frequency|default("Not specified") }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-light rounded-3 h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-book-medical fa-2x text-primary mb-3"></i>
+                                            <h6 class="card-title">Special Instructions</h6>
+                                            <p class="card-text fs-5">{{ medication.instructions|default("None") }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interaction Warnings Section -->
+                    {% if interactions %}
+                    <div class="card shadow border-0 rounded-4 mt-4 overflow-hidden">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-exclamation-triangle text-warning fa-2x me-3"></i>
+                                <div>
+                                    <h5 class="mb-1">Medication Interaction Warnings</h5>
+                                    <p class="text-muted mb-0">Please be aware of potential interactions</p>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                {% for interaction in interactions[:3] %} {# Show top 3 interactions #}
+                                <div class="col-md-4 mb-3">
+                                    <div class="alert alert-sm 
+                                        {% if interaction.severity == 'critical' %}alert-danger{% endif %}
+                                        {% if interaction.severity == 'major' %}alert-warning{% endif %}
+                                        {% if interaction.severity == 'moderate' %}alert-info{% endif %}
+                                        {% if interaction.severity == 'minor' %}alert-secondary{% endif %}
+                                        border-0 rounded-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-exclamation-circle me-2"></i>
+                                            <div>
+                                                <strong>{{ interaction.medication1 }} + {{ interaction.medication2 }}</strong>
+                                                <div class="small">{{ interaction.severity|upper }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2 small">
+                                            {{ interaction.description|truncate(80) }}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="text-center">
+                                <a href="{{ url_for('main.dashboard') }}#interaction-checker" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    View All Interactions
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Help Section -->
+                    <div class="card bg-light border-0 rounded-4 mt-4">
+                        <div class="card-body text-center">
+                            <h6 class="card-title mb-3">
+                                <i class="fas fa-question-circle text-primary me-2"></i>
+                                Need Help?
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <i class="fas fa-phone fa-2x text-primary mb-2"></i>
+                                        <p class="mb-0 small">Contact your doctor</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <i class="fas fa-user-md fa-2x text-primary mb-2"></i>
+                                        <p class="mb-0 small">Talk to pharmacist</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <i class="fas fa-book fa-2x text-primary mb-2"></i>
+                                        <p class="mb-0 small">Read instructions</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center py-4">
+            <p class="text-muted mb-0">
+                MedGuardian - Your Medication Management Companion
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Audio Element -->
+<audio id="alarmSound" preload="auto">
+    <source src="/static/audio/alarm.mp3" type="audio/mpeg">
+    <source src="/static/audio/alarm.wav" type="audio/wav">
+</audio>
+
+<style>
+body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+.bg-gradient-to-br {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
+}
+
+.display-1 {
+    font-size: 4rem;
+    font-weight: bold;
+}
+
+.display-3 {
+    font-size: 3rem;
+    font-weight: bold;
+}
+
+.display-4 {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.h4 {
+    font-size: 1.5rem;
+}
+
+.h5 {
+    font-size: 1.25rem;
+}
+
+.fs-5 {
+    font-size: 1.25rem;
+}
+
+.btn-lg {
+    font-size: 1.25rem;
+    padding: 1rem 2rem;
+}
+
+.card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.alert-sm {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+}
+
+/* Animation for taken button */
+@keyframes checkmark {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.taken-animation {
+    animation: checkmark 0.5s ease;
+}
+
+/* Pulse animation for warning */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Parse medication data from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const medicationParam = urlParams.get('medication');
+    const interactionsParam = urlParams.get('interactions');
+    
+    let medication = {};
+    let interactions = [];
+    
+    try {
+        if (medicationParam) {
+            medication = JSON.parse(medicationParam);
+        }
+    } catch (error) {
+        console.error('Error parsing medication data:', error);
+        medication = {
+            id: 0,
+            name: 'Your Medication',
+            dosage: 'Unknown dosage',
+            frequency: 'Unknown frequency',
+            instructions: 'Take as directed',
+            time: 'Now',
+            priority: 'medium'
+        };
+    }
+    
+    try {
+        if (interactionsParam) {
+            interactions = JSON.parse(interactionsParam);
+        }
+    } catch (error) {
+        console.error('Error parsing interactions data:', error);
+        interactions = [];
+    }
+
+    let countdownInterval;
+    let snoozeInterval;
+    let timeRemaining = 5 * 60; // 5 minutes in seconds
+
+    // DOM Elements
+    const takenBtn = document.getElementById('taken-btn');
+    const snoozeBtn = document.getElementById('snooze-btn');
+    const dismissBtn = document.getElementById('dismiss-btn');
+    const timeRemainingEl = document.getElementById('time-remaining');
+    const progressBar = document.getElementById('progress-bar');
+    const alarmSound = document.getElementById('alarmSound');
+
+    // Event Listeners
+    takenBtn.addEventListener('click', markMedicationTaken);
+    snoozeBtn.addEventListener('click', snoozeReminder);
+    dismissBtn.addEventListener('click', dismissReminder);
+
+    // Start countdown
+    startCountdown();
+
+    // Play alarm sound
+    playAlarmSound();
+
+    // Start countdown timer
+    function startCountdown() {
+        countdownInterval = setInterval(() => {
+            timeRemaining--;
+            updateCountdownDisplay();
+            
+            if (timeRemaining <= 0) {
+                clearInterval(countdownInterval);
+                dismissReminder();
+            }
+        }, 1000);
+    }
+
+    function updateCountdownDisplay() {
+        const minutes = Math.floor(timeRemaining / 60);
+        const seconds = timeRemaining % 60;
+        timeRemainingEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        const progress = ((5 * 60 - timeRemaining) / (5 * 60)) * 100;
+        progressBar.style.width = `${progress}%`;
+    }
+
+    // Play alarm sound
+    function playAlarmSound() {
+        try {
+            alarmSound.currentTime = 0;
+            alarmSound.play().catch(error => {
+                console.warn('Alarm sound play failed:', error);
+            });
+        } catch (error) {
+            console.warn('Alarm sound error:', error);
+        }
+    }
+
+    // Stop alarm sound
+    function stopAlarmSound() {
+        try {
+            alarmSound.pause();
+            alarmSound.currentTime = 0;
+        } catch (error) {
+            console.warn('Error stopping alarm sound:', error);
+        }
+    }
+
+    // Mark medication as taken
+    async function markMedicationTaken() {
+        console.log('Marking medication as taken...');
+        
+        try {
+            // Add animation
+            takenBtn.classList.add('taken-animation');
+            
+            // Stop alarm and countdown
+            stopAlarmSound();
+            clearInterval(countdownInterval);
+            
+            // Confirm medication via API
+            const response = await fetch(`/medication/confirm-medication/${medication.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show success state
+                takenBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i><span class="fs-5 fw-bold">✓ Taken Successfully!</span>';
+                takenBtn.classList.remove('btn-success');
+                takenBtn.classList.add('btn-success');
+                takenBtn.disabled = true;
+                
+                snoozeBtn.disabled = true;
+                dismissBtn.disabled = true;
+                
+                // Redirect after successful confirmation
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('main.dashboard') }}";
+                }, 2000);
+            } else {
+                throw new Error(data.message || 'Failed to confirm medication');
+            }
+        } catch (error) {
+            console.error('Error marking medication taken:', error);
+            alert('Failed to mark medication as taken. Please try again.');
+        }
+    }
+
+    // Snooze reminder
+    async function snoozeReminder() {
+        console.log('Snoozing reminder for 5 minutes...');
+        
+        try {
+            // Stop alarm and countdown
+            stopAlarmSound();
+            clearInterval(countdownInterval);
+            
+            // Create snooze record
+            const response = await fetch('/snooze/create-snooze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    medication_id: medication.id,
+                    snooze_duration_minutes: 5,
+                    original_medication_time: new Date().toISOString()
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show snooze state
+                document.querySelector('.display-4').textContent = '⏰ Reminder Snoozed';
+                document.querySelector('.lead.text-muted').textContent = 'See you in 5 minutes!';
+                
+                takenBtn.style.display = 'none';
+                snoozeBtn.innerHTML = '<i class="fas fa-check me-2"></i><span class="fs-5 fw-bold">✓ Snoozed</span>';
+                snoozeBtn.disabled = true;
+                dismissBtn.disabled = true;
+                
+                // Store snooze data globally
+                window.activeSnooze = {
+                    id: data.snooze_id,
+                    medication_name: medication.name,
+                    dosage: medication.dosage,
+                    snooze_until: data.snooze_until
+                };
+                
+                // Redirect after snooze
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('main.dashboard') }}";
+                }, 2000);
+            } else {
+                throw new Error(data.message || 'Failed to create snooze record');
+            }
+        } catch (error) {
+            console.error('Error snoozing reminder:', error);
+            alert('Failed to snooze reminder. Please try again.');
+        }
+    }
+
+    // Dismiss reminder
+    function dismissReminder() {
+        console.log('Dismissing reminder...');
+        
+        try {
+            // Stop alarm and countdown
+            stopAlarmSound();
+            clearInterval(countdownInterval);
+            
+            // Redirect to dashboard
+            window.location.href = "{{ url_for('main.dashboard') }}";
+            
+        } catch (error) {
+            console.error('Error dismissing reminder:', error);
+            // Fallback redirect
+            window.location.href = "{{ url_for('main.dashboard') }}";
+        }
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(event) {
+        switch(event.key.toLowerCase()) {
+            case 't': // Take
+                markMedicationTaken();
+                break;
+            case 's': // Snooze
+                snoozeReminder();
+                break;
+            case 'd': // Dismiss
+                dismissReminder();
+                break;
+        }
+    });
+});
+</script>
+{% endblock %}

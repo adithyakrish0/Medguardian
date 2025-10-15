@@ -111,6 +111,51 @@ def dashboard():
                 }
                 upcoming_medications.append(snooze_info)
             else:
+                # Check if any medication is due now (within 1 minute)
+                due_medication = None
+                for med in medications:
+                    next_dose = getNextMedicationTime(med, now)
+                    if next_dose and next_dose['time']:
+                        # Check if medication is due within 1 minute
+                        time_diff = (next_dose['time'] - now).total_seconds()
+                        if 0 <= time_diff <= 60:  # Due now or within 1 minute
+                            due_medication = {
+                                'id': med.id,
+                                'name': med.name,
+                                'dosage': med.dosage,
+                                'frequency': med.frequency,
+                                'instructions': med.instructions,
+                                'time': format_time_for_display(next_dose['time']),
+                                'priority': med.priority or 'medium',
+                                'period': next_dose['period']
+                            }
+                            break
+                
+                # If medication is due, redirect to reminder page
+                if due_medication:
+                    # Check for interactions
+                    from app.models.medication_interaction import MedicationInteraction
+                    interactions = []
+                    if len(medications) > 1:
+                        for med1 in medications:
+                            for med2 in medications:
+                                if med1.id != med2.id:
+                                    interaction = MedicationInteraction.query.filter_by(
+                                        medication1_id=med1.id,
+                                        medication2_id=med2.id
+                                    ).first()
+                                    if interaction:
+                                        interactions.append({
+                                            'medication1': med1.name,
+                                            'medication2': med2.name,
+                                            'severity': interaction.severity,
+                                            'description': interaction.description
+                                        })
+                    
+                    return render_template('medication_reminder_page.html',
+                                         medication=due_medication,
+                                         interactions=interactions[:5])  # Show max 5 interactions
+                
                 # Collect all next doses from all medications
                 all_doses = []
                 for med in medications:

@@ -29,6 +29,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 custom_reminder_times: JSON.stringify([timeString])
             };
             
+            // Show loading state
+            quickAddBtn.disabled = true;
+            quickAddBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
             // Send request to add medication
             fetch('/medication/quick-add', {
                 method: 'POST',
@@ -43,29 +47,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     // Show success message
                     showNotification('Test medication added successfully!', 'success');
-                    // Optionally redirect or reload the page
+                    // Add visual feedback
+                    quickAddBtn.classList.add('btn-success');
+                    quickAddBtn.classList.remove('btn-primary');
+                    
+                    // Update button content after a short delay
                     setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
+                        quickAddBtn.innerHTML = '<i class="fas fa-check"></i>';
+                        quickAddBtn.disabled = true;
+                        quickAddBtn.title = 'Test Medication Added';
+                        
+                        // Reload page after a delay to show the new medication
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }, 1000);
                 } else {
                     showNotification('Error adding medication: ' + data.message, 'error');
+                    quickAddBtn.disabled = false;
+                    quickAddBtn.innerHTML = '<i class="fas fa-plus"></i>';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 showNotification('Failed to add medication', 'error');
+                quickAddBtn.disabled = false;
+                quickAddBtn.innerHTML = '<i class="fas fa-plus"></i>';
             });
         });
     }
     
     // Simple notification function
     function showNotification(message, type) {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification-toast');
+        existingNotifications.forEach(notif => notif.remove());
+        
         const notification = document.createElement('div');
-        notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
-        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show notification-toast position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: none; border-radius: 8px;';
         notification.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <div class="d-flex align-items-center">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                <div>${message}</div>
+                <button type="button" class="btn-close ms-3" data-bs-dismiss="alert"></button>
+            </div>
         `;
         
         document.body.appendChild(notification);
@@ -73,7 +99,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Auto-dismiss after 5 seconds
         setTimeout(() => {
             if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 150);
             }
         }, 5000);
     }
@@ -97,9 +128,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .floating-add-button .btn {
     box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    transition: all 0.3s ease;
 }
 
 .floating-add-button .btn:hover {
     box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+}
+
+.floating-add-button .btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.notification-toast {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 </style>
