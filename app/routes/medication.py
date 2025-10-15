@@ -232,3 +232,68 @@ def detect_pills():
         return jsonify({'detections': detections, 'count': len(detections)})
     except Exception as e:
         return jsonify({'error': f'Image processing failed: {str(e)}'}), 500
+
+# Quick add medication endpoint for testing
+@medication.route('/quick-add', methods=['POST'])
+@login_required
+def quick_add_medication():
+    """Quickly add a test medication for testing purposes"""
+    try:
+        data = request.get_json()
+        
+        # Extract data from request
+        name = data.get('name', 'Aspirin')
+        dosage = data.get('dosage', '1 tablet')
+        frequency = data.get('frequency', 'Once')
+        instructions = data.get('instructions', 'Take with water')
+        user_id = current_user.id
+        
+        # Handle boolean flags
+        morning = data.get('morning', False)
+        afternoon = data.get('afternoon', False)
+        evening = data.get('evening', False)
+        night = data.get('night', False)
+        
+        # Handle custom reminder times - store as JSON string
+        custom_reminder_times_str = data.get('custom_reminder_times')
+        if custom_reminder_times_str:
+            try:
+                # Parse the JSON string and then convert back to string for storage
+                custom_times_list = json.loads(custom_reminder_times_str)
+                custom_reminder_times_str = json.dumps(custom_times_list)
+            except json.JSONDecodeError:
+                custom_reminder_times_str = None
+        
+        # Create new medication
+        new_medication = Medication(
+            name=name,
+            dosage=dosage,
+            frequency=frequency,
+            instructions=instructions,
+            user_id=user_id,
+            morning=morning,
+            afternoon=afternoon,
+            evening=evening,
+            night=night,
+            custom_reminder_times=custom_reminder_times_str,
+            reminder_enabled=True,
+            reminder_sound=True,
+            reminder_voice=True,
+            priority='normal'
+        )
+        
+        db.session.add(new_medication)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Medication "{name}" added successfully!',
+            'medication_id': new_medication.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Failed to add medication: {str(e)}'
+        }), 500

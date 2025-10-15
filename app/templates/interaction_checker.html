@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Medication Interaction Checker - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-3">
+                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                Medication Interaction Checker
+            </h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Interaction Checker</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Interaction Check Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body p-5">
+                    <h4 class="card-title mb-4">
+                        <i class="fas fa-search text-primary me-2"></i>
+                        Check for Medication Interactions
+                    </h4>
+                    
+                    <div class="text-center mb-4">
+                        <p class="text-muted">This tool checks your current medications for potential interactions that could be harmful.</p>
+                        <p class="small text-muted">Last checked: <span id="last-checked">Never</span></p>
+                    </div>
+
+                    <div class="d-grid gap-2 mb-4">
+                        <button type="button" class="btn btn-primary btn-lg" id="check-interactions-btn">
+                            <i class="fas fa-sync-alt me-2"></i>Check Interactions Now
+                        </button>
+                    </div>
+
+                    <!-- Loading Spinner -->
+                    <div id="loading-spinner" class="text-center d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Checking for interactions...</p>
+                    </div>
+
+                    <!-- Results Container -->
+                    <div id="results-container" class="d-none">
+                        <!-- Overall Risk Assessment -->
+                        <div class="alert" id="risk-alert">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-shield-alt me-2 me-3 fs-4"></i>
+                                <div>
+                                    <h5 class="mb-1" id="risk-title">Overall Risk Assessment</h5>
+                                    <p class="mb-0" id="risk-message"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Medications Summary -->
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-pills text-success me-2"></i>
+                                    Medications Checked ({{ current_medications|length }})
+                                </h6>
+                                <div class="row">
+                                    {% for med in current_medications %}
+                                    <div class="col-md-6 col-lg-4 mb-2">
+                                        <span class="badge bg-primary">{{ med.name }}</span>
+                                        <small class="text-muted d-block">{{ med.dosage }}</small>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Interactions Found -->
+                        <div id="interactions-section">
+                            <h5 class="mb-3">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                Interactions Found (<span id="interaction-count">0</span>)
+                            </h5>
+                            <div id="interactions-list">
+                                <!-- Interactions will be populated here -->
+                            </div>
+                        </div>
+
+                        <!-- No Interactions -->
+                        <div id="no-interactions" class="alert alert-success d-none">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Great!</strong> No potential interactions found between your medications.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Information Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-info-circle text-primary me-2"></i>
+                        About Interaction Checker
+                    </h5>
+                    <p class="card-text">
+                        Our interaction checker analyzes your medications to identify potential interactions that could:
+                    </p>
+                    <ul class="small">
+                        <li>🔴 Increase side effects</li>
+                        <li>🔴 Reduce medication effectiveness</li>
+                        <li>🔴 Cause dangerous health conditions</li>
+                        <li>🔴 Lead to unexpected results</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Risk Levels -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-shield-alt text-warning me-2"></i>
+                        Risk Levels
+                    </h5>
+                    <div class="small">
+                        <div class="mb-3">
+                            <span class="badge bg-danger me-2">Critical</span>
+                            <span>Immediate medical attention required</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="badge bg-warning text-dark me-2">High</span>
+                            <span>Doctor consultation recommended</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="badge bg-info me-2">Moderate</span>
+                            <span>Monitor for symptoms</span>
+                        </div>
+                        <div class="mb-0">
+                            <span class="badge bg-secondary me-2">Low</span>
+                            <span>Minor concerns</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-lightbulb text-warning me-2"></i>
+                        Important Tips
+                    </h5>
+                    <div class="small">
+                        <p class="mb-2"><strong>⚠️ Always consult your doctor</strong> before making changes to your medication regimen.</p>
+                        <p class="mb-2"><strong>📝 Keep medication list updated</strong> with all prescription, over-the-counter, and herbal supplements.</p>
+                        <p class="mb-2"><strong>🏥 Inform healthcare providers</strong> about all medications you're taking.</p>
+                        <p class="mb-0"><strong>🔄 Check regularly</strong> when adding new medications to your regimen.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-color-dark);
+    border-color: var(--primary-color-dark);
+}
+
+.badge {
+    font-size: 0.8rem;
+    padding: 0.4em 0.6em;
+}
+
+.risk-critical {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+}
+
+.risk-high {
+    background-color: #ffc107 !important;
+    border-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+.risk-moderate {
+    background-color: #17a2b8 !important;
+    border-color: #17a2b8 !important;
+}
+
+.risk-low {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkButton = document.getElementById('check-interactions-btn');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const resultsContainer = document.getElementById('results-container');
+    const riskAlert = document.getElementById('risk-alert');
+    const interactionsSection = document.getElementById('interactions-section');
+    const noInteractions = document.getElementById('no-interactions');
+
+    // Check interactions button click handler
+    checkButton.addEventListener('click', function() {
+        checkInteractions();
+    });
+
+    function checkInteractions() {
+        // Show loading state
+        checkButton.disabled = true;
+        checkButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Checking...';
+        loadingSpinner.classList.remove('d-none');
+        resultsContainer.classList.add('d-none');
+
+        // Make API call
+        fetch('/interaction/check-interactions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayResults(data);
+                updateLastChecked();
+            } else {
+                alert('Error checking interactions: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to check interactions. Please try again.');
+        })
+        .finally(() => {
+            // Reset button state
+            checkButton.disabled = false;
+            checkButton.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Check Interactions Now';
+            loadingSpinner.classList.add('d-none');
+        });
+    }
+
+    function displayResults(data) {
+        // Hide loading, show results
+        resultsContainer.classList.remove('d-none');
+
+        // Update risk assessment
+        updateRiskAssessment(data.overall_risk, data.summary);
+
+        // Show/hide interactions section
+        if (data.interactions && data.interactions.length > 0) {
+            interactionsSection.classList.remove('d-none');
+            noInteractions.classList.add('d-none');
+            displayInteractions(data.interactions);
+        } else {
+            interactionsSection.classList.add('d-none');
+            noInteractions.classList.remove('d-none');
+        }
+    }
+
+    function updateRiskAssessment(risk, message) {
+        const riskTitle = document.getElementById('risk-title');
+        const riskMessage = document.getElementById('risk-message');
+        const riskAlertElement = document.getElementById('risk-alert');
+
+        // Update message
+        riskMessage.textContent = message;
+
+        // Update alert styling based on risk level
+        riskAlertElement.className = 'alert';
+        riskAlertElement.classList.add(`risk-${risk}`, 'alert-dismissible', 'fade', 'show');
+
+        // Update icon and title
+        const iconMap = {
+            'critical': 'fas fa-exclamation-triangle text-danger',
+            'high': 'fas fa-exclamation-circle text-danger',
+            'moderate': 'fas fa-exclamation-triangle text-warning',
+            'low': 'fas fa-info-circle text-info'
+        };
+
+        const titleMap = {
+            'critical': '⚠️ Critical Risk Detected',
+            'high': '🔴 High Risk Detected',
+            'moderate': '🟡 Moderate Risk Detected',
+            'low': '🟢 Low Risk Detected'
+        };
+
+        riskTitle.innerHTML = `<i class="${iconMap[risk]} me-2"></i>${titleMap[risk]}`;
+    }
+
+    function displayInteractions(interactions) {
+        const interactionsList = document.getElementById('interactions-list');
+        const interactionCount = document.getElementById('interaction-count');
+
+        // Update count
+        interactionCount.textContent = interactions.length;
+
+        // Clear existing content
+        interactionsList.innerHTML = '';
+
+        // Add each interaction
+        interactions.forEach((interaction, index) => {
+            const interactionElement = createInteractionElement(interaction, index);
+            interactionsList.appendChild(interactionElement);
+        });
+    }
+
+    function createInteractionElement(interaction, index) {
+        const severityColors = {
+            'critical': 'danger',
+            'major': 'warning',
+            'moderate': 'info',
+            'minor': 'secondary'
+        };
+
+        const severityIcons = {
+            'critical': 'fas fa-exclamation-triangle',
+            'major': 'fas fa-exclamation-circle',
+            'moderate': 'fas fa-exclamation',
+            'minor': 'fas fa-info-circle'
+        };
+
+        const div = document.createElement('div');
+        div.className = 'card mb-3';
+        div.innerHTML = `
+            <div class="card-body">
+                <div class="d-flex align-items-start mb-2">
+                    <i class="${severityIcons[interaction.severity]} text-${severityColors[interaction.severity]} me-2 mt-1"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">
+                            <strong>${interaction.medication1}</strong> + <strong>${interaction.medication2}</strong>
+                            <span class="badge bg-${severityColors[interaction.severity]} ms-2">${interaction.severity.toUpperCase()}</span>
+                        </h6>
+                        <p class="text-muted small mb-2">${interaction.source}</p>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <strong>Description:</strong>
+                    <p class="mb-2 ms-3">${interaction.description}</p>
+                </div>
+                
+                <div>
+                    <strong>Recommendation:</strong>
+                    <p class="mb-0 ms-3">${interaction.recommendation}</p>
+                </div>
+                
+                ${interaction.risk_factors ? `
+                <div class="mt-2">
+                    <strong>Risk Factors:</strong>
+                    <div class="mt-1">
+                        ${interaction.risk_factors.map(factor => 
+                            `<span class="badge bg-light text-dark me-1 mb-1">${factor}</span>`
+                        ).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+
+        return div;
+    }
+
+    function updateLastChecked() {
+        const lastCheckedElement = document.getElementById('last-checked');
+        const now = new Date();
+        const timeString = now.toLocaleString();
+        lastCheckedElement.textContent = timeString;
+    }
+
+    // Auto-check on page load
+    setTimeout(() => {
+        checkInteractions();
+    }, 1000);
+});
+</script>
+{% endblock %}

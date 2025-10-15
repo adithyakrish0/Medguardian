@@ -31,10 +31,14 @@ def create_app():
     from .routes.main import main
     from .routes.auth import auth
     from .routes.medication import medication
+    from .routes.snooze import snooze
+    from .routes.interaction import interaction
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(medication, url_prefix='/medication')
+    app.register_blueprint(snooze, url_prefix='/snooze')
+    app.register_blueprint(interaction, url_prefix='/interaction')
     
     # Import all models so SQLAlchemy registers them
     from .models.auth import User
