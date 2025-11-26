@@ -25,195 +25,233 @@ def dashboard():
         from app.models.medication_log import MedicationLog
         from app.models.snooze_log import SnoozeLog
         
-        # Create app context for database operations
-        from app import create_app
-        app = create_app()
-        
-        with app.app_context():
-            # Get all medications for the user
-            medications = Medication.query.filter_by(user_id=current_user.id).all()
+        # Get all medications for the user
+        medications = Medication.query.filter_by(user_id=current_user.id).all()
             
-            # Get today's logs
-            today = date.today()
-            today_logs = MedicationLog.query.filter_by(
-                user_id=current_user.id,
-                taken_at=today
-            ).all()
+        # Get today's logs
+        today = date.today()
+        today_logs = MedicationLog.query.filter_by(
+            user_id=current_user.id,
+            taken_at=today
+        ).all()
             
-            # Check for active snooze
-            now = datetime.utcnow()
-            active_snooze = SnoozeLog.query.filter(
-                SnoozeLog.user_id == current_user.id,
-                SnoozeLog.snooze_until > now
-            ).order_by(SnoozeLog.created_at.desc()).first()
+        # Check for active snooze
+        now = datetime.utcnow()
+        active_snooze = SnoozeLog.query.filter(
+            SnoozeLog.user_id == current_user.id,
+            SnoozeLog.snooze_until > now
+        ).order_by(SnoozeLog.created_at.desc()).first()
             
-            # Calculate statistics
-            upcoming_count = len([m for m in medications if any([m.morning, m.afternoon, m.evening, m.night, m.custom_reminder_times])])
-            today_count = len(medications)
+        # Calculate statistics
+        upcoming_count = len([m for m in medications if any([m.morning, m.afternoon, m.evening, m.night, m.custom_reminder_times])])
+        today_count = len(medications)
             
-            # Calculate compliance
-            total_logs = MedicationLog.query.filter_by(user_id=current_user.id).all()
-            taken_logs = [log for log in total_logs if log.taken_correctly]
-            compliance_rate = int((len(taken_logs) / len(total_logs) * 100)) if total_logs else 0
+        # Calculate compliance
+        total_logs = MedicationLog.query.filter_by(user_id=current_user.id).all()
+        taken_logs = [log for log in total_logs if log.taken_correctly]
+        compliance_rate = int((len(taken_logs) / len(total_logs) * 100)) if total_logs else 0
             
-            # Get today's medications with status
-            today_medications = []
-            for med in medications:
-                taken = any(log.medication_id == med.id and log.taken_at.date() == today and log.taken_correctly 
-                           for log in today_logs)
+        # Get today's medications with status
+        today_medications = []
+        for med in medications:
+            taken = any(log.medication_id == med.id and log.taken_at.date() == today and log.taken_correctly 
+                       for log in today_logs)
                 
-                # Parse scheduled times for display
-                scheduled_times = []
-                if med.custom_reminder_times:
-                    try:
-                        custom_times = json.loads(med.custom_reminder_times)
-                        scheduled_times.extend([{'time': t, 'period': 'Custom'} for t in custom_times])
-                    except:
-                        pass
+            # Parse scheduled times for display
+            scheduled_times = []
+            if med.custom_reminder_times:
+                try:
+                    custom_times = json.loads(med.custom_reminder_times)
+                    scheduled_times.extend([{'time': t, 'period': 'Custom'} for t in custom_times])
+                except:
+                    pass
                 
-                # Add period-based times
-                periods = []
-                if med.morning: periods.append('Morning')
-                if med.afternoon: periods.append('Afternoon')
-                if med.evening: periods.append('Evening')
-                if med.night: periods.append('Night')
+            # Add period-based times
+            periods = []
+            if med.morning: periods.append('Morning')
+            if med.afternoon: periods.append('Afternoon')
+            if med.evening: periods.append('Evening')
+            if med.night: periods.append('Night')
                 
-                for period in periods:
-                    scheduled_times.append({
-                        'time': period + ' (' + get_period_time_range(period) + ')',
-                        'period': period
-                    })
-                
-                today_medications.append({
-                    'id': med.id,
-                    'name': med.name,
-                    'dosage': med.dosage,
-                    'frequency': med.frequency,
-                    'taken': taken,
-                    'scheduled_times': scheduled_times if scheduled_times else [{'time': 'Not scheduled', 'period': 'Unknown'}]
+            for period in periods:
+                scheduled_times.append({
+                    'time': period + ' (' + get_period_time_range(period) + ')',
+                    'period': period
                 })
-            
-            # Get upcoming medications with proper timing
-            now = datetime.now()
-            upcoming_medications = []
-            
-            # If there's an active snooze, adjust the next medication time
-            if active_snooze:
-                # Use the snooze time as the next medication time
-                snooze_info = {
-                    'name': active_snooze.medication.name if active_snooze.medication else 'Medication',
-                    'dosage': active_snooze.medication.dosage if active_snooze.medication else 'Unknown dosage',
-                    'time': active_snooze.snooze_until,
-                    'period': 'Snooze',
-                    'is_custom': False,
-                    'is_snooze': True,
-                    'snooze_until': active_snooze.snooze_until.isoformat()
-                }
-                upcoming_medications.append(snooze_info)
-            else:
-                # Check if any medication is due now (within 1 minute)
-                due_medication = None
-                for med in medications:
-                    next_dose = getNextMedicationTime(med, now)
-                    if next_dose and next_dose['time']:
-                        # Check if medication is due within 1 minute
-                        time_diff = (next_dose['time'] - now).total_seconds()
-                        if 0 <= time_diff <= 60:  # Due now or within 1 minute
-                            due_medication = {
-                                'id': med.id,
-                                'name': med.name,
-                                'dosage': med.dosage,
-                                'frequency': med.frequency,
-                                'instructions': med.instructions,
-                                'time': format_time_for_display(next_dose['time']),
-                                'priority': med.priority or 'medium',
-                                'period': next_dose['period']
-                            }
-                            break
                 
-                # If medication is due, redirect to reminder page
-                if due_medication:
-                    # Check for interactions
-                    from app.models.medication_interaction import MedicationInteraction
-                    interactions = []
-                    if len(medications) > 1:
-                        for med1 in medications:
-                            for med2 in medications:
-                                if med1.id != med2.id:
-                                    interaction = MedicationInteraction.query.filter_by(
-                                        medication1_id=med1.id,
-                                        medication2_id=med2.id
-                                    ).first()
-                                    if interaction:
-                                        interactions.append({
-                                            'medication1': med1.name,
-                                            'medication2': med2.name,
-                                            'severity': interaction.severity,
-                                            'description': interaction.description
-                                        })
-                    
-                    return render_template('medication_reminder_page.html',
-                                         medication=due_medication,
-                                         interactions=interactions[:5])  # Show max 5 interactions
-                
-                # Collect all next doses from all medications
-                all_doses = []
-                for med in medications:
-                    next_dose = getNextMedicationTime(med, now)
-                    if next_dose:
-                        all_doses.append({
+            today_medications.append({
+                'id': med.id,
+                'name': med.name,
+                'dosage': med.dosage,
+                'frequency': med.frequency,
+                'taken': taken,
+                'scheduled_times': scheduled_times if scheduled_times else [{'time': 'Not scheduled', 'period': 'Unknown'}]
+            })
+            
+        # Get upcoming medications with proper timing
+        now = datetime.now()
+        upcoming_medications = []
+            
+        # If there's an active snooze, adjust the next medication time
+        if active_snooze:
+            # Use the snooze time as the next medication time
+            snooze_info = {
+                'name': active_snooze.medication.name if active_snooze.medication else 'Medication',
+                'dosage': active_snooze.medication.dosage if active_snooze.medication else 'Unknown dosage',
+                'time': active_snooze.snooze_until,
+                'period': 'Snooze',
+                'is_custom': False,
+                'is_snooze': True,
+                'snooze_until': active_snooze.snooze_until.isoformat()
+            }
+            upcoming_medications.append(snooze_info)
+        else:
+            # Check if any medication is due now (within 1 minute)
+            due_medication = None
+            for med in medications:
+                next_dose = getNextMedicationTime(med, now)
+                if next_dose and next_dose['time']:
+                    # Check if medication is due within 1 minute
+                    time_diff = (next_dose['time'] - now).total_seconds()
+                    if 0 <= time_diff <= 60:  # Due now or within 1 minute
+                        due_medication = {
+                            'id': med.id,
                             'name': med.name,
                             'dosage': med.dosage,
-                            'time': next_dose['time'],
-                            'period': next_dose['period'],
-                            'is_custom': next_dose.get('is_custom', False)
-                        })
+                            'frequency': med.frequency,
+                            'instructions': med.instructions,
+                            'time': format_time_for_display(next_dose['time']),
+                            'priority': med.priority or 'medium',
+                            'period': next_dose['period']
+                        }
+                        break
                 
-                # Sort all doses by actual datetime and take the first 6
-                all_doses.sort(key=lambda x: x['time'])
-                upcoming_medications = all_doses[:6]
+            # If medication is due, redirect to reminder page
+            if due_medication:
+                # Check for interactions
+                from app.models.medication_interaction import MedicationInteraction
+                interactions = []
+                if len(medications) > 1:
+                    for med1 in medications:
+                        for med2 in medications:
+                            if med1.id != med2.id:
+                                interaction = MedicationInteraction.query.filter_by(
+                                    medication1_id=med1.id,
+                                    medication2_id=med2.id
+                                ).first()
+                                if interaction:
+                                    interactions.append({
+                                        'medication1': med1.name,
+                                        'medication2': med2.name,
+                                        'severity': interaction.severity,
+                                        'description': interaction.description
+                                    })
+                    
+                return render_template('medication_reminder_page.html',
+                                     medication=due_medication,
+                                     interactions=interactions[:5])  # Show max 5 interactions
+                
+            # Collect all next doses from all medications
+            all_doses = []
+            for med in medications:
+                next_dose = getNextMedicationTime(med, now)
+                if next_dose:
+                    all_doses.append({
+                        'name': med.name,
+                        'dosage': med.dosage,
+                        'time': next_dose['time'],
+                        'period': next_dose['period'],
+                        'is_custom': next_dose.get('is_custom', False)
+                    })
+                
+            # Sort all doses by actual datetime and take the first 6
+            all_doses.sort(key=lambda x: x['time'])
+            upcoming_medications = all_doses[:6]
             
-            # Format times for display after sorting
-            for med in upcoming_medications:
-                if isinstance(med['time'], datetime):
-                    med['time'] = format_time_for_display(med['time'])
+        # Format times for display after sorting
+        for med in upcoming_medications:
+            if isinstance(med['time'], datetime):
+                med['time'] = format_time_for_display(med['time'])
             
-            # Count taken and missed
-            taken_count = len([log for log in total_logs if log.taken_correctly])
-            missed_count = len([log for log in total_logs if not log.taken_correctly])
+        # Count taken and missed
+        taken_count = len([log for log in total_logs if log.taken_correctly])
+        missed_count = len([log for log in total_logs if not log.taken_correctly])
             
-            return render_template('senior/dashboard.html',
-                                 upcoming_count=upcoming_count,
-                                 today_count=today_count,
-                                 compliance_rate=compliance_rate,
-                                 today_medications=today_medications,
-                                 upcoming_medications=upcoming_medications,
-                                 taken_count=taken_count,
-                                 missed_count=missed_count,
-                                 active_snooze=active_snooze.to_dict() if active_snooze else None,
-                                 current_medications=medications)  # Add current medications for interaction checker
+        return render_template('senior/dashboard.html',
+                             upcoming_count=upcoming_count,
+                             today_count=today_count,
+                             compliance_rate=compliance_rate,
+                             today_medications=today_medications,
+                             upcoming_medications=upcoming_medications,
+                             taken_count=taken_count,
+                             missed_count=missed_count,
+                             active_snooze=active_snooze.to_dict() if active_snooze else None,
+                             current_medications=medications)  # Add current medications for interaction checker
     else:  # caregiver
         # Get seniors managed by this caregiver
         from app.models.relationship import CaregiverSenior
+        from app.models.medication import Medication
+        from app.models.medication_log import MedicationLog
         
-        # Create app context for database operations
-        from app import create_app
-        app = create_app()
+        relationships = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
         
-        with app.app_context():
-            relationships = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
-            seniors = [rel.senior for rel in relationships]
+        senior_stats = []
+        active_today = 0
+        pending_medications = 0
+        missed_doses = 0
+        
+        today = date.today()
+        
+        for rel in relationships:
+            senior = rel.senior
+            meds = Medication.query.filter_by(user_id=senior.id).all()
+            logs = MedicationLog.query.filter_by(user_id=senior.id).all()
+            today_logs = [log for log in logs if log.taken_at.date() == today]
             
-            # Calculate stats
-            active_today = len(seniors)  # Placeholder - can be enhanced
-            pending_medications = 0      # Placeholder - can be enhanced
-            missed_doses = 0             # Placeholder - can be enhanced
+            # Calculate daily total doses
+            daily_doses = 0
+            for med in meds:
+                # Count period-based doses
+                if med.morning: daily_doses += 1
+                if med.afternoon: daily_doses += 1
+                if med.evening: daily_doses += 1
+                if med.night: daily_doses += 1
+                
+                # Count custom times
+                if med.custom_reminder_times:
+                    try:
+                        daily_doses += len(json.loads(med.custom_reminder_times))
+                    except:
+                        pass
             
-            return render_template('caregiver/dashboard.html', 
-                                 seniors=seniors,
-                                 active_today=active_today,
-                                 pending_medications=pending_medications,
-                                 missed_doses=missed_doses)
+            taken_today_count = len([l for l in today_logs if l.taken_correctly])
+            
+            # Calculate compliance
+            total_taken = len([l for l in logs if l.taken_correctly])
+            compliance = int((total_taken / len(logs) * 100)) if logs else 0
+            
+            # Last active
+            last_log = MedicationLog.query.filter_by(user_id=senior.id).order_by(MedicationLog.taken_at.desc()).first()
+            last_active = last_log.taken_at if last_log else None
+            
+            if taken_today_count > 0:
+                active_today += 1
+                
+            pending = max(0, daily_doses - taken_today_count)
+            pending_medications += pending
+            
+            senior_stats.append({
+                'senior': senior,
+                'medication_count': len(meds),
+                'taken_today': taken_today_count,
+                'total_today': daily_doses,
+                'compliance_rate': compliance,
+                'last_active': last_active
+            })
+            
+        return render_template('caregiver/dashboard.html', 
+                             senior_stats=senior_stats,
+                             total_seniors=len(relationships))
 
 def getNextMedicationTime(med, now):
     """Get the next medication time for a medication"""
@@ -307,17 +345,11 @@ def caregiver_seniors():
     if current_user.role != 'caregiver':
         return redirect(url_for('main.index'))
     
-    # Create app context for database operations
-    from app import create_app
     from app.models.relationship import CaregiverSenior
-    
-    app = create_app()
-    
-    with app.app_context():
-        relationships = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
-        seniors = [rel.senior for rel in relationships]
+    relationships = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
+    seniors = [rel.senior for rel in relationships]
         
-        return render_template('caregiver/seniors.html', seniors=seniors)
+    return render_template('caregiver/seniors.html', seniors=seniors)
 
 @main.route('/caregiver/add-senior', methods=['GET', 'POST'])
 @login_required
@@ -326,61 +358,55 @@ def add_senior():
     if current_user.role != 'caregiver':
         return redirect(url_for('main.index'))
     
-    # Create app context for database operations
-    from app import create_app
     from app.models.relationship import CaregiverSenior
     from app.models.auth import User
-    
-    app = create_app()
-    
-    with app.app_context():
-        if request.method == 'POST':
-            senior_username = request.form.get('senior_username')
-            relationship_type = request.form.get('relationship_type', 'primary')
-            notes = request.form.get('notes', '')
+    if request.method == 'POST':
+        senior_username = request.form.get('senior_username')
+        relationship_type = request.form.get('relationship_type', 'primary')
+        notes = request.form.get('notes', '')
             
-            # Find the senior user
-            senior = User.query.filter_by(username=senior_username).first()
+        # Find the senior user
+        senior = User.query.filter_by(username=senior_username).first()
             
-            if not senior:
-                flash('Senior not found. Please check the username and try again.')
-                return redirect(url_for('main.add_senior'))
+        if not senior:
+            flash('Senior not found. Please check the username and try again.')
+            return redirect(url_for('main.add_senior'))
             
-            if senior.role != 'senior':
-                flash('User is not a senior citizen.')
-                return redirect(url_for('main.add_senior'))
+        if senior.role != 'senior':
+            flash('User is not a senior citizen.')
+            return redirect(url_for('main.add_senior'))
             
-            # Check if already added
-            existing_relationship = CaregiverSenior.query.filter_by(
-                caregiver_id=current_user.id,
-                senior_id=senior.id
-            ).first()
+        # Check if already added
+        existing_relationship = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            senior_id=senior.id
+        ).first()
             
-            if existing_relationship:
-                flash('This senior is already in your dashboard.')
-                return redirect(url_for('main.add_senior'))
+        if existing_relationship:
+            flash('This senior is already in your dashboard.')
+            return redirect(url_for('main.add_senior'))
             
-            # Create new relationship
-            relationship = CaregiverSenior(
-                caregiver_id=current_user.id,
-                senior_id=senior.id,
-                relationship_type=relationship_type,
-                notes=notes
-            )
+        # Create new relationship
+        relationship = CaregiverSenior(
+            caregiver_id=current_user.id,
+            senior_id=senior.id,
+            relationship_type=relationship_type,
+            notes=notes
+        )
             
-            db.session.add(relationship)
-            db.session.commit()
+        db.session.add(relationship)
+        db.session.commit()
             
-            flash(f'Senior {senior.username} added successfully!')
-            return redirect(url_for('main.caregiver_seniors'))
+        flash(f'Senior {senior.username} added successfully!')
+        return redirect(url_for('main.caregiver_seniors'))
         
-        # Get all available seniors (not already assigned)
-        all_seniors = User.query.filter_by(role='senior').all()
-        assigned_seniors = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
-        assigned_ids = [rel.senior_id for rel in assigned_seniors]
-        available_seniors = [senior for senior in all_seniors if senior.id not in assigned_ids]
+    # Get all available seniors (not already assigned)
+    all_seniors = User.query.filter_by(role='senior').all()
+    assigned_seniors = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
+    assigned_ids = [rel.senior_id for rel in assigned_seniors]
+    available_seniors = [senior for senior in all_seniors if senior.id not in assigned_ids]
         
-        return render_template('caregiver/add_senior.html', available_seniors=available_seniors)
+    return render_template('caregiver/add_senior.html', available_seniors=available_seniors)
 
 @main.route('/caregiver/remove-senior/<int:senior_id>', methods=['POST'])
 @login_required
@@ -389,26 +415,20 @@ def remove_senior(senior_id):
     if current_user.role != 'caregiver':
         return redirect(url_for('main.index'))
     
-    # Create app context for database operations
-    from app import create_app
     from app.models.relationship import CaregiverSenior
-    
-    app = create_app()
-    
-    with app.app_context():
-        relationship = CaregiverSenior.query.filter_by(
-            caregiver_id=current_user.id,
-            senior_id=senior_id
-        ).first()
+    relationship = CaregiverSenior.query.filter_by(
+        caregiver_id=current_user.id,
+        senior_id=senior_id
+    ).first()
         
-        if relationship:
-            db.session.delete(relationship)
-            db.session.commit()
-            flash('Senior removed from your dashboard.')
-        else:
-            flash('Senior not found in your dashboard.')
+    if relationship:
+        db.session.delete(relationship)
+        db.session.commit()
+        flash('Senior removed from your dashboard.')
+    else:
+        flash('Senior not found in your dashboard.')
         
-        return redirect(url_for('main.caregiver_seniors'))
+    return redirect(url_for('main.caregiver_seniors'))
 
 @main.route('/add-user', methods=['POST'])
 def add_user():

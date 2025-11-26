@@ -182,6 +182,7 @@
                                             <li>
                                                 <form method="POST" action="{{ url_for('main.remove_senior', senior_id=senior.id) }}" 
                                                       class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                     <button type="submit" class="dropdown-item text-danger" 
                                                             onclick="return confirm('Are you sure you want to remove {{ senior.username }} from your dashboard? This will not delete their account.')">
                                                         <i class="fas fa-user-minus me-2"></i>Remove Senior

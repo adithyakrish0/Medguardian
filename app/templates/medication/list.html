@@ -7,17 +7,18 @@
 
     <!-- Flash messages -->
     {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-info">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-info">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
     {% endwith %}
 
     <!-- Top action buttons -->
     <div class="mb-3">
         <a href="{{ url_for('medication.add_medication') }}" class="btn btn-primary">Add New Medication</a>
-        <a href="{{ url_for('medication.realtime_verification') }}" class="btn btn-success ml-2">Real-time Verification</a>
+        <a href="{{ url_for('medication.realtime_verification') }}" class="btn btn-success ml-2">Real-time
+            Verification</a>
         <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary ml-2">Back to Dashboard</a>
     </div>
 
@@ -45,16 +46,21 @@
                     {% if med.night %}<span class="badge badge-light">Night</span>{% endif %}
                 </td>
                 <td>
-                    <a href="{{ url_for('medication.edit_medication', id=med.id) }}" class="btn btn-sm btn-warning">Edit</a>
-                    
-                    <form action="{{ url_for('medication.confirm_medication', medication_id=med.id) }}" method="post" style="display:inline;">
-                        <button type="submit" class="btn btn-sm btn-success">Taken</button>
+                    <a href="{{ url_for('medication.edit_medication', medication_id=med.id) }}"
+                        class="btn btn-sm btn-warning">Edit</a>
+
+                    <form action="{{ url_for('medication.mark_taken', medication_id=med.id) }}" method="post"
+                        style="display:inline;" class="taken-form" data-med-name="{{ med.name }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <button type="button" class="btn btn-sm btn-success taken-btn">Taken</button>
                     </form>
-                    
-                    <form action="{{ url_for('medication.delete_medication', id=med.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this medication?');">
-                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+
+                    <form action="{{ url_for('medication.delete_medication', medication_id=med.id) }}" method="post"
+                        style="display:inline;" class="delete-form" data-med-name="{{ med.name }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <button type="button" class="btn btn-sm btn-danger delete-btn">Delete</button>
                     </form>
-                    
+
                     <button class="btn btn-sm btn-info verify-btn" data-id="{{ med.id }}">Verify</button>
                 </td>
             </tr>
@@ -64,27 +70,66 @@
     {% else %}
     <div class="alert alert-secondary">
         You don't have any medications added yet.
-        <a href="{{ url_for('medication.add_medication') }}" class="btn btn-sm btn-outline-primary ml-2">Add Your First Medication</a>
+        <a href="{{ url_for('medication.add_medication') }}" class="btn btn-sm btn-outline-primary ml-2">Add Your First
+            Medication</a>
     </div>
     {% endif %}
 </div>
 
 <script>
-    // Verification button handler
-    document.querySelectorAll('.verify-btn').forEach(button => {
-        button.addEventListener('click', async function() {
-            const medicationId = this.getAttribute('data-id');
-            try {
-                const response = await fetch(`/medication/verify-medication/${medicationId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const result = await response.json();
-                
-                alert(`Verification Result:\nSuccess: ${result.success}\nMessage: ${result.message}\nDetected Bottles: ${result.detected_bottles}\nBarcode Verified: ${result.barcode_verified}`);
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-            }
+    document.addEventListener('DOMContentLoaded', function () {
+        // Delete medication with confirmation
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', async function () {
+                const form = this.closest('.delete-form');
+                const medName = form.dataset.medName;
+
+                const confirmed = await confirmDelete(medName);
+
+                if (confirmed) {
+                    showLoading('Deleting medication...');
+                    form.submit();
+                }
+            });
+        });
+
+        // Mark as taken with confirmation
+        document.querySelectorAll('.taken-btn').forEach(button => {
+            button.addEventListener('click', async function () {
+                const form = this.closest('.taken-form');
+                const medName = form.dataset.medName;
+
+                const confirmed = await confirmMarkAsTaken(medName);
+
+                if (confirmed) {
+                    showLoading('Recording medication...');
+                    form.submit();
+                }
+            });
+        });
+
+        // Verification button handler with loading state
+        document.querySelectorAll('.verify-btn').forEach(button => {
+            button.addEventListener('click', async function () {
+                const medicationId = this.getAttribute('data-id');
+
+                showLoading('Running verification...');
+
+                try {
+                    const response = await fetch(`/medication/verify-medication/${medicationId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const result = await response.json();
+
+                    hideLoading();
+
+                    alert(`Verification Result:\\nSuccess: ${result.success}\\nMessage: ${result.message}\\nDetected Bottles: ${result.detected_bottles}\\nBarcode Verified: ${result.barcode_verified}`);
+                } catch (error) {
+                    hideLoading();
+                    alert(`Error: ${error.message}`);
+                }
+            });
         });
     });
 </script>

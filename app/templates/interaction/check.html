@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Medication Interactions - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h2 class="mb-4"><i class="fas fa-exclamation-triangle me-2"></i>Medication Interaction Checker</h2>
+
+    <div class="row">
+        <!-- Current Medications -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-pills me-2"></i>Your Current Medications</h4>
+                </div>
+                <div class="card-body">
+                    {% if medications %}
+                    <ul class="list-group">
+                        {% for med in medications %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ med.name }}</strong><br>
+                                <small class="text-muted">{{ med.dosage }}</small>
+                            </div>
+                            <span class="badge bg-info">{{ med.frequency }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    <div class="mt-4">
+                        <button id="check-interactions-btn" class="btn btn-warning btn-lg w-100"
+                            onclick="checkInteractions()">
+                            <i class="fas fa-search me-2"></i>Check for Interactions
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        You haven't added any medications yet.
+                        <a href="{{ url_for('medication.add_medication') }}" class="alert-link">Add your first
+                            medication</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Interaction Results -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i>Interaction Results</h4>
+                </div>
+                <div class="card-body">
+                    <div id="interaction-results">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-shield-alt fa-3x mb-3"></i>
+                            <p>Click "Check for Interactions" to scan your medications</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Information Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Understanding Medication Interactions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="p-3 border rounded bg-danger bg-opacity-10">
+                                <h6 class="text-danger"><i class="fas fa-exclamation-circle me-2"></i>Critical</h6>
+                                <p class="mb-0 small">Requires immediate medical attention. Do not take together without
+                                    doctor supervision.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 border rounded bg-warning bg-opacity-10">
+                                <h6 class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>Major</h6>
+                                <p class="mb-0 small">May cause significant side effects. Consult your doctor about
+                                    timing or alternatives.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 border rounded bg-info bg-opacity-10">
+                                <h6 class="text-info"><i class="fas fa-info-circle me-2"></i>Moderate</h6>
+                                <p class="mb-0 small">Monitor for side effects. May require dosage adjustment or timing
+                                    changes.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function checkInteractions() {
+        const btn = document.getElementById('check-interactions-btn');
+        const resultsDiv = document.getElementById('interaction-results');
+
+        // Show loading state
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Checking...';
+
+        resultsDiv.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Analyzing your medications...</p>
+        </div>
+    `;
+
+        try {
+            const response = await fetch('/interaction/check-interactions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            displayResults(data);
+        } catch (error) {
+            resultsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle me-2"></i>
+                Error checking interactions: ${error.message}
+            </div>
+        `;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-search me-2"></i>Check for Interactions';
+        }
+    }
+
+    function displayResults(data) {
+        const resultsDiv = document.getElementById('interaction-results');
+
+        if (!data.success) {
+            resultsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle me-2"></i>${data.message}
+            </div>
+        `;
+            return;
+        }
+
+        if (data.interactions.length === 0) {
+            resultsDiv.innerHTML = `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>No interactions found!</strong><br>
+                Your current medications appear to be safe to take together.
+            </div>
+        `;
+            return;
+        }
+
+        // Display interactions
+        let html = `
+        <div class="alert alert-${getSeverityClass(data.overall_risk)}">
+            <h5><i class="fas fa-exclamation-triangle me-2"></i>Overall Risk: ${data.overall_risk}</h5>
+            <p class="mb-0">${data.summary_recommendation}</p>
+        </div>
+    `;
+
+        data.interactions.forEach(interaction => {
+            const severityClass = getSeverityClass(interaction.severity);
+            html += `
+            <div class="card mb-3 border-${severityClass}">
+                <div class="card-header bg-${severityClass} bg-opacity-10">
+                    <h6 class="mb-0 text-${severityClass}">
+                        <i class="fas fa-pills me-2"></i>
+                        ${interaction.medication1} + ${interaction.medication2}
+                        <span class="badge bg-${severityClass} float-end">${interaction.severity}</span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Description:</strong> ${interaction.description}</p>
+                    <p class="mb-2"><strong>Recommendation:</strong> ${interaction.recommendation}</p>
+                    <small class="text-muted">Source: ${interaction.source}</small>
+                </div>
+            </div>
+        `;
+        });
+
+        resultsDiv.innerHTML = html;
+    }
+
+    function getSeverityClass(severity) {
+        const severityLower = severity.toLowerCase();
+        if (severityLower === 'critical') return 'danger';
+        if (severityLower === 'major') return 'warning';
+        if (severityLower === 'moderate') return 'info';
+        return 'secondary';
+    }
+
+    // Auto-check on page load if medications exist
+    document.addEventListener('DOMContentLoaded', function () {
+        const btn = document.getElementById('check-interactions-btn');
+        if (btn) {
+            checkInteractions();
+        }
+    });
+</script>
+{% endblock %}

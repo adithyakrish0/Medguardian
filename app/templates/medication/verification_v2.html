@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Medication - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h2 class="mb-4 text-center">
+                <i class="fas fa-camera me-2"></i>Medication Verification
+            </h2>
+
+            <!-- Expected Medication Card -->
+            <div class="card mb-4 border-primary" id="expected-med-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-pills me-2"></i>Expected Medication</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h3 class="text-primary" id="expected-name">Loading...</h3>
+                    <p class="text-muted" id="expected-dosage"></p>
+                    <div id="verification-methods" class="mt-2"></div>
+                </div>
+            </div>
+
+            <!-- Camera Feed with Overlay -->
+            <div class="card shadow-lg">
+                <div class="card-body p-0 position-relative">
+                    <!-- Video container -->
+                    <div class="position-relative" style="background: #000;">
+                        <img src="{{ url_for('medication.video_feed') }}" alt="Camera Feed" class="w-100"
+                            style="max-height: 500px; object-fit: contain;" id="camera-feed">
+
+                        <!-- Verification Overlay -->
+                        <div id="verification-overlay" class="position-absolute top-0 start-0 w-100 h-100"
+                            style="pointer-events: none; display: none;">
+                            <!-- GREEN for correct, RED for wrong -->
+                            <div id="overlay-box" class="border border-5 rounded h-100"></div>
+                            <div id="overlay-text"
+                                class="position-absolute top-50 start-50 translate-middle text-center">
+                                <h1 class="display-1" id="overlay-icon"></h1>
+                                <h3 id="overlay-message" class="text-white bg-dark bg-opacity-75 px-3 py-2 rounded">
+                                </h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Bar -->
+                    <div class="p-3 bg-light border-top">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <span class="badge bg-info" id="method-badge">Scanning...</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="badge bg-secondary" id="confidence-badge">---%</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="badge bg-warning" id="status-badge">Ready</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="card-footer bg-white">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <button id="capture-btn" class="btn btn-primary btn-lg w-100" onclick="captureAndVerify()">
+                                <i class="fas fa-camera me-2"></i>Capture & Verify
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button id="confirm-btn" class="btn btn-success btn-lg w-100" disabled
+                                onclick="confirmMedication()">
+                                <i class="fas fa-check me-2"></i>Confirm Taken
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6><i class="fas fa-info-circle me-2"></i>How it works:</h6>
+                    <ol class="mb-0">
+                        <li><strong>Hold bottle/strip</strong> in front of camera</li>
+                        <li>System checks: <span class="badge bg-dark">Barcode</span>
+                            <span class="badge bg-dark">Visual Match</span>
+                            <span class="badge bg-dark">Label Text</span>
+                        </li>
+                        <li><strong>GREEN</strong> = Correct medication ✅</li>
+                        <li><strong>RED</strong> = Wrong medication ❌</li>
+                        <li>Click "Confirm" only after GREEN verification</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let expectedMedicationId = null;
+    let verificationTimer = null;
+
+    // Load expected medication on page load
+    document.addEventListener('DOMContentLoaded', async function () {
+        await loadExpectedMedication();
+        startContinuousVerification();
+    });
+
+    async function loadExpectedMedication() {
+        try {
+            const response = await fetch('/medication/next-expected');
+            const data = await response.json();
+
+            if (data.medication) {
+                expectedMedicationId = data.medication.id;
+                document.getElementById('expected-name').textContent = data.medication.name;
+                document.getElementById('expected-dosage').textContent = data.medication.dosage;
+
+                // Show available verification methods
+                const methods = [];
+                if (data.medication.has_barcode) methods.push('<span class="badge bg-success">Barcode</span>');
+                if (data.medication.has_reference_image) methods.push('<span class="badge bg-info">Visual</span>');
+                methods.push('<span class="badge bg-warning">OCR</span>');
+
+                document.getElementById('verification-methods').innerHTML =
+                    '<small>Methods: ' + methods.join(' ') + '</small>';
+            }
+        } catch (error) {
+            console.error('Failed to load expected medication:', error);
+        }
+    }
+
+    async function captureAndVerify() {
+        if (!expectedMedicationId) return;
+
+        const feed = document.getElementById('camera-feed');
+        const canvas = document.createElement('canvas');
+        canvas.width = feed.naturalWidth;
+        canvas.height = feed.naturalHeight;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(feed, 0, 0);
+
+        const imageData = canvas.toDataURL('image/jpeg');
+
+        // Show loading
+        document.getElementById('status-badge').textContent = 'Verifying...';
+        document.getElementById('status-badge').className = 'badge bg-warning';
+
+        try {
+            const response = await fetch('/medication/verify-realtime', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image: imageData,
+                    medication_id: expectedMedicationId
+                })
+            });
+
+            const result = await response.json();
+            displayVerificationResult(result);
+        } catch (error) {
+            console.error('Verification failed:', error);
+            document.getElementById('status-badge').textContent = 'Error';
+            document.getElementById('status-badge').className = 'badge bg-danger';
+        }
+    }
+
+    function displayVerificationResult(result) {
+        const overlay = document.getElementById('verification-overlay');
+        const overlayBox = document.getElementById('overlay-box');
+        const overlayIcon = document.getElementById('overlay-icon');
+        const overlayMessage = document.getElementById('overlay-message');
+        const confirmBtn = document.getElementById('confirm-btn');
+
+        overlay.style.display = 'block';
+
+        if (result.is_correct) {
+            // GREEN - Correct!
+            overlayBox.className = 'border border-5 border-success rounded h-100';
+            overlayIcon.textContent = '✅';
+            overlayIcon.className = 'display-1 text-success';
+            overlayMessage.textContent = result.message;
+            overlayMessage.className = 'text-white bg-success bg-opacity-90 px-3 py-2 rounded';
+            confirmBtn.disabled = false;
+
+            document.getElementById('status-badge').textContent = 'Verified ✓';
+            document.getElementById('status-badge').className = 'badge bg-success';
+        } else {
+            // RED - Wrong!
+            overlayBox.className = 'border border-5 border-danger rounded h-100';
+            overlayIcon.textContent = '❌';
+            overlayIcon.className = 'display-1 text-danger';
+            overlayMessage.textContent = result.message;
+            overlayMessage.className = 'text-white bg-danger bg-opacity-90 px-3 py-2 rounded';
+            confirmBtn.disabled = true;
+
+            document.getElementById('status-badge').textContent = 'Wrong Med!';
+            document.getElementById('status-badge').className = 'badge bg-danger';
+        }
+
+        // Update method and confidence
+        document.getElementById('method-badge').textContent = result.method.toUpperCase();
+        document.getElementById('confidence-badge').textContent =
+            Math.round(result.confidence * 100) + '%';
+
+        // Hide overlay after 3 seconds
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 3000);
+    }
+
+    function startContinuousVerification() {
+        // Optional: Auto-verify every 2 seconds for real-time feedback
+        // verificationTimer = setInterval(captureAndVerify, 2000);
+    }
+
+    function confirmMedication() {
+        // Mark medication as taken
+        window.location.href = '/medication/confirm-taken/' + expectedMedicationId;
+    }
+</script>
+{% endblock %}

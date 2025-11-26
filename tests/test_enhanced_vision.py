@@ -3,6 +3,9 @@ import numpy as np
 import time
 import os
 import json
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from app.vision.enhanced_verifier import EnhancedMedicationVerifier
 from app.vision.bottle_detector import MedicineBottleDetector
 

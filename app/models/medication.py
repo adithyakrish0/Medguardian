@@ -30,6 +30,14 @@ class Medication(db.Model):
     end_date = db.Column(db.Date)
     priority = db.Column(db.String(20), default='normal')
     custom_times = db.Column(db.String(200))  # JSON string for custom times
+    
+    # PHASE 1: Barcode verification (for medications that have barcodes)
+    barcode = db.Column(db.String(100), nullable=True, index=True)  # UPC/EAN/QR code
+    
+    # PHASE 3: Visual verification (for medications WITHOUT barcodes - MOST CASES!)
+    reference_image_path = db.Column(db.String(500), nullable=True)  # Path to reference photo
+    image_features = db.Column(db.Text, nullable=True)  # JSON: color histogram, shape features
+    label_text = db.Column(db.Text, nullable=True)  # OCR extracted text from label
 
     def __repr__(self):
         return f'<Medication {self.name} for User {self.user_id}>'

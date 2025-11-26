@@ -1,11 +1,16 @@
 import cv2
-from pyzbar import pyzbar
 
 class BarcodeScanner:
     @staticmethod
     def scan_barcodes(image):
         """Scan barcodes/QR codes in image"""
-        barcodes = pyzbar.decode(image)
+        try:
+            from pyzbar import pyzbar
+            barcodes = pyzbar.decode(image)
+        except (ImportError, FileNotFoundError, OSError):
+            # Return empty list if pyzbar is not available
+            return []
+            
         results = []
         
         for barcode in barcodes:

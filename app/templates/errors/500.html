@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="error-template">
+                <h1 class="display-1 text-danger">500</h1>
+                <h2 class="mb-3">Internal Server Error</h2>
+                <p class="lead mb-4">Something went wrong. We've been notified and are working on it.</p>
+                <div class="error-actions">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-home me-2"></i>Go Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

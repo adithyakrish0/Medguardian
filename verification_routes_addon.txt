@@ -1,0 +1,102 @@
+# Add these routes to app/routes/medication.py
+
+@medication.route('/verify-realtime', methods=['POST'])
+@login_required
+def verify_realtime():
+    """
+    Real-time verification endpoint
+    Receives image frame + expected medication, returns CORRECT/WRONG
+    """
+    from app.utils.medication_verification import verify_medication_comprehensive
+    from app.vision.barcode_scanner import MedicationBarcodeScanner
+    import base64
+    
+    try:
+        data = request.get_json()
+        
+        # Get image from base64
+        image_data = data.get('image')
+        expected_med_id = data.get('medication_id')
+        
+        if not image_data or not expected_med_id:
+            return jsonify({'error': 'Missing image or medication_id'}), 400
+        
+        # Decode image
+        image_bytes = base64.b64decode(image_data.split(',')[1])
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        # Scan for barcode
+        scanner = MedicationBarcodeScanner()
+        barcodes = scanner.scan_barcode(image)
+        scanned_barcode = barcodes[0]['data'] if barcodes else None
+        
+        # Comprehensive verification
+        result = verify_medication_comprehensive(
+            image=image,
+            expected_medication_id=expected_med_id,
+            user_id=current_user.id,
+            scanned_barcode=scanned_barcode
+        )
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@medication.route('/save-reference-image/<int:medication_id>', methods=['POST'])
+@login_required
+def save_reference_image(medication_id):
+    """
+    Save reference image for a medication (for visual verification)
+    Called when user first adds a medication
+    """
+    from app.models.medication import Medication
+    from app.vision.visual_verifier import visual_verifier
+    from app.extensions import db
+    import base64
+    
+    try:
+        data = request.get_json()
+        image_data = data.get('image')
+        
+        if not image_data:
+            return jsonify({'error': 'No image provided'}), 400
+        
+        # Get medication
+        medication = Medication.query.filter_by(
+            id=medication_id,
+            user_id=current_user.id
+        ).first_or_404()
+        
+        # Decode image
+        image_bytes = base64.b64decode(image_data.split(',')[1])
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        # Save reference image
+        image_path = visual_verifier.save_reference_image(image, medication_id)
+        
+        # Extract features
+        features = visual_verifier.extract_features(image)
+        
+        # Extract text via OCR
+        label_text = visual_verifier.extract_text_ocr(image)
+        
+        # Update medication
+        medication.reference_image_path = image_path
+        medication.image_features = json.dumps(features)
+        medication.label_text = label_text
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Reference image saved',
+            'features_extracted': True,
+            'ocr_text': label_text[:100] if label_text else 'None'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

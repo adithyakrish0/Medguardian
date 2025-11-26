@@ -11,5 +11,9 @@ class MedicationLog(db.Model):
     taken_correctly = db.Column(db.Boolean, default=True)
     notes = db.Column(db.Text)
     
+    # CRITICAL FIX: Add missing columns
+    scheduled_time = db.Column(db.DateTime, nullable=True)  # When medication was scheduled
+    verified_by_camera = db.Column(db.Boolean, default=False)  # Was verification used?
+    
     # 关系
     medication = db.relationship('Medication', backref='logs')
