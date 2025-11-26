@@ -116,6 +116,37 @@ class EnhancedMedicationVerifier:
             
         except Exception as e:
             return self._create_error_result(f"Verification error: {str(e)}")
+
+    def verify_medication_with_image(self, image_path: str, expected_medication_id: int = None) -> Dict:
+        """
+        Verify medication from an image file
+        
+        Args:
+            image_path: Path to the image file
+            expected_medication_id: Expected medication ID for verification
+            
+        Returns:
+            Dictionary with verification results
+        """
+        try:
+            # Load image
+            image = cv2.imread(image_path)
+            if image is None:
+                return self._create_error_result(f"Failed to load image from {image_path}")
+            
+            # Process image
+            result = self._process_image(image, expected_medication_id)
+            
+            # Update performance metrics (optional for static images)
+            if result['success']:
+                self.successful_detections += 1
+            self.total_detections += 1
+            
+            self.last_detection_result = result
+            return result
+            
+        except Exception as e:
+            return self._create_error_result(f"Image verification error: {str(e)}")
     
     def _process_image(self, image: np.ndarray, expected_medication_id: int = None) -> Dict:
         """Process a single image for bottle detection"""
@@ -341,6 +372,39 @@ class EnhancedMedicationVerifier:
         print("Detection optimization not yet implemented")
         return {}
     
+    def generate_frames(self):
+        """
+        Generator for video streaming
+        
+        Yields:
+            bytes: JPEG encoded frame
+        """
+        while True:
+            try:
+                # Capture frame
+                frame = self.camera.capture_image(timeout=1.0)
+                
+                if frame is not None:
+                    # Draw detections if available
+                    if self.last_detection_result and 'detections' in self.last_detection_result:
+                        frame = self.bottle_detector._draw_detections(
+                            frame, 
+                            self.last_detection_result['detections']
+                        )
+                    
+                    # Encode frame
+                    ret, buffer = cv2.imencode('.jpg', frame)
+                    frame_bytes = buffer.tobytes()
+                    
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                else:
+                    time.sleep(0.1)
+                    
+            except Exception as e:
+                print(f"Frame generation error: {e}")
+                time.sleep(0.1)
+
     def cleanup(self):
         """Cleanup resources"""
         self.stop_realtime_detection()

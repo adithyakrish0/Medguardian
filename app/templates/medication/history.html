@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Medication History - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-history me-2"></i>Medication History</h2>
+        <div>
+            <a href="{{ url_for('medication.export_history', format='pdf') }}" class="btn btn-danger me-2">
+                <i class="fas fa-file-pdf me-1"></i>Export PDF
+            </a>
+            <a href="{{ url_for('medication.export_history', format='csv') }}" class="btn btn-success">
+                <i class="fas fa-file-csv me-1"></i>Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Calendar View -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>This Month</h5>
+                </div>
+                <div class="card-body">
+                    <div id="compliance-calendar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Logs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Recent Activity</h5>
+                    <select id="filter-medication" class="form-select form-select-sm" style="width: auto;">
+                        <option value="all">All Medications</option>
+                        {% for med in medications %}
+                        <option value="{{ med.id }}">{{ med.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Medication</th>
+                                    <th>Dosage</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body">
+                                {% for log in logs %}
+                                <tr data-medication-id="{{ log.medication_id }}">
+                                    <td>
+                                        <i class="far fa-clock me-2"></i>
+                                        {{ log.taken_at.strftime('%b %d, %Y %I:%M %p') }}
+                                    </td>
+                                    <td>
+                                        <strong>{{ log.medication.name }}</strong>
+                                    </td>
+                                    <td>{{ log.medication.dosage }}</td>
+                                    <td>
+                                        {% if log.taken_correctly %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Taken
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times me-1"></i>Missed
+                                        </span>
+                                        {% endif %}
+                                        {% if log.verified_by_camera %}
+                                        <span class="badge bg-info ms-1">
+                                            <i class="fas fa-camera me-1"></i>Verified
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary"
+                                            onclick="viewDetails({{ log.id }})">
+                                            <i class="fas fa-info-circle"></i> Details
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-body-content">
+                <!-- Content loaded via JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Filter table
+    document.getElementById('filter-medication').addEventListener('change', function () {
+        const medId = this.value;
+        const rows = document.querySelectorAll('#history-table-body tr');
+
+        rows.forEach(row => {
+            if (medId === 'all' || row.dataset.medicationId === medId) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    async function viewDetails(logId) {
+        const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+        const content = document.getElementById('modal-body-content');
+
+        content.innerHTML = '<div class="text-center"><div class="spinner-border"></div></div>';
+        modal.show();
+
+        try {
+            const response = await fetch(`/medication/log-details/${logId}`);
+            const data = await response.json();
+
+            content.innerHTML = `
+            <div class="row">
+                <div class="col-12 mb-3">
+                    <h6>Medication:</h6>
+                    <p>${data.medication_name} - ${data.dosage}</p>
+                </div>
+                <div class="col-6 mb-3">
+                    <h6>Scheduled Time:</h6>
+                    <p>${data.scheduled_time}</p>
+                </div>
+                <div class="col-6 mb-3">
+                    <h6>Actual Time:</h6>
+                    <p>${data.taken_at}</p>
+                </div>
+                <div class="col-12 mb-3">
+                    <h6>Status:</h6>
+                    <p>${data.status}</p>
+                </div>
+                ${data.notes ? `<div class="col-12"><h6>Notes:</h6><p>${data.notes}</p></div>` : ''}
+            </div>
+        `;
+        } catch (error) {
+            content.innerHTML = '<div class="alert alert-danger">Failed to load details</div>';
+        }
+    }
+</script>
+{% endblock %}

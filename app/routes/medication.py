@@ -2,13 +2,16 @@ import os
 import base64
 import io
 import json
+import numpy as np
+import cv2
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.medication import Medication
 from app.models.medication_log import MedicationLog
 from app.vision.pill_detection import PillDetector
-from app.vision.medication_verifier import MedicationVerifier
+from app.vision.enhanced_verifier import EnhancedMedicationVerifier
+from flask import Response
 
 medication = Blueprint('medication', __name__)
 
@@ -48,252 +51,320 @@ def add_medication():
         )
         db.session.add(new_medication)
         db.session.commit()
-        flash('Medication added successfully!')
+        flash('Medication added successfully!', 'success')
         return redirect(url_for('medication.list_medications'))
+    
     return render_template('medication/add.html')
 
-# Edit an existing medication
-@medication.route('/edit-medication/<int:id>', methods=['GET', 'POST'])
+# Edit medication
+@medication.route('/edit-medication/<int:medication_id>', methods=['GET', 'POST'])
 @login_required
-def edit_medication(id):
+def edit_medication(medication_id):
     """Edit an existing medication"""
-    medication_obj = Medication.query.get_or_404(id)
-    if medication_obj.user_id != current_user.id:
-        flash('You do not have permission to edit this medication.')
+    medication = Medication.query.get_or_404(medication_id)
+    
+    # Security check
+    if medication.user_id != current_user.id:
+        flash('Unauthorized access', 'danger')
         return redirect(url_for('medication.list_medications'))
-
+    
     if request.method == 'POST':
-        medication_obj.name = request.form.get('name')
-        medication_obj.dosage = request.form.get('dosage')
-        medication_obj.frequency = request.form.get('frequency')
-        medication_obj.instructions = request.form.get('instructions')
-        medication_obj.morning = 'morning' in request.form
-        medication_obj.afternoon = 'afternoon' in request.form
-        medication_obj.evening = 'evening' in request.form
-        medication_obj.night = 'night' in request.form
-        
-        # Process custom times
-        custom_times = []
-        if 'custom_time[]' in request.form:
-            custom_times = [time for time in request.form.getlist('custom_time[]') if time.strip()]
-        
-        # Create custom reminder times JSON
-        medication_obj.custom_reminder_times = json.dumps(custom_times) if custom_times else None
+        medication.name = request.form.get('name')
+        medication.dosage = request.form.get('dosage')
+        medication.frequency = request.form.get('frequency')
+        medication.instructions = request.form.get('instructions')
+        medication.morning = 'morning' in request.form
+        medication.afternoon = 'afternoon' in request.form
+        medication.evening = 'evening' in request.form
+        medication.night = 'night' in request.form
         
         db.session.commit()
-        flash('Medication updated successfully!')
-        return redirect(url_for('medication.list_medications'))
-
-    return render_template('medication/edit.html', medication=medication_obj)
-
-# Delete a medication
-@medication.route('/delete-medication/<int:id>', methods=['POST'])
-@login_required
-def delete_medication(id):
-    """Delete a medication"""
-    medication_obj = Medication.query.get_or_404(id)
-    if medication_obj.user_id != current_user.id:
-        flash('You do not have permission to delete this medication.')
+        flash('Medication updated successfully!', 'success')
         return redirect(url_for('medication.list_medications'))
     
-    db.session.delete(medication_obj)
+    return render_template('medication/edit.html', medication=medication)
+
+# Delete medication
+@medication.route('/delete-medication/<int:medication_id>', methods=['POST'])
+@login_required
+def delete_medication(medication_id):
+    """Delete a medication"""
+    medication = Medication.query.get_or_404(medication_id)
+    
+    # Security check
+    if medication.user_id != current_user.id:
+        flash('Unauthorized access', 'danger')
+        return redirect(url_for('medication.list_medications'))
+    
+    db.session.delete(medication)
     db.session.commit()
-    flash('Medication deleted successfully!')
+    flash('Medication deleted successfully', 'success')
     return redirect(url_for('medication.list_medications'))
 
-# Confirm a medication has been taken
-@medication.route('/confirm-medication/<int:medication_id>', methods=['POST'])
-@login_required
-def confirm_medication(medication_id):
-    """Confirm medication has been taken"""
-    medication_obj = Medication.query.get_or_404(medication_id)
-    if medication_obj.user_id != current_user.id:
-        return jsonify({'success': False, 'message': 'Permission denied'}), 403
-
-    log = MedicationLog(
-        medication_id=medication_obj.id,
-        user_id=current_user.id,
-        taken_correctly=True,
-        notes="User confirmed medication taken"
-    )
-    db.session.add(log)
-    db.session.commit()
-    return jsonify({'success': True, 'message': 'Medication confirmed successfully!'})
-
-# Compliance report
-@medication.route('/compliance-report')
-@login_required
-def compliance_report():
-    """Generate compliance report for the user"""
-    logs = MedicationLog.query.filter_by(user_id=current_user.id).all()
-    total_logs = len(logs)
-    taken_logs = sum(1 for log in logs if log.taken_correctly)
-
-    compliance_rate = (taken_logs / total_logs * 100) if total_logs > 0 else 0
-
-    return render_template('medication/compliance_report.html', 
-                         total_logs=total_logs,
-                         taken_logs=taken_logs,
-                         compliance_rate=compliance_rate)
-
-# Medication verification
-@medication.route('/verify-medication/<int:medication_id>', methods=['POST'])
-@login_required
-def verify_medication(medication_id):
-    """Verify medication using camera or image upload"""
-    medication_obj = Medication.query.get_or_404(medication_id)
-    if medication_obj.user_id != current_user.id:
-        return jsonify({
-            'success': False,
-            'message': "You don't have permission to verify this medication",
-            'detected_bottles': 0,
-            'barcode_verified': False
-        }), 403
-
-    result = {}
-    
-    try:
-        # Handle uploaded image if present
-        if 'image' in request.files:
-            image_file = request.files['image']
-            temp_path = os.path.join('temp', f"temp_{current_user.id}.jpg")
-            os.makedirs('temp', exist_ok=True)
-            image_file.save(temp_path)
-
-            verifier = MedicationVerifier()
-            result = verifier.verify_medication_with_image(temp_path, medication_id)
-            verifier.cleanup()
-
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-        else:
-            # Default: use camera directly
-            verifier = MedicationVerifier()
-            result = verifier.verify_medication(medication_id)
-            verifier.cleanup()
-    except Exception as e:
-        result = {'success': False, 'message': f'Verification failed: {str(e)}'}
-
-    # Log verification attempt
-    log = MedicationLog(
-        medication_id=medication_id,
-        user_id=current_user.id,
-        taken_correctly=result.get('success', False),
-        notes=result.get('message', 'Verification attempt')
-    )
-    db.session.add(log)
-    db.session.commit()
-
-    return jsonify(result)
-
-# Verification page
 @medication.route('/verification')
 @login_required
 def verification():
-    """Display medication verification page"""
+    """Display medication verification page with real-time feedback"""
+    from app.models.medication import Medication
     medications = Medication.query.filter_by(user_id=current_user.id).all()
-    return render_template('medication/verification.html', medications=medications)
+    return render_template('medication/verification_v2.html', medications=medications)
 
-# Realtime verification page
+# Video feed for camera
+@medication.route('/video_feed')
+@login_required
+def video_feed():
+    """Video streaming route for camera feed"""
+    try:
+        verifier = EnhancedMedicationVerifier()
+        return Response(
+            verifier.generate_frames(),
+            mimetype='multipart/x-mixed-replace; boundary=frame'
+        )
+    except Exception as e:
+        print(f"Video feed error: {e}")
+        return Response("Camera unavailable", status=503)
+
+# Verify medication with image upload
+@medication.route('/verify-medication/<int:medication_id>', methods=['POST'])
+@login_required
+def verify_medication(medication_id):
+    """Verify medication using uploaded image"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'Empty filename'}), 400
+        
+        # Save temporarily
+        temp_path = os.path.join('temp', f'verify_{current_user.id}.jpg')
+        os.makedirs('temp', exist_ok=True)
+        file.save(temp_path)
+        
+        # Verify
+        verifier = EnhancedMedicationVerifier()
+        result = verifier.verify_medication_with_image(temp_path, medication_id)
+        
+        # Cleanup
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Real-time verification endpoint
 @medication.route('/realtime-verification')
 @login_required
 def realtime_verification():
-    """Display realtime verification page"""
-    medications = Medication.query.filter_by(user_id=current_user.id).all()
-    return render_template('medication/realtime_verification.html', medications=medications)
-
-# Detect pills endpoint
-@medication.route('/detect-pills', methods=['POST'])
-@login_required
-def detect_pills():
-    """Detect pills in uploaded image"""
-    data = request.get_json()
-    image_data = data.get('image')
-    
-    if not image_data:
-        return jsonify({'error': 'No image provided'}), 400
-    
+    """Get real-time verification status"""
     try:
-        # Remove data URL prefix
-        if image_data.startswith('data:image/jpeg;base64,'):
-            image_data = image_data.split(',')[1]
-        
-        # Decode base64 image
-        image_bytes = base64.b64decode(image_data)
-        
-        # Convert to PIL Image
-        from PIL import Image
-        image = Image.open(io.BytesIO(image_bytes))
-        
-        # Detect pills
-        detector = PillDetector()
-        detections = detector.detect_pills(image)
-        
-        return jsonify({'detections': detections, 'count': len(detections)})
+        verifier = EnhancedMedicationVerifier()
+        result = verifier.get_last_detection_result()
+        return jsonify(result if result else {'success': False, 'message': 'No detection yet'})
     except Exception as e:
-        return jsonify({'error': f'Image processing failed: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
-# Quick add medication endpoint for testing
-@medication.route('/quick-add', methods=['POST'])
+# Mark medication as taken
+@medication.route('/mark-taken/<int:medication_id>', methods=['POST'])
 @login_required
-def quick_add_medication():
-    """Quickly add a test medication for testing purposes"""
+def mark_taken(medication_id):
+    """Mark a medication as taken"""
+    try:
+        medication = Medication.query.get_or_404(medication_id)
+        
+        # Security check
+        if medication.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Create log entry
+        from datetime import datetime
+        log = MedicationLog(
+            user_id=current_user.id,
+            medication_id=medication_id,
+            taken_at=datetime.now(),
+            taken_correctly=True,
+            verified_by_camera=request.json.get('verified_by_camera', False)
+        )
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Medication marked as taken'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ========== NEW VERIFICATION ROUTES ==========
+
+@medication.route('/verify-realtime', methods=['POST'])
+@login_required
+def verify_realtime():
+    """
+    Real-time verification endpoint
+    Receives image frame + expected medication, returns CORRECT/WRONG
+    """
+    from app.utils.medication_verification import verify_medication_comprehensive
+    from app.vision.barcode_scanner import MedicationBarcodeScanner
+    
     try:
         data = request.get_json()
         
-        # Extract data from request
-        name = data.get('name', 'Aspirin')
-        dosage = data.get('dosage', '1 tablet')
-        frequency = data.get('frequency', 'Once')
-        instructions = data.get('instructions', 'Take with water')
-        user_id = current_user.id
+        # Get image from base64
+        image_data = data.get('image')
+        expected_med_id = data.get('medication_id')
         
-        # Handle boolean flags
-        morning = data.get('morning', False)
-        afternoon = data.get('afternoon', False)
-        evening = data.get('evening', False)
-        night = data.get('night', False)
+        if not image_data or not expected_med_id:
+            return jsonify({'error': 'Missing image or medication_id'}), 400
         
-        # Handle custom reminder times - store as JSON string
-        custom_reminder_times_str = data.get('custom_reminder_times')
-        if custom_reminder_times_str:
-            try:
-                # Parse the JSON string and then convert back to string for storage
-                custom_times_list = json.loads(custom_reminder_times_str)
-                custom_reminder_times_str = json.dumps(custom_times_list)
-            except json.JSONDecodeError:
-                custom_reminder_times_str = None
+        # Decode image
+        image_bytes = base64.b64decode(image_data.split(',')[1])
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        # Create new medication
-        new_medication = Medication(
-            name=name,
-            dosage=dosage,
-            frequency=frequency,
-            instructions=instructions,
-            user_id=user_id,
-            morning=morning,
-            afternoon=afternoon,
-            evening=evening,
-            night=night,
-            custom_reminder_times=custom_reminder_times_str,
-            reminder_enabled=True,
-            reminder_sound=True,
-            reminder_voice=True,
-            priority='normal'
+        # Scan for barcode
+        scanner = MedicationBarcodeScanner()
+        barcodes = scanner.scan_barcode(image)
+        scanned_barcode = barcodes[0]['data'] if barcodes else None
+        
+        # Comprehensive verification
+        result = verify_medication_comprehensive(
+            image=image,
+            expected_medication_id=expected_med_id,
+            user_id=current_user.id,
+            scanned_barcode=scanned_barcode
         )
         
-        db.session.add(new_medication)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@medication.route('/save-reference-image/<int:medication_id>', methods=['POST'])
+@login_required
+def save_reference_image(medication_id):
+    """
+    Save reference image for a medication (for visual verification)
+    Called when user first adds a medication
+    """
+    from app.vision.visual_verifier import visual_verifier
+    
+    try:
+        data = request.get_json()
+        image_data = data.get('image')
+        
+        if not image_data:
+            return jsonify({'error': 'No image provided'}), 400
+        
+        # Get medication
+        medication = Medication.query.filter_by(
+            id=medication_id,
+            user_id=current_user.id
+        ).first_or_404()
+        
+        # Decode image
+        image_bytes = base64.b64decode(image_data.split(',')[1])
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        # Save reference image
+        image_path = visual_verifier.save_reference_image(image, medication_id)
+        
+        # Extract features
+        features = visual_verifier.extract_features(image)
+        
+        # Extract text via OCR
+        label_text = visual_verifier.extract_text_ocr(image)
+        
+        # Update medication
+        medication.reference_image_path = image_path
+        medication.image_features = json.dumps(features)
+        medication.label_text = label_text
+        
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': f'Medication "{name}" added successfully!',
-            'medication_id': new_medication.id
+            'message': 'Reference image saved',
+            'features_extracted': True,
+            'ocr_text': label_text[:100] if label_text else 'None'
         })
         
     except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': f'Failed to add medication: {str(e)}'
-        }), 500
+        return jsonify({'error': str(e)}), 500
+
+
+@medication.route('/next-expected')
+@login_required
+def next_expected():
+    """Get the next expected medication for verification"""
+    from app.utils.medication_verification import get_next_expected_medication
+    
+    try:
+        next_med = get_next_expected_medication(current_user.id)
+        
+        if next_med:
+            return jsonify({'success': True, 'medication': next_med})
+        else:
+            return jsonify({'success': False, 'message': 'No medications scheduled'})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Medication history and export routes
+@medication.route('/history')
+@login_required
+def medication_history():
+    """View medication history"""
+    medications = Medication.query.filter_by(user_id=current_user.id).all()
+    logs = MedicationLog.query.filter_by(user_id=current_user.id).order_by(
+        MedicationLog.taken_at.desc()
+    ).limit(100).all()
+    
+    return render_template('medication/history.html',
+                         medications=medications,
+                         logs=logs)
+
+@medication.route('/export-history/<format>')
+@login_required
+def export_history(format):
+    """Export medication history"""
+    from app.utils.export import export_to_csv, export_to_pdf
+    
+    medications = Medication.query.filter_by(user_id=current_user.id).all()
+    logs = MedicationLog.query.filter_by(user_id=current_user.id).order_by(
+        MedicationLog.taken_at.desc()
+    ).all()
+    
+    if format == 'csv':
+        return export_to_csv(logs, medications)
+    elif format == 'pdf':
+        return export_to_pdf(logs, medications, current_user)
+    else:
+        flash('Invalid export format', 'error')
+        return redirect(url_for('medication.medication_history'))
+
+@medication.route('/log-details/<int:log_id>')
+@login_required
+def log_details(log_id):
+    """Get details for a specific log"""
+    log = MedicationLog.query.get_or_404(log_id)
+    
+    # Security check
+    if log.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    return jsonify({
+        'medication_name': log.medication.name,
+        'dosage': log.medication.dosage,
+        'scheduled_time': log.scheduled_time.strftime('%I:%M %p') if log.scheduled_time else 'N/A',
+        'taken_at': log.taken_at.strftime('%B %d, %Y %I:%M %p'),
+        'status': 'Taken correctly' if log.taken_correctly else 'Missed',
+        'verified_by_camera': log.verified_by_camera,
+        'notes': log.notes or 'No notes'
+    })

@@ -1,0 +1,277 @@
+/* Enhanced animations and mobile responsiveness for MedGuardian */
+
+/* ========================================
+   Modal Animations
+   ======================================== */
+
+/* Fade in animation for modals */
+.modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    transform: scale(0.9) translateY(-20px);
+    opacity: 0;
+}
+
+.modal.show .modal-dialog {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+/* Pulse animation for medication reminder modal */
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+/* Shake animation for critical alerts */
+.shake {
+    animation: shake 0.5s;
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-10px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(10px);
+    }
+}
+
+/* ========================================
+   Button Hover Effects
+   ======================================== */
+
+.btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Ripple effect on button click */
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* ========================================
+   Card Animations
+   ======================================== */
+
+.card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ========================================
+   Loading States
+   ======================================== */
+
+.loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Spinner */
+.spinner-border {
+    animation: spinner-border 0.75s linear infinite;
+}
+
+@keyframes spinner-border {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ========================================
+   Progress Bar Animations
+   ======================================== */
+
+.progress-bar {
+    transition: width 0.6s ease;
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+    0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: 40px 0;
+    }
+}
+
+/* ========================================
+   Mobile Responsiveness
+   ======================================== */
+
+/* Tablets and below */
+@media (max-width: 991px) {
+    .col-lg-8, .col-lg-4 {
+        width: 100% !important;
+        margin-bottom: 1rem;
+    }
+    
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Mobile phones */
+@media (max-width: 767px) {
+    h1 {
+        font-size: 1.75rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    h3 {
+        font-size: 1.25rem;
+    }
+    
+    .btn-lg {
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    .display-1 {
+        font-size: 3rem;
+    }
+    
+    /* Stack buttons vertically on mobile */
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Make cards more compact */
+    .card-header h4 {
+        font-size: 1.1rem;
+    }
+    
+    .list-group-item {
+        padding: 0.75rem;
+    }
+    
+    /* Adjust countdown timer */
+    #countdown-timer {
+        font-size: 2.5rem !important;
+    }
+}
+
+/* Small mobile phones */
+@media (max-width: 575px) {
+    .container-fluid {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .card {
+        margin-bottom: 0.75rem;
+    }
+    
+    .row.g-3 {
+        --bs-gutter-x: 0.5rem;
+        --bs-gutter-y: 0.5rem;
+    }
+}
+
+/* ========================================
+   Accessibility Improvements
+   ======================================== */
+
+/* Focus states for keyboard navigation */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+    outline: 3px solid rgba(13, 110, 253, 0.5);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .btn {
+        border-width: 2px;
+    }
+    
+    .card {
+        border-width: 2px;
+    }
+}
+
+/* Reduced motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ========================================
+   Dark Mode Support (Future Enhancement)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+    /* This can be expanded in the future */
+}

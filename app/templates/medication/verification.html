@@ -1,50 +1,123 @@
 {% extends "base.html" %}
 
+{% block title %}Medication Verification{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h2>Medication Verification System</h2>
-    <p>Use your camera to verify medications</p>
-    
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Camera Feed</h5>
-                    <div id="camera-container">
-                        <video id="video" width="100%" autoplay></video>
-                        <canvas id="canvas" style="display:none;"></canvas>
+<div class="container-fluid py-4">
+    <h2 class="mb-4"><i class="fas fa-camera me-2"></i>Smart Medication Verification</h2>
+
+    <div class="row">
+        <!-- Camera Preview Section -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-video me-2"></i>Live Camera Feed</h5>
+                </div>
+                <div class="card-body bg-dark p-0 position-relative">
+                    <img id="camera-feed" src="{{ url_for('medication.video_feed') }}" class="w-100"
+                        style="min-height: 400px; object-fit: contain;" alt="Camera feed">
+
+                    <!-- Detection Overlay -->
+                    <canvas id="detection-overlay" class="position-absolute top-0 start-0 w-100 h-100"
+                        style="pointer-events: none;"></canvas>
+
+                    <!-- Status Badge -->
+                    <div id="detection-status" class="position-absolute top-0 end-0 m-3">
+                        <span class="badge bg-secondary fs-6">Initializing...</span>
                     </div>
-                    <div class="mt-3">
-                        <button id="start-camera" class="btn btn-primary">Start Camera</button>
-                        <button id="capture" class="btn btn-success" disabled>Capture & Verify</button>
-                        <button id="stop-camera" class="btn btn-danger" disabled>Stop Camera</button>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-info me-2">Bottles: <span id="bottle-count">0</span></span>
+                            <span class="badge bg-success me-2">Barcodes: <span id="barcode-count">0</span></span>
+                        </div>
+                        <div>
+                            <button id="capture-btn" class="btn btn-primary" onclick="captureAndVerify()">
+                                <i class="fas fa-camera me-1"></i>Capture & Verify
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Verification Results</h5>
-                    <div id="verification-results">
-                        <p>Click "Capture & Verify" to test medication</p>
-                    </div>
+
+        <!-- Verification Controls -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Verification</h5>
                 </div>
-            </div>
-            
-            <div class="card mt-3">
                 <div class="card-body">
-                    <h5 class="card-title">Test Specific Medication</h5>
-                    <div class="form-group">
-                        <label for="medication-select">Select Medication:</label>
-                        <select id="medication-select" class="form-control">
+                    <div class="mb-3">
+                        <label for="medication-select" class="form-label">Select Medication</label>
+                        <select id="medication-select" class="form-select">
+                            <option value="">Choose...</option>
                             {% for med in medications %}
-                            <option value="{{ med.id }}">{{ med.name }}</option>
+                            <option value="{{ med.id }}">{{ med.name }} ({{ med.dosage }})</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <button id="verify-selected" class="btn btn-primary mt-2">Verify Selected Medication</button>
+
+                    <div class="mb-3">
+                        <label class="form-label">Capture Mode</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="capture-mode" id="mode-single" value="single"
+                                checked>
+                            <label class="btn btn-outline-primary" for="mode-single">Single</label>
+
+                            <input type="radio" class="btn-check" name="capture-mode" id="mode-multiple"
+                                value="multiple">
+                            <label class="btn btn-outline-primary" for="mode-multiple">Multiple</label>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Instructions</h6>
+                        <ol class="mb-0 small">
+                            <li>Select the medication you want to verify</li>
+                            <li>Place the medication bottle in view of the camera</li>
+                            <li>Ensure the barcode is visible and well-lit</li>
+                            <li>Click "Capture & Verify" when ready</li>
+                        </ol>
+                    </div>
+
+                    <div id="verification-results"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alternative Upload Method -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Alternative: Upload Image</h5>
+                </div>
+                <div class="card-body">
+                    <form id="upload-form" class="row g-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="col-md-6">
+                            <label for="medication-upload-select" class="form-label">Medication</label>
+                            <select id="medication-upload-select" class="form-select" required>
+                                <option value="">Choose...</option>
+                                {% for med in medications %}
+                                <option value="{{ med.id }}">{{ med.name }} ({{ med.dosage }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="image-file" class="form-label">Choose Image</label>
+                            <input type="file" class="form-control" id="image-file" accept="image/*" required>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload me-1"></i>Upload & Verify
+                            </button>
+                        </div>
+                    </form>
+                    <div id="upload-results" class="mt-3"></div>
                 </div>
             </div>
         </div>
@@ -52,99 +125,173 @@
 </div>
 
 <script>
-    let stream = null;
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
-    
-    // Camera controls
-    document.getElementById('start-camera').addEventListener('click', async () => {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
-            document.getElementById('start-camera').disabled = true;
-            document.getElementById('capture').disabled = false;
-            document.getElementById('stop-camera').disabled = false;
-        } catch (err) {
-            console.error("Error accessing camera:", err);
-            alert("Could not access camera: " + err.message);
-        }
+    // Global variables
+    let currentMedicationId = null;
+    let detectionInterval = null;
+
+    // Initialize camera feed
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('Verification page loaded');
+
+        // Update status to active
+        setTimeout(() => {
+            document.getElementById('detection-status').innerHTML =
+                '<span class="badge bg-success fs-6">Camera Active</span>';
+        }, 1000);
+
+        // Set up medication select handler
+        document.getElementById('medication-select').addEventListener('change', function () {
+            currentMedicationId = this.value;
+            console.log('Selected medication:', currentMedicationId);
+        });
     });
-    
-    document.getElementById('capture').addEventListener('click', () => {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(async (blob) => {
-            const formData = new FormData();
-            formData.append('image', blob, 'capture.jpg');
-            
-            const medicationId = document.getElementById('medication-select').value;
-            
-            try {
-                const response = await fetch(`/medication/verify-medication/${medicationId}`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                
-                document.getElementById('verification-results').innerHTML = `
-                    <div class="alert ${result.success ? 'alert-success' : 'alert-danger'}">
-                        <h4>Verification Result</h4>
-                        <p><strong>Success:</strong> ${result.success}</p>
-                        <p><strong>Message:</strong> ${result.message}</p>
-                        <p><strong>Detected Bottles:</strong> ${result.detected_bottles}</p>
-                        <p><strong>Barcode Verified:</strong> ${result.barcode_verified}</p>
-                    </div>
-                `;
-            } catch (error) {
-                document.getElementById('verification-results').innerHTML = `
-                    <div class="alert alert-danger">
-                        <h4>Error</h4>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }, 'image/jpeg');
-    });
-    
-    document.getElementById('stop-camera').addEventListener('click', () => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            document.getElementById('start-camera').disabled = false;
-            document.getElementById('capture').disabled = true;
-            document.getElementById('stop-camera').disabled = true;
-        }
-    });
-    
-    // Verify selected medication without camera
-    document.getElementById('verify-selected').addEventListener('click', async () => {
+
+    // Capture and verify function
+    async function captureAndVerify() {
         const medicationId = document.getElementById('medication-select').value;
-        
+
+        if (!medicationId) {
+            showAlert('Please select a medication', 'warning');
+            return;
+        }
+
+        const captureMode = document.querySelector('input[name="capture-mode"]:checked').value;
+        const captureBtn = document.getElementById('capture-btn');
+
+        captureBtn.disabled = true;
+        captureBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verifying...';
+
         try {
             const response = await fetch(`/medication/verify-medication/${medicationId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    capture_mode: captureMode
+                })
             });
+
             const result = await response.json();
-            
-            document.getElementById('verification-results').innerHTML = `
-                <div class="alert ${result.success ? 'alert-success' : 'alert-danger'}">
-                    <h4>Verification Result</h4>
-                    <p><strong>Success:</strong> ${result.success}</p>
-                    <p><strong>Message:</strong> ${result.message}</p>
-                    <p><strong>Detected Bottles:</strong> ${result.detected_bottles}</p>
-                    <p><strong>Barcode Verified:</strong> ${result.barcode_verified}</p>
-                </div>
-            `;
+            displayResults(result);
         } catch (error) {
-            document.getElementById('verification-results').innerHTML = `
-                <div class="alert alert-danger">
-                    <h4>Error</h4>
-                    <p>${error.message}</p>
-                </div>
-            `;
+            console.error('Verification error:', error);
+            showAlert('Verification failed: ' + error.message, 'danger');
+        } finally {
+            captureBtn.disabled = false;
+            captureBtn.innerHTML = '<i class="fas fa-camera me-1"></i>Capture & Verify';
+        }
+    }
+
+    // Display verification results
+    function displayResults(result) {
+        const resultsDiv = document.getElementById('verification-results');
+
+        let alertClass = result.success ? 'alert-success' : 'alert-danger';
+        let icon = result.success ? 'check-circle' : 'times-circle';
+
+        let html = `
+        <div class="alert ${alertClass} mt-3">
+            <h6><i class="fas fa-${icon} me-2"></i>Verification Result</h6>
+            <p class="mb-1"><strong>Status:</strong> ${result.message}</p>
+            <p class="mb-1"><strong>Bottles Detected:</strong> ${result.detected_bottles || 0}</p>
+            <p class="mb-1"><strong>Barcode Verified:</strong> ${result.barcode_verified ? 'Yes' : 'No'}</p>
+    `;
+
+        if (result.detection_time) {
+            html += `<p class="mb-0"><small>Detection time: ${result.detection_time.toFixed(2)}s</small></p>`;
+        }
+
+        html += '</div>';
+
+        resultsDiv.innerHTML = html;
+
+        // Update badges
+        document.getElementById('bottle-count').textContent = result.detected_bottles || 0;
+        document.getElementById('barcode-count').textContent = result.barcodes ? result.barcodes.length : 0;
+    }
+
+    // Upload form handler
+    document.getElementById('upload-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const medicationId = document.getElementById('medication-upload-select').value;
+        const imageFile = document.getElementById('image-file').files[0];
+
+        if (!medicationId || !imageFile) {
+            showAlert('Please select both medication and image', 'warning', 'upload-results');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', imageFile);
+
+        try {
+            const response = await fetch(`/medication/verify-medication/${medicationId}`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            displayUploadResults(result);
+        } catch (error) {
+            console.error('Upload verification error:', error);
+            showAlert('Upload verification failed: ' + error.message, 'danger', 'upload-results');
         }
     });
+
+    // Display upload results
+    function displayUploadResults(result) {
+        const resultsDiv = document.getElementById('upload-results');
+
+        let alertClass = result.success ? 'alert-success' : 'alert-danger';
+        let icon = result.success ? 'check-circle' : 'times-circle';
+
+        resultsDiv.innerHTML = `
+        <div class="alert ${alertClass}">
+            <h6><i class="fas fa-${icon} me-2"></i>Upload Verification Result</h6>
+            <p class="mb-1"><strong>Status:</strong> ${result.message}</p>
+            <p class="mb-1"><strong>Bottles Detected:</strong> ${result.detected_bottles || 0}</p>
+            <p class="mb-0"><strong>Barcode Verified:</strong> ${result.barcode_verified ? 'Yes' : 'No'}</p>
+        </div>
+    `;
+    }
+
+    // Helper function to show alerts
+    function showAlert(message, type, targetId = 'verification-results') {
+        const target = document.getElementById(targetId);
+        target.innerHTML = `<div class="alert alert-${type} mt-3">${message}</div>`;
+    }
 </script>
+
+<style>
+    #camera-feed {
+        background-color: #000;
+    }
+
+    .card-body.bg-dark {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #detection-overlay {
+        z-index: 10;
+    }
+
+    .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: .5;
+        }
+    }
+</style>
 {% endblock %}

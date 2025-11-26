@@ -6,57 +6,17 @@ from app.models.medication import Medication
 from app.models.medication_interaction import MedicationInteraction, InteractionCheckResult
 from app.models.medication_log import MedicationLog
 from datetime import datetime
+from app.utils.interaction_checker import interaction_checker
 
 interaction = Blueprint('interaction', __name__)
 
-# Sample interaction data - in production, this would come from a comprehensive database or API
-SAMPLE_INTERACTIONS = [
-    {
-        'medication1': 'Aspirin',
-        'medication2': 'Ibuprofen',
-        'severity': 'major',
-        'description': 'Both medications are NSAIDs and increase the risk of gastrointestinal bleeding and stomach ulcers when taken together.',
-        'recommendation': 'Avoid taking both medications simultaneously. Space them at least 2-4 hours apart. Consult your doctor about alternative pain relievers.',
-        'source': 'drugs.com',
-        'risk_factors': ['elderly', 'history_of_stomach_issues', 'high_dosage']
-    },
-    {
-        'medication1': 'Warfarin',
-        'medication2': 'Aspirin',
-        'severity': 'critical',
-        'description': 'Both medications increase bleeding risk. Aspirin can enhance the anticoagulant effect of warfarin.',
-        'recommendation': 'Extreme caution required. This combination should only be used under strict medical supervision with frequent INR monitoring.',
-        'source': 'rxlist',
-        'risk_factors': ['elderly', 'liver_disease', 'renal_impairment']
-    },
-    {
-        'medication1': 'Lisinopril',
-        'medication2': 'Potassium supplements',
-        'severity': 'moderate',
-        'description': 'Lisinopril can increase potassium levels in the blood. Taking potassium supplements may lead to hyperkalemia.',
-        'recommendation': 'Monitor potassium levels regularly. Avoid potassium supplements unless specifically prescribed by your doctor.',
-        'source': 'drugs.com',
-        'risk_factors': ['diabetes', 'kidney_disease', 'elderly']
-    },
-    {
-        'medication1': 'Metformin',
-        'medication2': 'Iodinated contrast dye',
-        'severity': 'major',
-        'description': 'Metformin should be temporarily discontinued before and after procedures involving iodinated contrast dye to prevent lactic acidosis.',
-        'recommendation': 'Discontinue metformin 48 hours before procedure and restart 48 hours after, only if renal function is normal.',
-        'source': 'rxlist',
-        'risk_factors': ['renal_impairment', 'dehydration', 'multiple_procedures']
-    },
-    {
-        'medication1': 'Simvastatin',
-        'medication2': 'Grapefruit juice',
-        'severity': 'major',
-        'description': 'Grapefruit juice can significantly increase simvastatin blood levels, increasing the risk of muscle damage and rhabdomyolysis.',
-        'recommendation': 'Avoid grapefruit juice completely while taking simvastatin. Check for other citrus fruits that may interact.',
-        'source': 'drugs.com',
-        'risk_factors': ['high_dosage', 'elderly', 'renal_impairment']
-    }
-]
+@interaction.route('/')
+@login_required
+def index():
+    """Display interaction checker page"""
+    from app.models.medication import Medication
+    medications = Medication.query.filter_by(user_id=current_user.id).all()
+    return render_template('interaction/check.html', medications=medications)
 
 @interaction.route('/check-interactions', methods=['POST'])
 @login_required
@@ -76,28 +36,10 @@ def check_interactions():
             })
         
         # Extract medication names
-        medication_names = [med.name.lower().strip() for med in user_medications]
+        medication_names = [med.name for med in user_medications]
         
-        # Find interactions
-        interactions_found = []
-        
-        # Check sample interactions
-        for sample_interaction in SAMPLE_INTERACTIONS:
-            med1_name = sample_interaction['medication1'].lower()
-            med2_name = sample_interaction['medication2'].lower()
-            
-            # Check if both medications are in user's list
-            if med1_name in medication_names and med2_name in medication_names:
-                interaction_data = {
-                    'severity': sample_interaction['severity'],
-                    'description': sample_interaction['description'],
-                    'recommendation': sample_interaction['recommendation'],
-                    'source': sample_interaction['source'],
-                    'risk_factors': sample_interaction['risk_factors'],
-                    'medication1': sample_interaction['medication1'],
-                    'medication2': sample_interaction['medication2']
-                }
-                interactions_found.append(interaction_data)
+        # Use the interaction checker utility
+        interactions_found = interaction_checker.check_interactions(medication_names)
         
         # Calculate overall risk
         overall_risk = calculate_overall_risk(interactions_found)

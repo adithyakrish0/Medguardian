@@ -6,7 +6,7 @@ import sys
 import json
 
 # Add the app directory to the path
-sys.path.append('app')
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.vision.bottle_detector import MedicineBottleDetector
 
