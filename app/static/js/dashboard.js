@@ -87,6 +87,7 @@ function getPeriodName(hour) {
 
 function initializeCountdownTimer() {
     console.log("Initializing countdown timer...");
+    window.alarmTriggered = false; // Reset alarm flag
 
     try {
         // Check for active snooze first
@@ -215,13 +216,17 @@ function initializeCountdownTimer() {
             nextTime.setHours(hour, minute, 0, 0);
             console.log("Next medication time:", nextTime);
 
-            // If the time has passed today, schedule for tomorrow
-            if (nextTime <= now) {
+            // If the time has passed today (with 15 min grace period), schedule for tomorrow
+            // We allow a 15-minute buffer so "due now" medications trigger the alarm instead of moving to tomorrow
+            const gracePeriod = 15 * 60 * 1000; // 15 minutes in milliseconds
+            if (nextTime <= new Date(now.getTime() - gracePeriod)) {
                 const tomorrow = new Date(now);
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 tomorrow.setHours(hour, minute, 0, 0);
                 nextTime = tomorrow;
-                console.log("Time passed, scheduling for tomorrow:", nextTime);
+                console.log("Time passed grace period, scheduling for tomorrow:", nextTime);
+            } else {
+                console.log("Time is within grace period (or future), keeping as today:", nextTime);
             }
         } else {
             console.error("Time match failed for:", nextMed.time);
@@ -322,8 +327,18 @@ function updateCountdown(targetTime, timerElement, infoElement, progressElement)
         timerElement.textContent = "00:00:00";
         progressElement.style.width = "100%";
 
-        // Time's up - show alarm (no automatic refresh!)
-        showTimeUpAlarm();
+        // Time's up - show alarm (only once!)
+        if (!window.alarmTriggered) {
+            window.alarmTriggered = true;
+
+            // Clear the interval to stop repeated calls
+            if (window.countdownInterval) {
+                clearInterval(window.countdownInterval);
+                window.countdownInterval = null;
+            }
+
+            showTimeUpAlarm();
+        }
     }
 }
 
@@ -653,10 +668,13 @@ function createSnoozeRecord(medicationName, dosage) {
     const snoozeUntil = new Date(nextMedicationTime.getTime() + 5 * 60 * 1000);
 
     // Send snooze request to server
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
     fetch('/snooze/create-snooze', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({
             medication_id: medicationId,
@@ -698,10 +716,13 @@ function confirmMedication(medicationId) {
     // Use async/await instead of .then() to avoid promise issues
     (async function () {
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
             const response = await fetch("/medication/mark-taken/" + medicationId, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({ verified_by_camera: false })
             });
@@ -793,10 +814,13 @@ function confirmMedicationSubmit() {
         // Use async/await to avoid promise issues
         (async function () {
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
                 const response = await fetch("/medication/mark-taken/" + currentMedicationId, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify({ verified_by_camera: false })
                 });
