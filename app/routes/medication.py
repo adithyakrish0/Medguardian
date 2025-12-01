@@ -28,6 +28,8 @@ def list_medications():
 @login_required
 def add_medication():
     """Add a new medication"""
+    from datetime import date, datetime
+    
     if request.method == 'POST':
         # Process custom times
         custom_times = []
@@ -36,6 +38,13 @@ def add_medication():
         
         # Create custom reminder times JSON
         custom_reminder_times = json.dumps(custom_times) if custom_times else None
+        
+        # Handle dates
+        start_date_str = request.form.get('start_date')
+        end_date_str = request.form.get('end_date')
+        
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else date.today()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
         
         new_medication = Medication(
             name=request.form.get('name'),
@@ -47,14 +56,17 @@ def add_medication():
             afternoon='afternoon' in request.form,
             evening='evening' in request.form,
             night='night' in request.form,
-            custom_reminder_times=custom_reminder_times
+            custom_reminder_times=custom_reminder_times,
+            start_date=start_date,
+            end_date=end_date,
+            priority=request.form.get('priority', 'medium')
         )
         db.session.add(new_medication)
         db.session.commit()
         flash('Medication added successfully!', 'success')
         return redirect(url_for('medication.list_medications'))
     
-    return render_template('medication/add.html')
+    return render_template('medication/add.html', today=date.today())
 
 # Edit medication
 @medication.route('/edit-medication/<int:medication_id>', methods=['GET', 'POST'])
@@ -69,6 +81,21 @@ def edit_medication(medication_id):
         return redirect(url_for('medication.list_medications'))
     
     if request.method == 'POST':
+        # Process custom times
+        custom_times = []
+        if 'custom_time[]' in request.form:
+            custom_times = [time for time in request.form.getlist('custom_time[]') if time.strip()]
+        
+        # Create custom reminder times JSON
+        custom_reminder_times = json.dumps(custom_times) if custom_times else None
+        
+        # Handle dates
+        start_date_str = request.form.get('start_date')
+        end_date_str = request.form.get('end_date')
+        
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else date.today()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+
         medication.name = request.form.get('name')
         medication.dosage = request.form.get('dosage')
         medication.frequency = request.form.get('frequency')
@@ -77,6 +104,12 @@ def edit_medication(medication_id):
         medication.afternoon = 'afternoon' in request.form
         medication.evening = 'evening' in request.form
         medication.night = 'night' in request.form
+        
+        # Update new fields
+        medication.start_date = start_date
+        medication.end_date = end_date
+        medication.priority = request.form.get('priority', 'medium')
+        medication.custom_reminder_times = custom_reminder_times
         
         db.session.commit()
         flash('Medication updated successfully!', 'success')
@@ -186,7 +219,7 @@ def mark_taken(medication_id):
             medication_id=medication_id,
             taken_at=datetime.now(),
             taken_correctly=True,
-            verified_by_camera=request.json.get('verified_by_camera', False)
+            verified_by_camera=request.json.get('verified_by_camera', False) if request.json else False
         )
         
         db.session.add(log)

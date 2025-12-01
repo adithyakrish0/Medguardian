@@ -322,3 +322,13 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: #5a6fd8;
 }
+
+/* Pulsing animation for voice indicator */
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+.pulsing {
+    animation: pulse 1.5s ease-in-out infinite;
+}

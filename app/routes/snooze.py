@@ -20,14 +20,16 @@ def create_snooze():
         if not original_time:
             return jsonify({'success': False, 'message': 'Original medication time is required'}), 400
         
-        # Parse the original time
+        # Parse the original time (for logging purposes)
         try:
             original_medication_time = datetime.fromisoformat(original_time.replace('Z', '+00:00'))
         except ValueError:
-            return jsonify({'success': False, 'message': 'Invalid time format'}), 400
+            # If parsing fails, use current time
+            original_medication_time = datetime.utcnow()
         
-        # Calculate snooze until time
-        snooze_until = original_medication_time + timedelta(minutes=snooze_duration)
+        # Calculate snooze until time - ALWAYS use current time, not the original time!
+        current_time = datetime.utcnow()
+        snooze_until = current_time + timedelta(minutes=snooze_duration)
         
         # Create snooze record
         snooze_log = SnoozeLog(

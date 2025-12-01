@@ -41,6 +41,11 @@ def create_app(config_name=None):
     db.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
+    
+    # Exempt specific API endpoints from CSRF (AJAX endpoints with login_required)
+    csrf.exempt('app.routes.medication.mark_taken')
+    csrf.exempt('app.routes.snooze.create_snooze')
+    
     if os.getenv('RATELIMIT_ENABLED', 'True') == 'True':
         limiter.init_app(app)
     migrate = Migrate(app, db)

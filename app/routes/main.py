@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.extensions import db
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import json
 
 # Import User inside functions to avoid circular imports
@@ -92,81 +92,66 @@ def dashboard():
         now = datetime.now()
         upcoming_medications = []
             
-        # If there's an active snooze, adjust the next medication time
+        # If there's an active snooze, add it to upcoming
         if active_snooze:
-            # Use the snooze time as the next medication time
+            # Convert UTC snooze time to local time for correct display and sorting
+            # active_snooze.snooze_until is stored in UTC
+            utc_now = datetime.utcnow()
+            local_now = datetime.now()
+            time_diff = local_now - utc_now
+            local_snooze_time = active_snooze.snooze_until + time_diff
+            
             snooze_info = {
                 'name': active_snooze.medication.name if active_snooze.medication else 'Medication',
                 'dosage': active_snooze.medication.dosage if active_snooze.medication else 'Unknown dosage',
-                'time': active_snooze.snooze_until,
+                'time': local_snooze_time,
                 'period': 'Snooze',
                 'is_custom': False,
                 'is_snooze': True,
-                'snooze_until': active_snooze.snooze_until.isoformat()
+                'snooze_until': local_snooze_time.isoformat()
             }
             upcoming_medications.append(snooze_info)
-        else:
-            # Check if any medication is due now (within 1 minute)
-            due_medication = None
-            for med in medications:
-                next_dose = getNextMedicationTime(med, now)
-                if next_dose and next_dose['time']:
-                    # Check if medication is due within 1 minute
-                    time_diff = (next_dose['time'] - now).total_seconds()
-                    if 0 <= time_diff <= 60:  # Due now or within 1 minute
-                        due_medication = {
-                            'id': med.id,
-                            'name': med.name,
-                            'dosage': med.dosage,
-                            'frequency': med.frequency,
-                            'instructions': med.instructions,
-                            'time': format_time_for_display(next_dose['time']),
-                            'priority': med.priority or 'medium',
-                            'period': next_dose['period']
-                        }
-                        break
+
+        # ALWAYS collect next doses (no else block)
+        all_doses = []
+        for med in medications:
+            next_dose = getNextMedicationTime(med, now)
+            if next_dose:
+                # Check if this dose has been taken
+                # Get logs for this med today
+                med_logs = [l for l in today_logs if l.medication_id == med.id]
                 
-            # If medication is due, redirect to reminder page
-            if due_medication:
-                # Check for interactions
-                from app.models.medication_interaction import MedicationInteraction
-                interactions = []
-                if len(medications) > 1:
-                    for med1 in medications:
-                        for med2 in medications:
-                            if med1.id != med2.id:
-                                interaction = MedicationInteraction.query.filter_by(
-                                    medication1_id=med1.id,
-                                    medication2_id=med2.id
-                                ).first()
-                                if interaction:
-                                    interactions.append({
-                                        'medication1': med1.name,
-                                        'medication2': med2.name,
-                                        'severity': interaction.severity,
-                                        'description': interaction.description
-                                    })
-                    
-                return render_template('medication_reminder_page.html',
-                                     medication=due_medication,
-                                     interactions=interactions[:5])  # Show max 5 interactions
+                is_taken = False
+                dose_time = next_dose['time']
                 
-            # Collect all next doses from all medications
-            all_doses = []
-            for med in medications:
-                next_dose = getNextMedicationTime(med, now)
-                if next_dose:
+                # Only check if dose is today (or past)
+                if isinstance(dose_time, datetime) and dose_time.date() <= now.date():
+                    for log in med_logs:
+                        # If log is within -2 hours to +2 hours of dose time?
+                        # This handles taking it early, or late.
+                        # And ensures we don't match morning log to evening dose (unless they are < 2 hours apart)
+                        margin = timedelta(hours=2)
+                        # Ensure log.taken_at is aware/naive consistent with dose_time
+                        # Usually both are naive local time in this app context
+                        if (dose_time - margin) <= log.taken_at <= (dose_time + margin):
+                            is_taken = True
+                            break
+                
+                if not is_taken:
                     all_doses.append({
+                        'id': med.id,
                         'name': med.name,
                         'dosage': med.dosage,
                         'time': next_dose['time'],
                         'period': next_dose['period'],
                         'is_custom': next_dose.get('is_custom', False)
                     })
-                
-            # Sort all doses by actual datetime and take the first 6
-            all_doses.sort(key=lambda x: x['time'])
-            upcoming_medications = all_doses[:6]
+            
+        # Sort all doses by actual datetime and take the first 6
+        all_doses.sort(key=lambda x: x['time'])
+        
+        # Add to upcoming_medications
+        upcoming_medications.extend(all_doses[:6])
             
         # Format times for display after sorting
         for med in upcoming_medications:
@@ -257,9 +242,15 @@ def getNextMedicationTime(med, now):
     """Get the next medication time for a medication"""
     next_times = []
     
+    # Allow a 15-minute grace period for "due now" medications
+    # If a medication was due 5 minutes ago, we still want to show it as "today"
+    # so the alert can trigger.
+    grace_period = timedelta(minutes=15)
+    
     def add_time(hour, minute, period, is_custom=False):
         time = datetime(now.year, now.month, now.day, hour, minute)
-        if time < now:
+        # Only move to tomorrow if it's significantly in the past (beyond grace period)
+        if time < (now - grace_period):
             time = datetime(now.year, now.month, now.day + 1, hour, minute)
         next_times.append({
             'time': time,
@@ -278,7 +269,8 @@ def getNextMedicationTime(med, now):
                     minute = int(time_parts[1])
                     # Convert 24-hour to 12-hour format for calculation, but store as 24-hour
                     time = datetime(now.year, now.month, now.day, hour, minute)
-                    if time < now:
+                    # Only move to tomorrow if it's significantly in the past
+                    if time < (now - grace_period):
                         time = datetime(now.year, now.month, now.day + 1, hour, minute)
                     next_times.append({
                         'time': time,
