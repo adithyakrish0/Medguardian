@@ -24,3 +24,21 @@ APScheduler==3.10.4
 
 # Email
 Flask-Mail==0.9.1
+
+# Real-time notifications (NEW)
+flask-socketio==5.3.5
+python-socketio==5.10.0
+
+# Production server (NEW)
+gunicorn==21.2.0
+
+# Authentication & Security (NEW)
+python-jose[cryptography]==3.3.0
+PyJWT==2.8.0
+
+# Validation (NEW)
+pydantic==2.5.0
+pydantic[email]==2.5.0
+
+# Caching (NEW)
+redis==5.0.1
