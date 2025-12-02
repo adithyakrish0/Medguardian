@@ -1,15 +1,16 @@
 from app.extensions import db
+from app.models.base import BaseModel
 
-class Medication(db.Model):
+class Medication(BaseModel):
     __tablename__ = 'medication'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    
+    name = db.Column(db.String(100), nullable=False, index=True)
     dosage = db.Column(db.String(50), nullable=False)
     frequency = db.Column(db.String(50), nullable=False)
     instructions = db.Column(db.Text)
 
-    # Relationship to user (senior)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # Relationship to user (senior) - indexed for fast lookups
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
 
     # Medication times
     morning = db.Column(db.Boolean, default=False)
@@ -25,10 +26,10 @@ class Medication(db.Model):
     # Custom reminder times (stored as JSON string, e.g. '["08:00", "14:00"]')
     custom_reminder_times = db.Column(db.String(200))
 
-    # Medication validity period
-    start_date = db.Column(db.Date)
-    end_date = db.Column(db.Date)
-    priority = db.Column(db.String(20), default='normal')
+    # Medication validity period - indexed for filtering active medications
+    start_date = db.Column(db.Date, index=True)
+    end_date = db.Column(db.Date, index=True)
+    priority = db.Column(db.String(20), default='normal', index=True)
     custom_times = db.Column(db.String(200))  # JSON string for custom times
     
     # PHASE 1: Barcode verification (for medications that have barcodes)
@@ -41,3 +42,15 @@ class Medication(db.Model):
 
     def __repr__(self):
         return f'<Medication {self.name} for User {self.user_id}>'
+    
+    def to_dict(self, include_timestamps=True):
+        """Custom to_dict to include dates properly"""
+        result = super().to_dict(include_timestamps)
+        
+        # Handle date fields
+        if self.start_date:
+            result['start_date'] = self.start_date.isoformat()
+        if self.end_date:
+            result['end_date'] = self.end_date.isoformat()
+        
+        return result

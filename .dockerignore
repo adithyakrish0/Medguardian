@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.DS_Store
+instance/
+temp/
+*.log
+.pytest_cache/
+.git/
+README.md
+*.md
+migrations/

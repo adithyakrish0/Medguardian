@@ -5,10 +5,12 @@ from PIL import Image
 import os
 import time
 from typing import List, Dict, Tuple, Optional
+from app.vision.model_manager import model_manager
 
 class MedicineBottleDetector:
     """
     Advanced medicine bottle detection system using multiple computer vision techniques
+    Now optimized with shared ModelManager to prevent redundant model loading
     """
     
     def __init__(self, model_path: Optional[str] = None):
@@ -16,15 +18,12 @@ class MedicineBottleDetector:
         Initialize the medicine bottle detector
         
         Args:
-            model_path: Optional path to custom YOLO model
+            model_path: Optional path to custom YOLO model (uses ModelManager's cached model)
         """
-        self.model = None
+        self.model_path = model_path or 'yolov5s.pt'
         self.confidence_threshold = 0.5
         self.nms_threshold = 0.4
         self.target_class_names = ['bottle', 'pill', 'medicine', 'tablet', 'capsule']
-        
-        # Try to load YOLO model
-        self._load_model(model_path)
         
         # Initialize fallback detection parameters
         self.fallback_params = {
@@ -39,40 +38,14 @@ class MedicineBottleDetector:
             }
         }
     
-    def _load_model(self, model_path: Optional[str] = None):
-        """Load YOLO model with error handling"""
+    @property
+    def model(self):
+        """Get YOLO model from ModelManager (lazy loading, cached)"""
         try:
-            if model_path and os.path.exists(model_path):
-                # Load custom trained model
-                self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path)
-                print(f"Loaded custom model from {model_path}")
-            else:
-                # Load pre-trained model
-                self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-                print("Loaded pre-trained YOLOv5s model")
-                
-                # Filter for relevant classes
-                self.model.names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
-                                  'train', 'truck', 'boat', 'traffic light', 'fire hydrant',
-                                  'stop sign', 'parking meter', 'bench', 'bird', 'cat',
-                                  'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear',
-                                  'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag',
-                                  'tie', 'suitcase', 'frisbee', 'skis', 'snowboard',
-                                  'sports ball', 'kite', 'baseball bat', 'baseball glove',
-                                  'skateboard', 'surfboard', 'tennis racket', 'bottle',
-                                  'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl',
-                                  'banana', 'apple', 'sandwich', 'orange', 'broccoli',
-                                  'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair',
-                                  'couch', 'potted plant', 'bed', 'dining table', 'toilet',
-                                  'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
-                                  'microwave', 'oven', 'toaster', 'sink', 'refrigerator',
-                                  'book', 'clock', 'vase', 'scissors', 'teddy bear',
-                                  'hair drier', 'toothbrush']
-                
+            return model_manager.get_yolo_model(self.model_path)
         except Exception as e:
-            print(f"Error loading YOLO model: {e}")
-            print("Using fallback detection method")
-            self.model = None
+            print(f"Failed to load YOLO model: {e}")
+            return None
     
     def detect_bottles(self, image: np.ndarray, return_image: bool = False) -> Tuple[bool, List, Optional[np.ndarray]]:
         """
@@ -288,9 +261,3 @@ class MedicineBottleDetector:
         """Save image with detections drawn"""
         annotated_image = self._draw_detections(image.copy(), detections)
         cv2.imwrite(output_path, annotated_image)
-    
-    def __del__(self):
-        """Cleanup resources"""
-        if hasattr(self, 'model') and self.model is not None:
-            # Model cleanup if needed
-            pass
