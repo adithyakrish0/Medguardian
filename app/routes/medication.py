@@ -4,6 +4,7 @@ import io
 import json
 import numpy as np
 import cv2
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app.extensions import db
@@ -12,6 +13,8 @@ from app.models.medication_log import MedicationLog
 from app.vision.pill_detection import PillDetector
 from app.vision.enhanced_verifier import EnhancedMedicationVerifier
 from flask import Response
+
+logger = logging.getLogger(__name__)
 
 medication = Blueprint('medication', __name__)
 
@@ -32,9 +35,26 @@ def add_medication():
     
     if request.method == 'POST':
         # Process custom times
+        # Process custom times
         custom_times = []
+        
+        # DEBUG: Log all form keys to debug custom time issue
+        logger.info(f"📝 Form submission keys: {list(request.form.keys())}")
+        
+        # Try standard array format first
         if 'custom_time[]' in request.form:
-            custom_times = [time for time in request.form.getlist('custom_time[]') if time.strip()]
+            custom_times = request.form.getlist('custom_time[]')
+        # Fallback to plain name (sometimes frameworks strip brackets)
+        elif 'custom_time' in request.form:
+            custom_times = request.form.getlist('custom_time')
+            
+        # Clean and filter times
+        custom_times = [t.strip() for t in custom_times if t and t.strip()]
+        logger.info(f"📝 Final custom_times list: {custom_times}")
+        
+        # DEBUG: Log what we received
+        logger.info(f"📝 Creating medication - custom_time[] in form: {'custom_time[]' in request.form}")
+        logger.info(f"📝 custom_times received: {custom_times}")
         
         # Create custom reminder times JSON
         custom_reminder_times = json.dumps(custom_times) if custom_times else None
@@ -63,6 +83,17 @@ def add_medication():
         )
         db.session.add(new_medication)
         db.session.commit()
+        
+        # Check if AJAX request (for camera modal integration)
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({
+                'success': True,
+                'medication_id': new_medication.id,
+                'medication_name': new_medication.name,
+                'redirect_url': url_for('medication.list_medications')
+            })
+        
+        # Regular form submission
         flash('Medication added successfully!', 'success')
         return redirect(url_for('medication.list_medications'))
     
@@ -121,15 +152,18 @@ def edit_medication(medication_id):
 @medication.route('/delete-medication/<int:medication_id>', methods=['POST'])
 @login_required
 def delete_medication(medication_id):
-    """Delete a medication"""
-    medication = Medication.query.get_or_404(medication_id)
+    """Delete a medication and all related logs"""
+    medication_obj = Medication.query.get_or_404(medication_id)
     
     # Security check
-    if medication.user_id != current_user.id:
+    if medication_obj.user_id != current_user.id:
         flash('Unauthorized access', 'danger')
         return redirect(url_for('medication.list_medications'))
     
-    db.session.delete(medication)
+    # Delete related logs first to avoid NOT NULL constraint violation
+    MedicationLog.query.filter_by(medication_id=medication_id).delete()
+    
+    db.session.delete(medication_obj)
     db.session.commit()
     flash('Medication deleted successfully', 'success')
     return redirect(url_for('medication.list_medications'))
@@ -214,16 +248,35 @@ def mark_taken(medication_id):
         
         # Create log entry
         from datetime import datetime
+        
+        # Parse scheduled_time if provided as ISO string
+        scheduled_time = datetime.now()
+        if request.json and request.json.get('scheduled_time'):
+            try:
+                # Parse ISO format: '2025-12-06T16:11:49.594Z'
+                scheduled_time_str = request.json.get('scheduled_time')
+                logger.info(f"🔵 Received scheduled_time string: {scheduled_time_str}")
+                scheduled_time = datetime.fromisoformat(scheduled_time_str.replace('Z', '+00:00'))
+                logger.info(f"🔵 Parsed scheduled_time: {scheduled_time}")
+            except (ValueError, AttributeError) as e:
+                logger.error(f"❌ Failed to parse scheduled_time: {e}")
+                scheduled_time = datetime.now()
+        
+        logger.info(f"🔵 Creating log: med_id={medication_id}, user_id={current_user.id}, scheduled={scheduled_time}")
+        
         log = MedicationLog(
             user_id=current_user.id,
             medication_id=medication_id,
             taken_at=datetime.now(),
+            scheduled_time=scheduled_time,
             taken_correctly=True,
             verified_by_camera=request.json.get('verified_by_camera', False) if request.json else False
         )
         
         db.session.add(log)
         db.session.commit()
+        
+        logger.info(f"✅ Log created with ID: {log.id}, scheduled_time={log.scheduled_time}")
         
         return jsonify({'success': True, 'message': 'Medication marked as taken'})
         
@@ -401,3 +454,94 @@ def log_details(log_id):
         'verified_by_camera': log.verified_by_camera,
         'notes': log.notes or 'No notes'
     })
+
+
+@medication.route('/medication-reminder/<int:medication_id>')
+@login_required
+def medication_reminder_page(medication_id):
+    """Dedicated full-page medication reminder"""
+    from datetime import datetime
+    
+    medication = Medication.query.get_or_404(medication_id)
+    
+    # Security check
+    if medication.user_id != current_user.id:
+        flash('Unauthorized access', 'danger')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get scheduled time from query param
+    scheduled_time = request.args.get('time', datetime.now().isoformat())
+    
+    # Parse for display
+    try:
+        scheduled_dt = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
+        scheduled_time_display = scheduled_dt.strftime('%I:%M %p')
+    except:
+        scheduled_time_display = 'Now'
+    
+    logger.info(f"🔔 Reminder page opened: {medication.name} for user {current_user.id}")
+    
+    return render_template(
+        'medication/reminder_page.html',
+        medication=medication,
+        scheduled_time=scheduled_time,
+        scheduled_time_display=scheduled_time_display
+    )
+
+
+@medication.route('/api/check-due-reminders')
+@login_required
+def check_due_reminders():
+    """
+    API endpoint for client-side polling to check for due medication reminders.
+    Returns the first medication that is due and hasn't been taken.
+    Used as a fallback when SocketIO push isn't working.
+    """
+    from datetime import datetime, timedelta
+    from app.utils.scheduler import get_scheduled_times
+    
+    now = datetime.now()
+    user_id = current_user.id
+    
+    # Get all active medications for this user
+    medications = Medication.query.filter_by(user_id=user_id).all()
+    
+    for med in medications:
+        # Get scheduled times for today
+        scheduled_times = get_scheduled_times(med, now.date())
+        
+        for scheduled_time in scheduled_times:
+            # Calculate difference in minutes
+            diff_minutes = (scheduled_time - now).total_seconds() / 60
+            
+            # Check if within window: past 5 mins to future 1 min
+            if -5 <= diff_minutes <= 1:
+                # Check if already taken today for this scheduled time
+                today_start = datetime.combine(now.date(), datetime.min.time())
+                today_end = datetime.combine(now.date(), datetime.max.time())
+                
+                log = MedicationLog.query.filter_by(
+                    medication_id=med.id,
+                    user_id=user_id,
+                    taken_correctly=True
+                ).filter(
+                    MedicationLog.taken_at >= today_start,
+                    MedicationLog.taken_at <= today_end
+                ).first()
+                
+                if not log:
+                    # This medication is DUE and not taken!
+                    return jsonify({
+                        'due': True,
+                        'medication_id': med.id,
+                        'medication_name': med.name,
+                        'dosage': med.dosage,
+                        'scheduled_time': scheduled_time.isoformat(),
+                        'scheduled_time_display': scheduled_time.strftime('%I:%M %p'),
+                        'instructions': med.instructions,
+                        'priority': med.priority,
+                        'redirect_url': f'/medication/medication-reminder/{med.id}?time={scheduled_time.isoformat()}'
+                    })
+    
+    # No medications due
+    return jsonify({'due': False})

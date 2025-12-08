@@ -201,3 +201,58 @@ def get_medication_logs(medication_id):
             'success': False,
             'error': str(e)
         }), 500
+
+
+
+@api_v1.route('/medications/quick-test', methods=['POST'])
+@login_required
+def create_quick_test():
+    """Create a test medication scheduled 2 minutes from now"""
+    from datetime import date, datetime, timedelta
+    from app.models.medication import Medication
+    from app.extensions import db
+    import json
+    
+    try:
+        # Calculate 2 minutes from now
+        now = datetime.now()
+        future_time = now + timedelta(minutes=2)
+        custom_time = future_time.strftime('%H:%M')
+        
+        # Get data from request
+        data = request.get_json(silent=True) or {}
+        name = data.get('name', 'Test Medication')
+        dosage = data.get('dosage', '100mg')
+        
+        # Create medication for current user
+        medication = Medication(
+            user_id=current_user.id,
+            name=name,
+            dosage=dosage,
+            frequency='Custom',
+            custom_reminder_times=json.dumps([custom_time]),
+            instructions='🧪 Quick Test',
+            priority='normal',
+            start_date=date.today(),
+            morning=False,
+            afternoon=False,
+            evening=False,
+            night=False
+        )
+        
+        db.session.add(medication)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ Created! Reminder at {custom_time}',
+            'medication_id': medication.id,
+            'scheduled_time': custom_time
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

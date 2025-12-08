@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Camera Integration</title>
+
+    <!-- Camera Modal CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/camera_modal.css') }}">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>📸 Camera Integration Test</h1>
+    <p>Click the button below to test the reference image capture:</p>
+
+    <button class="btn btn-primary" onclick="testCamera()">
+        🎥 Open Camera Modal
+    </button>
+
+    <div id="result" style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px; display: none;">
+        <h3>Result:</h3>
+        <pre id="resultText"></pre>
+    </div>
+
+    <!-- Camera Modules -->
+    <script src="{{ url_for('static', filename='js/modules/camera_capture.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/reference_capture.js') }}"></script>
+
+    <script>
+        function testCamera() {
+            // Test with a sample medication ID (you'll need to create one first)
+            const medicationId = 1;  // Change this to an actual medication ID
+            const medicationName = "Test Medication";
+
+            const capture = new ReferenceImageCapture(medicationId, medicationName);
+            capture.show();
+        }
+
+        // Check if camera is supported
+        if (!CameraCapture.isSupported()) {
+            alert('Your browser does not support camera access. Please use a modern browser like Chrome, Firefox, or Edge.');
+        } else {
+            console.log('✓ Camera API supported');
+        }
+    </script>
+</body>
+
+</html>

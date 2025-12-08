@@ -62,11 +62,11 @@ def dashboard():
             if med.custom_reminder_times:
                 try:
                     custom_times = json.loads(med.custom_reminder_times)
-                    scheduled_times.extend([{'time': t, 'period': 'Custom'} for t in custom_times])
+                    scheduled_times.extend([{'time': t, 'period': 'Custom', 'is_custom': True} for t in custom_times])
                 except:
                     pass
                 
-            # Add period-based times
+            # Add period-based times (clean display without redundant ranges)
             periods = []
             if med.morning: periods.append('Morning')
             if med.afternoon: periods.append('Afternoon')
@@ -75,8 +75,10 @@ def dashboard():
                 
             for period in periods:
                 scheduled_times.append({
-                    'time': period + ' (' + get_period_time_range(period) + ')',
-                    'period': period
+                    'time': period,
+                    'period': period,
+                    'is_custom': False,
+                    'time_range': get_period_time_range(period)  # For tooltip
                 })
                 
             today_medications.append({
@@ -84,8 +86,10 @@ def dashboard():
                 'name': med.name,
                 'dosage': med.dosage,
                 'frequency': med.frequency,
+                'instructions': med.instructions,
                 'taken': taken,
-                'scheduled_times': scheduled_times if scheduled_times else [{'time': 'Not scheduled', 'period': 'Unknown'}]
+                'is_available': True,  # Can be enhanced later
+                'scheduled_times': scheduled_times if scheduled_times else [{'time': 'Not scheduled', 'period': 'None', 'is_custom': False}]
             })
             
         # Get upcoming medications with proper timing
