@@ -1,11 +1,10 @@
 # app/__init__.py
 from flask import Flask, render_template
-from .extensions import db, login_manager
+from .extensions import db, login_manager, socketio
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_socketio import SocketIO
 from flask_mail import Mail
 import os
 from dotenv import load_dotenv
@@ -19,7 +18,6 @@ limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
-socketio = SocketIO()
 mail = Mail()
 
 
@@ -45,20 +43,28 @@ def create_app(config_name=None):
     mail.init_app(app)
     
     # Initialize SocketIO with proper configuration
-    # Make it optional if Redis is not available (development mode)
+    # Use simple async mode for development (no Redis/eventlet required)
     try:
         socketio_config = {
             'cors_allowed_origins': "*",
-            'async_mode': 'threading'  # Simple mode for development
+            'logger': True,
+            'engineio_logger': False
+            # NOTE: Do NOT set async_mode - let it auto-detect
         }
         
-        # Only use Redis message queue if explicitly configured and available
-        message_queue = app.config.get('SOCKETIO_MESSAGE_QUEUE')
-        if message_queue and message_queue != 'redis://localhost:6379/2':
-            # Only set if it's a real Redis instance, not localhost default
-            socketio_config['message_queue'] = message_queue
+        # DISABLE Redis for development - causes WebSocket errors
+        # Only enable in production with proper eventlet setup
+        # message_queue = app.config.get('SOCKETIO_MESSAGE_QUEUE')
+        # if message_queue and message_queue.startswith('redis://'):
+        #     socketio_config['message_queue'] = message_queue
         
         socketio.init_app(app, **socketio_config)
+        app.logger.info('✅ SocketIO initialized successfully (threading mode)')
+        
+        # Register SocketIO event handlers for real-time detection
+        from app import socket_events
+        socket_events.register_handlers(socketio)
+        app.logger.info('✅ SocketIO event handlers registered')
     except Exception as e:
         app.logger.warning(f'SocketIO initialization failed: {e}. Real-time features disabled.')
         # SocketIO is optional - app can work without it
@@ -92,6 +98,8 @@ def create_app(config_name=None):
     from .routes.interaction import interaction
     from .routes.caregiver import caregiver
     from .routes.api import api_v1  # REST API
+    from .routes.test import test_bp  # Test routes
+    from .routes.debug import debug_bp  # Debug/forensic logging
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
@@ -100,6 +108,8 @@ def create_app(config_name=None):
     app.register_blueprint(interaction, url_prefix='/interaction')
     app.register_blueprint(caregiver, url_prefix='/caregiver')
     app.register_blueprint(api_v1)  # API already has /api/v1 prefix
+    app.register_blueprint(test_bp)  # Test routes
+    app.register_blueprint(debug_bp)  # Debug routes
     
     # Import all models to register with SQLAlchemy
     from .models.auth import User

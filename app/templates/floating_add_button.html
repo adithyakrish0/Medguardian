@@ -1,7 +1,7 @@
 <div class="floating-add-button" style="position: fixed; bottom: 30px; right: 30px; z-index: 1000;">
     <button id="quickAddMedication" class="btn btn-primary btn-lg rounded-circle shadow"
-        style="width: 60px; height: 60px; font-size: 24px;" title="Add Test Medication (Aspirin in 5 minutes)">
-        <i class="fas fa-plus"></i>
+        style="width: 60px; height: 60px; font-size: 24px;" title="Quick Test (2 mins)">
+        <i class="fas fa-vial"></i>
     </button>
 </div>
 
@@ -11,111 +11,85 @@
 
         if (quickAddBtn) {
             quickAddBtn.addEventListener('click', function () {
-                // Calculate time 5 minutes from now
-                const now = new Date();
-                const fiveMinutesLater = new Date(now.getTime() + 300000); // 300000ms = 5 minutes
-                const timeString = fiveMinutesLater.toTimeString().slice(0, 5); // Format as HH:MM
-
                 // Create medication data
                 const medicationData = {
-                    name: 'Aspirin',
-                    dosage: '1 tablet',
-                    frequency: 'Once',
-                    instructions: 'Take with water',
-                    user_id: {{ current_user.id }} || 1, // Fallback user ID
-                morning: false,
-                afternoon: false,
-                evening: false,
-                night: false,
-                custom_reminder_times: JSON.stringify([timeString])
-            };
+                    name: 'Test Aspirin',
+                    dosage: '100mg'
+                };
 
-        // Show loading state
-        quickAddBtn.disabled = true;
-        quickAddBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                // Show loading state
+                quickAddBtn.disabled = true;
+                quickAddBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-        // Send request to add medication
-        fetch('/medication/quick-add', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
-            },
-            body: JSON.stringify(medicationData)
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    showNotification('Test medication added successfully!', 'success');
-                    // Add visual feedback
-                    quickAddBtn.classList.add('btn-success');
-                    quickAddBtn.classList.remove('btn-primary');
+                // Send request using working API endpoint
+                fetch('/api/v1/medications/quick-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(medicationData)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Show success message
+                            showNotification(`✅ Test created! Reminder at ${data.scheduled_time}`, 'success');
+                            // Add visual feedback
+                            quickAddBtn.classList.add('btn-success');
+                            quickAddBtn.classList.remove('btn-primary');
 
-                    // Update button content after a short delay
-                    setTimeout(() => {
-                        quickAddBtn.innerHTML = '<i class="fas fa-check"></i>';
-                        quickAddBtn.disabled = true;
-                        quickAddBtn.title = 'Test Medication Added';
+                            // Update button
+                            setTimeout(() => {
+                                quickAddBtn.innerHTML = '<i class="fas fa-check"></i>';
+                                quickAddBtn.title = 'Created!';
 
-                        // Reload page after a delay to show the new medication
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 2000);
-                    }, 1000);
-                } else {
-                    showNotification('Error adding medication: ' + data.message, 'error');
-                    quickAddBtn.disabled = false;
-                    quickAddBtn.innerHTML = '<i class="fas fa-plus"></i>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showNotification('Failed to add medication', 'error');
-                quickAddBtn.disabled = false;
-                quickAddBtn.innerHTML = '<i class="fas fa-plus"></i>';
+                                // Reload page
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 2000);
+                            }, 1000);
+                        } else {
+                            showNotification('Error: ' + (data.error || 'Failed'), 'error');
+                            quickAddBtn.disabled = false;
+                            quickAddBtn.innerHTML = '<i class="fas fa-vial"></i>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('Network error!', 'error');
+                        quickAddBtn.disabled = false;
+                        quickAddBtn.innerHTML = '<i class="fas fa-vial"></i>';
+                    });
             });
+        }
+
+        // Simple notification function
+        function showNotification(message, type) {
+            const existingNotifications = document.querySelectorAll('.notification-toast');
+            existingNotifications.forEach(notif => notif.remove());
+
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show notification-toast position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px;';
+            notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                    <div>${message}</div>
+                    <button type="button" class="btn-close ms-3" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.classList.remove('show');
+                    setTimeout(() => notification.remove(), 150);
+                }
+            }, 5000);
+        }
     });
-    }
-
-    // Simple notification function
-    function showNotification(message, type) {
-        // Remove existing notifications
-        const existingNotifications = document.querySelectorAll('.notification-toast');
-        existingNotifications.forEach(notif => notif.remove());
-
-        const notification = document.createElement('div');
-        notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show notification-toast position-fixed`;
-        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: none; border-radius: 8px;';
-        notification.innerHTML = `
-            <div class="d-flex align-items-center">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
-                <div>${message}</div>
-                <button type="button" class="btn-close ms-3" data-bs-dismiss="alert"></button>
-            </div>
-        `;
-
-        document.body.appendChild(notification);
-
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.classList.remove('show');
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 150);
-            }
-        }, 5000);
-    }
-
-    // Get CSRF token for Flask-WTF
-    function getCSRFToken() {
-        const token = document.querySelector('meta[name="csrf-token"]');
-        return token ? token.getAttribute('content') : '';
-    }
-});
 </script>
 
 <style>
@@ -128,17 +102,18 @@
     }
 
     .floating-add-button .btn {
-        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         transition: all 0.3s ease;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
     }
 
     .floating-add-button .btn:hover {
-        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
     }
 
     .floating-add-button .btn:disabled {
         opacity: 0.7;
-        cursor: not-allowed;
     }
 
     .notification-toast {

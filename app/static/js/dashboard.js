@@ -353,277 +353,27 @@ function showNoMedications() {
 }
 
 function showTimeUpAlarm() {
-    const timerElement = document.getElementById('countdown-timer');
-    const infoElement = document.getElementById('next-medication-info');
-    const modal = document.getElementById('medicationReminderModal');
-    const alarmSound = document.getElementById('alarmSound');
+    // ⚠️ DISABLED - Reminders now redirect to dedicated page
+    // This function is called when countdown reaches 00:00:00
+    // But actual reminder comes from backend scheduler via SocketIO
+    // which triggers redirect in reminder_system.js
 
-    // Update countdown display
-    timerElement.className = "display-1 fw-bold text-danger mb-2 animate-pulse";
-    infoElement.innerHTML = "<p class='mb-0 text-danger'><strong>⚠️ Time to take your medication!</strong></p>" +
-        "<small class='text-muted'>Modal will appear shortly...</small>";
+    console.log('⏰ Countdown reached 00:00:00');
+    console.log('🔄 Waiting for backend scheduler to fire...');
+    console.log('🚀 Will redirect to reminder page when backend emits event');
 
-    // Set medication details in modal if available
-    if (window.upcomingMedications && window.upcomingMedications.length > 0) {
-        const nextMed = window.upcomingMedications[0];
-
-        // CRITICAL: Set the current medication ID so buttons work
-        if (nextMed.id) {
-            setCurrentMedication(nextMed);
-        }
-
-        const nameElement = document.getElementById('reminderMedicationName');
-        const detailsElement = document.getElementById('reminderMedicationDetails');
-        if (nameElement) nameElement.textContent = `Time to take ${nextMed.name}`;
-        if (detailsElement) detailsElement.textContent = `${nextMed.dosage} • ${nextMed.period} • ${nextMed.time}`;
-
-        // Speak the reminder
-        speakMessage(`It's time to take your ${nextMed.name}. ${nextMed.dosage}.`);
-    } else {
-        speakMessage("It's time to take your medication.");
-    }
-
-    // Play alarm sound once (no looping to prevent errors)
-    try {
-        if (alarmSound) {
-            // Reset and play sound once
-            alarmSound.currentTime = 0;
-            const playPromise = alarmSound.play();
-
-            // Handle play promise properly
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.log('Audio play failed:', error.message);
-                    // Don't show error to user, just continue without sound
-                }).then(() => {
-                    // Auto-pause after 3 seconds
-                    setTimeout(() => {
-                        try {
-                            alarmSound.pause();
-                            alarmSound.currentTime = 0;
-                        } catch (e) {
-                            console.log('Audio cleanup error:', e);
-                        }
-                    }, 3000);
-                });
-            }
-        }
-    } catch (e) {
-        console.log('Audio error:', e);
-    }
-
-    // Show the modal after a short delay
-    setTimeout(() => {
-        if (modal) {
-            try {
-                const modalInstance = new bootstrap.Modal(modal);
-                modalInstance.show();
-
-                // Focus on the "I've Taken It" button
-                const takenButton = modal.querySelector('.btn-success');
-                if (takenButton) {
-                    takenButton.focus();
-                }
-            } catch (modalError) {
-                console.log('Modal show error:', modalError);
-                // If modal fails, just show a simple alert
-                alert('Time to take your medication!');
-            }
-        }
-    }, 1000);
-
-    // Also show alarm banner for additional visibility
-    const alarmBanner = document.getElementById('alarmBanner');
-    if (alarmBanner) {
-        alarmBanner.style.display = 'block';
-        alarmBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Do NOT show any UI on dashboard
+    // The backend scheduler will emit medication_reminder event
+    // reminder_system.js will handle redirect
 }
 
-// Global variables for tracking current medication
-let currentMedicationId = null;
-let currentMedicationName = null;
+// ⚠️ REMOVED - Modal button handlers moved to reminder page
+// Dashboard no longer handles active reminders
+// All reminder interactions happen on /medication-reminder/<id>
 
-// New functions for modal interactions
-function markMedicationTaken() {
-    console.log("Marking medication as taken...");
+// ⚠️ REMOVED - snoozeReminder() moved to reminder page
 
-    // Hide modal first
-    const modal = bootstrap.Modal.getInstance(document.getElementById('medicationReminderModal'));
-    modal.hide();
-
-    // Stop alarm sound
-    const alarmSound = document.getElementById('alarmSound');
-    if (alarmSound) {
-        alarmSound.pause();
-        alarmSound.currentTime = 0;
-    }
-
-    // Hide alarm banner
-    const alarmBanner = document.getElementById('alarmBanner');
-    if (alarmBanner) {
-        alarmBanner.style.display = 'none';
-    }
-
-    // If we have a current medication ID, confirm it
-    if (currentMedicationId) {
-        confirmMedication(currentMedicationId);
-    } else {
-        // Fallback: get first medication from upcoming list
-        if (window.upcomingMedications && window.upcomingMedications.length > 0) {
-            const firstMed = window.upcomingMedications[0];
-            confirmMedication(firstMed.id);
-        } else {
-            // Show success message and reset
-            showSuccessMessage("Medication marked as taken!");
-            resetTimerDisplay();
-        }
-    }
-}
-
-function snoozeReminder() {
-    console.log("Snoozing reminder for 5 minutes...");
-
-    // Get modal instance and hide it properly
-    const modalElement = document.getElementById('medicationReminderModal');
-    const modal = bootstrap.Modal.getInstance(modalElement);
-
-    // Stop any existing alarm sound
-    const alarmSound = document.getElementById('alarmSound');
-    if (alarmSound) {
-        alarmSound.pause();
-        alarmSound.currentTime = 0;
-    }
-
-    // Hide alarm banner
-    const alarmBanner = document.getElementById('alarmBanner');
-    if (alarmBanner) {
-        alarmBanner.style.display = 'none';
-    }
-
-    // Hide modal properly
-    if (modal) {
-        modal.hide();
-    }
-
-    // Clear any existing intervals
-    if (window.snoozeInterval) {
-        clearInterval(window.snoozeInterval);
-    }
-    if (window.countdownInterval) {
-        clearInterval(window.countdownInterval);
-    }
-
-    // Get medication details for snooze
-    const medName = currentMedicationName || 'Medication';
-    const dosage = currentMedicationDosage || 'Unknown dosage';
-
-    // Show snooze message
-    const infoElement = document.getElementById('next-medication-info');
-    infoElement.innerHTML = "<p class='mb-0 text-warning'><strong>⏰ Reminder snoozed for 5 minutes</strong></p>" +
-        "<small class='text-muted'>We'll remind you again soon.</small>";
-
-    // Reset timer style
-    const timerElement = document.getElementById('countdown-timer');
-    timerElement.className = "display-1 fw-bold text-warning mb-2 animate-pulse";
-    timerElement.textContent = "00:05:00";
-
-    // Reset progress bar
-    const progressElement = document.getElementById('countdown-progress');
-    if (progressElement) {
-        progressElement.style.width = "0%";
-    }
-
-    // Create snooze in database
-    createSnoozeRecord(medName, dosage);
-
-    // Update snooze countdown every second
-    const snoozeStartTime = new Date().getTime();
-    const snoozeDuration = 5 * 60 * 1000; // 5 minutes
-
-    window.snoozeInterval = setInterval(() => {
-        const currentTime = new Date().getTime();
-        const elapsed = currentTime - snoozeStartTime;
-        const remaining = snoozeDuration - elapsed;
-
-        if (remaining > 0) {
-            const minutes = Math.floor(remaining / (1000 * 60));
-            const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-
-            timerElement.textContent = "00:" + minutes.toString().padStart(2, '0') + ":" +
-                seconds.toString().padStart(2, '0');
-
-            // Update progress bar
-            const progress = Math.min(100, (elapsed / snoozeDuration) * 100);
-            progressElement.style.width = progress + "%";
-        } else {
-            // Snooze time is up
-            clearInterval(window.snoozeInterval);
-            delete window.snoozeInterval;
-
-            timerElement.textContent = "00:00:00";
-            timerElement.className = "display-1 fw-bold text-danger mb-2 animate-pulse";
-            progressElement.style.width = "100%";
-
-            // Show the alarm again after a short delay
-            setTimeout(() => {
-                showTimeUpAlarm();
-            }, 1000);
-        }
-    }, 1000);
-}
-
-function dismissReminder() {
-    console.log("Dismissing reminder...");
-
-    try {
-        // Hide modal properly
-        const modalElement = document.getElementById('medicationReminderModal');
-        if (modalElement) {
-            const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) {
-                modal.hide();
-            }
-        }
-
-        // Stop alarm sound safely
-        const alarmSound = document.getElementById('alarmSound');
-        if (alarmSound) {
-            try {
-                alarmSound.pause();
-                alarmSound.currentTime = 0;
-            } catch (e) {
-                console.log('Audio cleanup error:', e);
-            }
-        }
-
-        // Hide alarm banner
-        const alarmBanner = document.getElementById('alarmBanner');
-        if (alarmBanner) {
-            alarmBanner.style.display = 'none';
-        }
-
-        // Clear any existing intervals
-        if (window.snoozeInterval) {
-            clearInterval(window.snoozeInterval);
-            delete window.snoozeInterval;
-        }
-        if (window.countdownInterval) {
-            clearInterval(window.countdownInterval);
-            delete window.countdownInterval;
-        }
-
-        // Reset timer display immediately
-        resetTimerDisplay();
-
-    } catch (error) {
-        console.error('Error in dismissReminder:', error);
-        // Fallback - just reload the page
-        location.reload();
-    }
-}
+// ⚠️ REMOVED - dismissReminder() moved to reminder page
 
 function createSnoozeRecord(medicationName, dosage) {
     // Get current medication details
@@ -710,39 +460,7 @@ function clearExpiredSnooze() {
     }
 }
 
-function confirmMedication(medicationId) {
-    console.log("Confirming medication:", medicationId);
-
-    // Use async/await instead of .then() to avoid promise issues
-    (async function () {
-        try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
-            const response = await fetch("/medication/mark-taken/" + medicationId, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({ verified_by_camera: false })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                showSuccessMessage("Medication confirmed successfully!");
-                setTimeout(() => {
-                    location.reload();
-                }, 1500);
-            } else {
-                showErrorMessage("Error confirming medication: " + data.message);
-            }
-        } catch (error) {
-            console.error('Error confirming medication:', error);
-            showErrorMessage("Failed to confirm medication");
-        }
-    })();
-}
+// ⚠️ REMOVED - confirmMedication() moved to reminder page
 
 function showSuccessMessage(message) {
     const infoElement = document.getElementById('next-medication-info');
@@ -762,12 +480,7 @@ function resetTimerDisplay() {
     initializeCountdownTimer();
 }
 
-// Set global variable for current medication
-function setCurrentMedication(medication) {
-    currentMedicationId = medication.id;
-    currentMedicationName = medication.name;
-    currentMedicationDosage = medication.dosage;
-}
+// ⚠️ REMOVED - setCurrentMedication() no longer needed
 
 function initializeComplianceChart() {
     const ctx = document.getElementById('complianceChart');

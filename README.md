@@ -1,281 +1,371 @@
-# MedGuardian - AI-Powered Medication Management System
+# 💊 MedGuardian - AI-Powered Medication Management System
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Flask](https://img.shields.io/badge/Flask-2.3+-green.svg)](https://flask.palletsprojects.com/)
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-2.3+-green.svg)](https://flask.palletsprojects.com)
+[![OpenCV](https://img.shields.io/badge/OpenCV-4.8+-red.svg)](https://opencv.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**MedGuardian** is a production-ready medication management system with AI-powered visual verification, caregiver alerts, and smart reminders.
-
-## 🚀 Features
-
-### Core Features
-- 📱 **Medication Management** - Track medications with custom schedules
-- 🔔 **Smart Reminders** - Voice + visual + sound notifications
-- 👁️ **AI Vision Verification** - YOLO + OCR + barcode scanning
-- 👥 **Caregiver Portal** - Monitor seniors remotely
-- 📊 **Medication History** - Detailed logs and analytics
-- 🔄 **Real-time Notifications** - SocketIO for instant alerts
-
-### AI/Vision Capabilities
-- **Barcode Scanning** - UPC/EAN/QR code recognition
-- **Visual Matching** - Color histogram comparison
-- **Bottle Detection** - YOLOv5 object detection
-- **OCR Text Extraction** - Tesseract label reading
+> **A production-ready healthcare platform for senior medication adherence monitoring with computer vision verification, real-time reminders, and caregiver dashboards.**
 
 ---
 
-## 📁 Project Structure
+## 🌟 Key Features
 
-```
-medguardian/
-├── app/
-│   ├── config/              # Configuration (dev/prod/test)
-│   ├── models/              # Database models with BaseModel
-│   ├── routes/              # Blueprints (main, auth, medication)
-│   │   └── api/             # REST API v1
-│   ├── services/            # Business logic layer
-│   │   ├── medication_service.py
-│   │   ├── notification_service.py
-│   │   └── verification_service.py
-│   ├── vision/              # AI/Vision modules
-│   │   ├── model_manager.py      # Singleton for YOLO
-│   │   ├── bottle_detector.py
-│   │   └── barcode_scanner.py
-│   ├── utils/               # Utilities and validators
-│   └── static/              # Frontend assets
-├── docs/                    # Documentation
-├── scripts/                 # Utility scripts
-├── tests/                   # Test suite
-├── Dockerfile              # Docker configuration
-├── docker-compose.yml      # Multi-container setup
-├── requirements.txt        # Python dependencies
-└── run.py                  # Application entry point
-```
+### For Senior Citizens
+- **🔔 Smart Reminders**: Real-time notifications via WebSocket with audio alerts
+- **📸 Visual Verification**: OpenCV-based medication bottle recognition
+- **👴 Senior-Friendly UI**: Large text, high contrast, accessibility-focused design
+- **⏰ Flexible Scheduling**: Custom times or preset periods (Morning/Afternoon/Evening/Night)
+- **📊 Compliance Tracking**: Visual progress charts and medication history
+- **🎤 Voice Commands**: Hands-free medication confirmation
+
+### For Caregivers
+- **👨‍⚕️ Multi-Senior Dashboard**: Monitor multiple seniors from one interface
+- **📈 Real-Time Analytics**: Compliance rates, missed doses, trends
+- **🚨 Instant Alerts**: Get notified when seniors miss medications
+- **🔗 Secure Relationships**: Permission-based access control
+- **📋 Detailed Reports**: Export medication logs and compliance data
+
+### Technical Highlights
+- **🤖 Computer Vision**: Custom OpenCV pipeline for medication verification
+- **🔬 OCR Integration**: Tesseract-powered label text extraction
+- **⚡ Real-Time Features**: SocketIO for instant notifications
+- **🔐 Security**: CSRF protection, password hashing, role-based access
+- **📱 Responsive**: Mobile-friendly Bootstrap design
+- **🧪 Validated**: Pydantic schema validation on all inputs
 
 ---
 
-## 🛠️ Installation
+## 📸 Screenshots
 
-### Option 1: Docker (Recommended)
+### Senior Dashboard
+![Senior Dashboard](docs/screenshots/senior_dashboard.png)
+*Clean, large-text interface with upcoming medications and compliance tracking*
 
-```bash
-# Clone repository
-git clone <repo-url>
-cd medguardian
+### Caregiver Dashboard
+![Caregiver Dashboard](docs/screenshots/caregiver_dashboard.png)
+*Professional monitoring interface with multi-senior analytics*
 
-# Copy environment file
-cp .env.example .env
-
-# Start with Docker Compose
-docker-compose up --build
-
-# Access at http://localhost:8000
-```
-
-### Option 2: Local Development
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-
-# Set up environment
-cp .env.example .env
-# Edit .env with your settings
-
-# Initialize database
-flask db init
-flask db migrate
-flask db upgrade
-
-# Seed database (optional)
-flask seed-db
-
-# Run development server
-python run.py
-
-# Access at http://localhost:5001
-```
-
----
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Key variables in `.env`:
-
-```bash
-# Flask
-SECRET_KEY=your-secret-key
-FLASK_ENV=development
-
-# Database
-DATABASE_URL=sqlite:///instance/medguardian.db
-# For production:
-# DATABASE_URL=postgresql://user:pass@localhost:5432/medguardian
-
-# Email (optional)
-MAIL_SERVER=smtp.gmail.com
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
-
-# Redis (optional - for production features)
-# REDIS_URL=redis://localhost:6379/0
-
-# Vision
-VISION_ENABLED=True
-YOLO_MODEL_PATH=yolov5s.pt
-```
-
-See [`.env.example`](.env.example) for all options.
-
----
-
-## 🔐 Default Credentials
-
-Test accounts (after running `flask seed-db`):
-
-| Role      | Username       | Password     |
-|-----------|----------------|--------------|
-| Senior    | testsenior     | password123  |
-| Caregiver | testcaregiver  | password123  |
-
-**⚠️ Change these in production!**
-
----
-
-## 📡 API Documentation
-
-### REST API v1
-
-Base URL: `http://localhost:5001/api/v1`
-
-**Key Endpoints:**
-- `GET /medications` - List all medications
-- `POST /medications` - Create medication
-- `POST /verify` - Verify medication with image
-- `GET /health` - API health check
-
-See [API Documentation](docs/API.md) for complete reference.
+### Visual Verification
+![Visual Verification](docs/screenshots/visual_verification.png)
+*OpenCV-powered medication bottle recognition with similarity scoring*
 
 ---
 
 ## 🏗️ Architecture
 
-### Clean Architecture
-
+```mermaid
+graph TB
+    A[Senior User] --> B[Flask Web App]
+    C[Caregiver User] --> B
+    B --> D[Authentication Layer]
+    D --> E[Role-Based Access Control]
+    E --> F[Senior Dashboard]
+    E --> G[Caregiver Dashboard]
+    F --> H[Real-Time Scheduler]
+    H --> I[SocketIO Notifications]
+    F --> J[Visual Verification Service]
+    J --> K[OpenCV Pipeline]
+    K --> L[Image Feature Extraction]
+    K --> M[OCR Text Recognition]
+    G --> N[Multi-Senior Analytics]
+    B --> O[SQLite Database]
+    H --> O
+    J --> O
 ```
-┌─────────────┐
-│   Routes    │  ← Flask Blueprints (API + Web)
-├─────────────┤
-│  Services   │  ← Business Logic
-├─────────────┤
-│   Models    │  ← Database Models
-└─────────────┘
+
+### Tech Stack
+
+**Backend**
+- **Flask 2.3+**: Web framework
+- **SQLAlchemy**: ORM and database management
+- **Flask-SocketIO**: Real-time WebSocket communication
+- **APScheduler**: Background job scheduling
+- **Pydantic**: Request validation
+
+**Computer Vision**
+- **OpenCV 4.8+**: Image processing and feature extraction
+- **Tesseract OCR**: Label text recognition
+- **NumPy**: Numerical computations
+
+**Frontend**
+- **Bootstrap 5**: Responsive UI framework
+- **JavaScript (ES6+)**: Client-side logic
+- **Chart.js**: Data visualization
+
+**Security**
+- **Flask-Login**: Session management
+- **Flask-WTF**: CSRF protection
+- **Werkzeug**: Password hashing (bcrypt)
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.8 or higher
+- pip (Python package manager)
+- Tesseract OCR (optional, for label reading)
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/yourusername/medguardian.git
+cd medguardian
 ```
 
-### Key Design Patterns
+2. **Create virtual environment**
+```bash
+python -m venv venv
 
-- **Service Layer Pattern** - Business logic separated from routes
-- **Singleton Pattern** - ModelManager for efficient YOLO caching
-- **Repository Pattern** - BaseModel with CRUD helpers
-- **Dependency Injection** - Services accept dependencies
-- **Factory Pattern** - Flask app factory
+# Windows
+venv\\Scripts\\activate
+
+# Linux/Mac
+source venv/bin/activate
+```
+
+3. **Install dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+4. **Install Tesseract (Optional but recommended)**
+
+**Windows:**
+Download from: https://github.com/UB-Mannheim/tesseract/wiki
+Add to PATH: `C:\\Program Files\\Tesseract-OCR`
+
+**Linux:**
+```bash
+sudo apt-get install tesseract-ocr
+```
+
+**Mac:**
+```bash
+brew install tesseract
+```
+
+5. **Configure environment variables**
+```bash
+cp .env.example .env
+# Edit .env with your settings
+```
+
+6. **Initialize database**
+```bash
+python
+>>> from app import create_app, db
+>>> app = create_app()
+>>> with app.app_context():
+...     db.create_all()
+>>> exit()
+```
+
+7. **Run the application**
+```bash
+python run.py
+```
+
+8. **Access the application**
+Open your browser to: `http://localhost:5001`
+
+---
+
+## 📖 Usage Guide
+
+### For Seniors
+
+1. **Register/Login**
+   - Create account with username, email, password
+   - Select "Senior Citizen" role
+
+2. **Add Medications**
+   - Click "Add Medication" button
+   - Enter name, dosage, frequency
+   - Set reminder times (Morning, Afternoon, Evening, Night, or Custom)
+   - Optionally capture reference image for verification
+
+3. **Receive Reminders**
+   - Get browser notifications when its time
+   - Click "I've Taken It" to mark as taken
+   - Option to verify with camera
+
+4. **Visual Verification**
+   - Allow camera access
+   - Show medication bottle to camera
+   - System compares with reference image
+   - Get instant verification result
+
+### For Caregivers
+
+1. **Register as Caregiver**
+   - Create account with "Caregiver" role
+
+2. **Add Seniors**
+   - Navigate to "Add Senior"
+   - Enter senior's username
+   - Establish relationship
+
+3. **Monitor Compliance**
+   - View all assigned seniors on dashboard
+   - See real-time compliance rates
+   - Check today's medication status
+   - View missed doses
+
+4. **Receive Alerts**
+   - Get notified when seniors miss medications
+   - View detailed logs and history
+
+---
+
+## 🔬 Computer Vision System
+
+### How It Works
+
+1. **Reference Image Capture**
+   - Senior photographs medication bottle once
+   - System extracts visual features:
+     - **Color Histogram** (HSV color space)
+     - **Shape Features** (aspect ratio, contours)
+     - **Text Regions** (for OCR)
+
+2. **Real-Time Verification**
+   - When taking medication, senior shows bottle to camera
+   - System compares current image with reference
+   - **Similarity Score**: 0-100% match
+
+3. **Multi-Modal Comparison**
+   - **70% Weight**: Color histogram correlation
+   - **30% Weight**: Shape matching
+   - **Bonus**: OCR text matching for label verification
+
+4. **Threshold**: 75% similarity required for verification
+
+### Technical Details
+
+```python
+# Color Histogram (HSV)
+hist_score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
+
+# Shape Matching
+shape_score = compare_contours(contour1, contour2)
+
+# Final Score
+similarity = (hist_score * 0.7) + (shape_score * 0.3)
+```
+
+---
+
+## 🔐 Security Features
+
+- ✅ **Password Hashing**: Bcrypt with salt
+- ✅ **CSRF Protection**: Token-based form protection
+- ✅ **Role-Based Access**: Seniors/Caregivers/Admin permissions
+- ✅ **Session Management**: Secure Flask-Login sessions
+- ✅ **Input Validation**: Pydantic schema validation
+- ✅ **SQL Injection Prevention**: SQLAlchemy ORM
+- ✅ **File Upload Safety**: Image validation and size limits
+
+---
+
+## 📊 API Documentation
+
+### Authentication
+```http
+POST /auth/register
+POST /auth/login
+GET /auth/logout
+```
+
+### Medications
+```http
+GET /api/v1/medications
+GET /api/v1/medications/:id
+POST /api/v1/medications
+PUT /api/v1/medications/:id
+DELETE /api/v1/medications/:id
+POST /api/v1/medications/quick-test
+```
+
+### Verification
+```http
+POST /api/v1/verify
+GET /medication/verification
+POST /medication/verify-realtime
+```
+
+### Relationships
+```http
+POST /caregiver/add-senior
+DELETE /caregiver/remove-senior/:id
+GET /caregiver/senior/:id
+```
+
+Full API documentation: [docs/API.md](docs/API.md)
 
 ---
 
 ## 🧪 Testing
 
+### Run Tests
 ```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=app --cov-report=html
-
-# Run specific test
-pytest tests/test_medication_service.py
+pytest tests/ -v
 ```
+
+### Test Coverage
+```bash
+pytest --cov=app tests/
+```
+
+### Manual Testing
+1. Use Quick Test feature: `/quick-test`
+2. Creates test medication due in 2 minutes
+3. Verify reminder appears
+4. Test camera verification flow
 
 ---
 
-## 📊 Performance Optimizations
+## 🚢 Deployment
 
-### Vision AI
-- **ModelManager Singleton** - Load YOLO once, not on every request
-- **90% Memory Reduction** - From ~14MB per request to cached model
-- **10x Faster** - Property-based lazy loading
+### Production Checklist
 
-### Database
-- **10+ Indexes** - On user_id, dates, priority fields
-- **CASCADE Deletes** - Automatic cleanup of related data
-- **BaseModel** - Consistent timestamps on all tables
+- [ ] Set `FLASK_ENV=production` in `.env`
+- [ ] Use PostgreSQL instead of SQLite
+- [ ] Set strong `SECRET_KEY`
+- [ ] Enable HTTPS/SSL
+- [ ] Set up Redis for SocketIO scaling
+- [ ] Configure email server for notifications
+- [ ] Set up monitoring (Sentry, etc.)
+- [ ] Configure backup strategy
 
-### Caching
-- **Redis (optional)** - For session storage and rate limiting
-- **In-memory fallback** - Works without Redis for development
+### Deploy to Render/Railway/Heroku
 
----
-
-## 🚀 Deployment
-
-### Docker Deployment
-
-```bash
-docker-compose -f docker-compose.prod.yml up -d
+1. Create `Procfile`:
+```
+web: gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 wsgi:app
 ```
 
-### Environment Setup
-
-1. Set production environment variables
-2. Use PostgreSQL (not SQLite)
-3. Enable Redis for sessions
-4. Set `SESSION_COOKIE_SECURE=True`
-5. Change `SECRET_KEY` and `JWT_SECRET_KEY`
-
----
-
-## 📝 Development
-
-### Code Quality
-
-```bash
-# Format code
-black app/
-
-# Sort imports
-isort app/
-
-# Lint
-flake8 app/
-pylint app/
-
-# Type checking
-mypy app/
+2. Add `runtime.txt`:
+```
+python-3.10.12
 ```
 
-### Database Migrations
-
-```bash
-# Create migration
-flask db migrate -m "Description"
-
-# Apply migration
-flask db upgrade
-
-# Rollback
-flask db downgrade
-```
+3. Set environment variables on platform
+4. Deploy!
 
 ---
 
 ## 🤝 Contributing
 
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Development Setup
 1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
 5. Open Pull Request
 
 ---
@@ -286,19 +376,42 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file.
 
 ---
 
+## 👥 Authors
+
+**Adithya Krishnan**
+- GitHub: [@adithyakrish0](https://github.com/adithyakrish0)
+- Email: your.email@example.com
+
+---
+
 ## 🙏 Acknowledgments
 
-- **YOLOv5** by Ultralytics
-- **Tesseract OCR** by Google
-- **Flask** framework
-- **pyzbar** for barcode scanning
+- Bootstrap team for UI framework
+- OpenCV community for computer vision tools
+- Flask and SQLAlchemy teams
+- All contributors and testers
 
 ---
 
-## 📧 Support
+## 📞 Support
 
-For support, email support@medguardian.com or open an issue on GitHub.
+For issues and questions:
+- **Issues**: [GitHub Issues](https://github.com/yourusername/medguardian/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/medguardian/discussions)
+- **Email**: support@medguardian.com
 
 ---
 
-**Built with ❤️ for safer medication management**
+## 🗺️ Roadmap
+
+### Version 2.0 (Next Release)
+- [ ] Mobile app (React Native)
+- [ ] Advanced ML models for pill recognition
+- [ ] Multi-language support
+- [ ] Voice assistant integration
+- [ ] Pharmacy integration API
+- [ ] Insurance claim automation
+
+---
+
+**Made with ❤️ for improving senior healthcare**

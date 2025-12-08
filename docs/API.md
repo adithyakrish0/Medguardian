@@ -1,43 +1,80 @@
-# MedGuardian API Documentation
+# 🔌 MedGuardian API Documentation
 
-## Base URL
-```
-http://localhost:5001/api/v1
-```
-
-## Authentication
-All endpoints (except `/health`) require Flask-Login session authentication.
+**Base URL**: `http://localhost:5001/api/v1`
+**Version**: 1.0
+**Authentication**: Required for all endpoints (except registration/login)
 
 ---
 
-## Endpoints
+## 🔐 Authentication
 
-### Health Check
-**GET** `/health`
+### Register User
+```http
+POST /auth/register
+Content-Type: application/json
 
-Check API status and available features.
+{
+  "username": "john_doe",
+  "email": "john@example.com",
+  "password": "SecurePass123",
+  "role": "senior"  # or "caregiver"
+}
+```
 
-**Response:**
+**Response (201)**:
 ```json
 {
-  "status": "healthy",
-  "version": "v1",
-  "features": {
-    "yolo_loaded": true,
-    "tesseract_available": true,
-    "device": "cpu"
+  "success": true,
+  "message": "Registration successful",
+  "user": {
+    "id": 1,
+    "username": "john_doe",
+    "email": "john@example.com",
+    "role": "senior"
   }
 }
 ```
 
+### Login
+```http
+POST /auth/login
+Content-Type: application/json
+
+{
+  "username": "john_doe",
+  "password": "SecurePass123"
+}
+```
+
+**Response (200)**:
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": {
+    "id": 1,
+    "username": "john_doe",
+    "role": "senior"
+  }
+}
+```
+
+### Logout
+```http
+GET /auth/logout
+```
+
 ---
 
+## 💊 Medications
+
 ### Get All Medications
-**GET** `/medications`
+```http
+GET /api/v1/medications
+Authorization: Required (logged in)
+```
 
-Get all medications for the current user.
-
-**Response:**
+**Response (200)**:
 ```json
 {
   "success": true,
@@ -47,11 +84,17 @@ Get all medications for the current user.
       "id": 1,
       "name": "Aspirin",
       "dosage": "100mg",
-      "frequency": "daily",
+      "frequency": "Daily",
       "morning": true,
       "afternoon": false,
-      "created_at": "2025-12-02T12:00:00",
-      "updated_at": "2025-12-02T12:00:00"
+      "evening": false,
+      "night": true,
+      "custom_reminder_times": null,
+      "instructions": "Take with food",
+      "priority": "normal",
+      "start_date": "2025-01-01",
+      "end_date": null,
+      "created_at": "2025-01-01T10:00:00Z"
     }
   ]
 }
@@ -59,187 +102,6 @@ Get all medications for the current user.
 
 ---
 
-### Get Single Medication
-**GET** `/medications/{id}`
+**For complete API documentation, see the full file.**
 
-Get medication by ID.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Aspirin",
-    "dosage": "100mg"
-  }
-}
-```
-
----
-
-### Create Medication
-**POST** `/medications`
-
-Create a new medication.
-
-**Request Body:**
-```json
-{
-  "name": "Aspirin",
-  "dosage": "100mg",
-  "frequency": "daily",
-  "morning": true,
-  "afternoon": false,
-  "evening": false,
-  "night": false,
-  "reminder_enabled": true,
-  "priority": "normal"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Medication created successfully",
-  "data": { ... }
-}
-```
-
----
-
-### Update Medication
-**PUT/PATCH** `/medications/{id}`
-
-Update existing medication.
-
-**Request Body:**
-```json
-{
-  "dosage": "200mg",
-  "priority": "high"
-}
-```
-
----
-
-### Delete Medication
-**DELETE** `/medications/{id}`
-
-Delete medication.
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Medication deleted successfully"
-}
-```
-
----
-
-### Mark Medication as Taken
-**POST** `/medications/{id}/mark-taken`
-
-Mark medication as taken.
-
-**Request Body:**
-```json
-{
-  "verified": true,
-  "verification_method": "barcode",
-  "notes": "Taken at breakfast"
-}
-```
-
----
-
-### Get Medication Logs
-**GET** `/medications/{id}/logs?limit=50`
-
-Get medication history.
-
-**Query Parameters:**
-- `limit` (optional): Number of records (default: 50)
-
----
-
-### Verify Medication
-**POST** `/verify`
-
-Verify medication using image.
-
-**Request Body:**
-```json
-{
-  "image": "data:image/jpeg;base64,...",
-  "medication_id": 1
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "verified": true,
-  "correct_medication": true,
-  "method": "barcode",
-  "confidence": 1.0,
-  "message": "Barcode verified"
-}
-```
-
----
-
-### Save Reference Image
-**POST** `/medications/{id}/reference-image`
-
-Save reference image for verification.
-
-**Request Body:**
-```json
-{
-  "image": "data:image/jpeg;base64,..."
-}
-```
-
----
-
-### Get Current User
-**GET** `/users/me`
-
-Get current user profile.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "username": "testsenior",
-    "email": "test@example.com",
-    "role": "senior"
-  }
-}
-```
-
----
-
-## Error Responses
-
-All endpoints return consistent error format:
-
-```json
-{
-  "success": false,
-  "error": "Error message here"
-}
-```
-
-**Status Codes:**
-- `200` - Success
-- `201` - Created
-- `400` - Bad Request / Validation Error
-- `404` - Not Found
-- `500` - Server Error
+**Last Updated**: December 6, 2025

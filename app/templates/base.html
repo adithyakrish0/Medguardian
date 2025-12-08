@@ -8,12 +8,15 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/reminder_banner.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/camera_modal.css') }}" rel="stylesheet">
     {% block head %}{% endblock %}
 </head>
 
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
         <div class="container">
             <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">
                 <i class="fas fa-pills me-2"></i>MedGuardian
@@ -42,6 +45,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link quick-test-link" href="{{ url_for('test.quick_test') }}">
+                            <i class="fas fa-vial me-1"></i>Quick Test
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.logout') }}">
                             <i class="fas fa-sign-out-alt me-1"></i>Logout
                         </a>
@@ -67,6 +75,50 @@
             </div>
         </div>
     </nav>
+
+    <style>
+        /* Enhanced navbar styling */
+        .navbar .nav-link {
+            color: rgba(255, 255, 255, 0.85) !important;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            margin: 0 0.2rem;
+        }
+
+        .navbar .nav-link:hover {
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .navbar .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff !important;
+        }
+
+        .quick-test-link {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 193, 7, 0.25)) !important;
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            font-weight: 600 !important;
+        }
+
+        .quick-test-link:hover {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.35), rgba(255, 193, 7, 0.35)) !important;
+            border-color: rgba(255, 215, 0, 0.6);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .navbar-brand {
+            font-size: 1.3rem;
+            transition: transform 0.3s ease;
+        }
+
+        .navbar-brand:hover {
+            transform: scale(1.05);
+        }
+    </style>
 
     <!-- Main Content -->
     <main class="container-fluid py-4">
@@ -104,9 +156,28 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- SocketIO for real-time notifications -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
     <!-- Loading States & Confirmations -->
     <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
     <script src="{{ url_for('static', filename='js/confirmations.js') }}"></script>
+
+    {% if current_user.is_authenticated %}
+    <!-- Camera & Verification Modules -->
+    <script src="{{ url_for('static', filename='js/modules/camera_capture.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/verification_modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/reference_capture.js') }}"></script>
+
+    <!-- CRITICAL: Set currentUserId BEFORE loading reminder_system.js -->
+    <script>
+        window.currentUserId = {{ current_user.id }};
+        console.log('✅ User ID set:', window.currentUserId);
+    </script>
+
+    <!-- Real-time Reminder System (depends on window.currentUserId) -->
+    <script src="{{ url_for('static', filename='js/reminder_system.js') }}"></script>
+    {% endif %}
 
     <script>
         // Auto-dismiss alerts after 5 seconds

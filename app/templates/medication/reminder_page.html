@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Medication Reminder - MedGuardian</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/camera_modal.css') }}">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .reminder-card {
+            max-width: 900px;
+            margin: 2rem auto;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .btn-action {
+            font-size: 1.2rem;
+            padding: 1rem;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        #cameraFeed {
+            max-height: 400px;
+            background: #000;
+        }
+
+        .detection-overlay-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        #detectionOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid vh-100 d-flex align-items-center justify-content-center p-3">
+        <div class="card shadow-lg reminder-card w-100">
+            <!-- Header -->
+            <div class="card-header bg-danger text-white text-center py-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-bell me-2"></i>
+                    Time to Take Your Medication!
+                </h2>
+            </div>
+
+            <div class="card-body p-4">
+                <!-- Medication Details -->
+                <div class="text-center mb-4">
+                    <h3 class="text-primary mb-2">{{ medication.name }}</h3>
+                    <p class="text-muted fs-5 mb-1">{{ medication.dosage }}</p>
+                    {% if medication.instructions %}
+                    <p class="text-secondary">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {{ medication.instructions }}
+                    </p>
+                    {% endif %}
+                    <p class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        Scheduled for: {{ scheduled_time_display }}
+                    </p>
+                </div>
+
+                <!-- Camera Feed Section -->
+                <div class="card border-info mb-4" id="cameraSection">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <i class="fas fa-camera me-2"></i>Camera Verification
+                            <span id="voiceIndicator" class="float-end text-success" style="display: none;">
+                                <i class="fas fa-microphone"></i> Listening...
+                            </span>
+                        </h6>
+                    </div>
+                    <div class="card-body p-2">
+                        <!-- Live Camera Feed -->
+                        <div class="detection-overlay-container mb-2">
+                            <video id="reminderCameraFeed" class="w-100 rounded" autoplay playsinline muted></video>
+                            <canvas id="detectionOverlay" class="w-100 h-100"></canvas>
+                        </div>
+
+                        <!-- Detection Status -->
+                        <div id="detectionStatus" class="alert alert-info mb-2" style="display: none;">
+                            <i class="fas fa-camera me-2"></i>
+                            <span>Initializing camera...</span>
+                        </div>
+
+                        <!-- Verification Result (required by auto_verification.js) -->
+                        <div id="verificationResult" style="display: none;">
+                            <div class="alert alert-sm mb-1" id="verificationAlert" style="padding: 0.5rem;">
+                                <i class="fas fa-circle-notch fa-spin me-2"></i>
+                                <span id="verificationMessage">Checking...</span>
+                            </div>
+                        </div>
+
+                        <!-- Instructions -->
+                        <p class="text-muted small mb-0 text-center">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Hold your medication up to the camera or say "I took it"
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-3">
+                    <button class="btn btn-success btn-action" onclick="markTaken()">
+                        <i class="fas fa-check-circle me-2"></i>
+                        ✅ I've Taken It
+                    </button>
+                    <button class="btn btn-warning btn-action" onclick="snooze()">
+                        <i class="fas fa-clock me-2"></i>
+                        ⏰ Snooze 5 Minutes
+                    </button>
+                    <button class="btn btn-secondary btn-action" onclick="dismiss()">
+                        <i class="fas fa-times-circle me-2"></i>
+                        ❌ Dismiss
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio for notification sound -->
+    <audio id="alarmSound" loop autoplay>
+        <source
+            src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSl+zPLaizsIG2m98OScTgwOUarm7blmFgU7k9n1unEiBC13yO/eizsIHGS57+OWT"
+            type="audio/wav">
+    </audio>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/auto_verification.js') }}"></script>
+
+    <script>
+        const medicationId = {{ medication.id }};
+        const scheduledTime = "{{ scheduled_time }}";
+
+        console.log("🔵 Reminder page loaded - Med ID:", medicationId, "Time:", scheduledTime);
+
+        // Mark medication as taken
+        async function markTaken() {
+            console.log("🔵 markTaken called");
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                const response = await fetch(`/medication/mark-taken/${medicationId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        scheduled_time: scheduledTime,
+                        verified_by_camera: false
+                    })
+                });
+
+                console.log("🔵 Response status:", response.status);
+
+                if (response.ok) {
+                    console.log("✅ Medication marked successfully");
+                    // Stop alarm
+                    const alarm = document.getElementById('alarmSound');
+                    if (alarm) alarm.pause();
+
+                    // Redirect to dashboard
+                    window.location.href = '/dashboard';
+                } else {
+                    const error = await response.text();
+                    console.error("❌ Error:", error);
+                    alert("Failed to mark medication as taken. Please try again.");
+                }
+            } catch (error) {
+                console.error("❌ Exception:", error);
+                alert("Network error. Please check your connection.");
+            }
+        }
+
+        // Snooze reminder for 5 minutes
+        async function snooze() {
+            console.log("🔵 snooze called");
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                const response = await fetch('/snooze/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        medication_id: medicationId,
+                        medication_name: "{{ medication.name }}",
+                        dosage: "{{ medication.dosage }}"
+                    })
+                });
+
+                if (response.ok) {
+                    console.log("✅ Snoozed successfully");
+                    const alarm = document.getElementById('alarmSound');
+                    if (alarm) alarm.pause();
+                    window.location.href = '/dashboard';
+                }
+            } catch (error) {
+                console.error("❌ Snooze error:", error);
+            }
+        }
+
+        // Dismiss reminder
+        function dismiss() {
+            console.log("🔵 dismiss called");
+            const alarm = document.getElementById('alarmSound');
+            if (alarm) alarm.pause();
+            window.location.href = '/dashboard';
+        }
+
+        // Auto-start camera verification
+        if (window.medicationAutoVerifier) {
+            console.log("🎥 Auto-starting camera verification");
+            setTimeout(() => {
+                window.medicationAutoVerifier.startAutoVerification(medicationId);
+            }, 500);
+        } else {
+            console.warn("⚠️ MedicationAutoVerifier not loaded");
+        }
+    </script>
+</body>
+
+</html>
