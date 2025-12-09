@@ -39,6 +39,11 @@ class Medication(BaseModel):
     reference_image_path = db.Column(db.String(500), nullable=True)  # Path to reference photo
     image_features = db.Column(db.Text, nullable=True)  # JSON: color histogram, shape features
     label_text = db.Column(db.Text, nullable=True)  # OCR extracted text from label
+    
+    # ENHANCED: Multi-angle reference images for AI training (JSON array of base64 images)
+    reference_images = db.Column(db.Text, nullable=True)  # JSON: ["base64img1", "base64img2", ...]
+    background_image = db.Column(db.Text, nullable=True)  # Background-only capture for subtraction
+    ai_trained = db.Column(db.Boolean, default=False)  # True if user completed AI training
 
     def __repr__(self):
         return f'<Medication {self.name} for User {self.user_id}>'
