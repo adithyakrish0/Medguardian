@@ -21,13 +21,15 @@ class MedicineBottleDetector:
             model_path: Optional path to custom YOLO model (uses ModelManager's cached model)
         """
         self.model_path = model_path or 'yolov5s.pt'
-        self.confidence_threshold = 0.5
+        self.confidence_threshold = 0.65  # Increased from 0.5 to reduce false positives
         self.nms_threshold = 0.4
-        self.target_class_names = ['bottle', 'pill', 'medicine', 'tablet', 'capsule']
+        self.min_detection_area = 3000  # Minimum bbox area in pixels to filter tiny detections
+        self.max_input_size = 416  # Resize input for faster inference (was 640)
+        self.target_class_names = ['bottle', 'pill', 'medicine', 'tablet', 'capsule', 'cup', 'vase']
         
         # Initialize fallback detection parameters
         self.fallback_params = {
-            'min_contour_area': 500,
+            'min_contour_area': 1000,  # Increased from 500
             'max_contour_area': 50000,
             'aspect_ratio_range': (0.3, 3.0),
             'color_thresholds': {
@@ -61,10 +63,13 @@ class MedicineBottleDetector:
         detections = []
         annotated_image = image.copy() if return_image else None
         
+        # Only use YOLO - fallback contour detection causes too many false positives
         if self.model is not None:
             detections = self._detect_with_yolo(image, annotated_image)
         else:
-            detections = self._detect_with_fallback(image, annotated_image)
+            # Don't use fallback - it detects everything as bottles
+            print("⚠️ YOLO model not available, skipping detection")
+            detections = []
         
         bottles_detected = len(detections) > 0
         
@@ -76,20 +81,38 @@ class MedicineBottleDetector:
     def _detect_with_yolo(self, image: np.ndarray, annotated_image: Optional[np.ndarray] = None) -> List:
         """Detect bottles using YOLO model"""
         try:
-            # Run inference
-            results = self.model(image)
+            # Resize for faster inference
+            h, w = image.shape[:2]
+            scale = min(self.max_input_size / w, self.max_input_size / h, 1.0)
+            if scale < 1.0:
+                resized = cv2.resize(image, None, fx=scale, fy=scale)
+            else:
+                resized = image
+                scale = 1.0
+            
+            # Run inference on resized image
+            results = self.model(resized)
             
             # Extract detections
             detections = results.xyxy[0].cpu().numpy()
             
-            # Filter by confidence and class
+            # Filter by confidence, class, and size
             filtered_detections = []
             for detection in detections:
                 x1, y1, x2, y2, confidence, class_id = detection
+                
+                # Scale coordinates back to original size
+                x1, y1, x2, y2 = x1/scale, y1/scale, x2/scale, y2/scale
+                
                 class_name = self.model.names[int(class_id)]
                 
-                # Check if it's a relevant class
-                if confidence > self.confidence_threshold and class_name in self.target_class_names:
+                # Calculate bounding box area
+                area = (x2 - x1) * (y2 - y1)
+                
+                # Filter: confidence, class, and minimum size
+                if (confidence > self.confidence_threshold and 
+                    class_name in self.target_class_names and
+                    area >= self.min_detection_area):
                     filtered_detections.append([
                         float(x1), float(y1), float(x2), float(y2),
                         float(confidence), int(class_id)
@@ -103,7 +126,7 @@ class MedicineBottleDetector:
             
         except Exception as e:
             print(f"YOLO detection error: {e}")
-            return self._detect_with_fallback(image, annotated_image)
+            return []  # Don't use fallback - it causes too many false positives
     
     def _detect_with_fallback(self, image: np.ndarray, annotated_image: Optional[np.ndarray] = None) -> List:
         """Detect bottles using fallback computer vision methods"""

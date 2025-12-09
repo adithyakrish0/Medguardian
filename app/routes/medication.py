@@ -13,6 +13,7 @@ from app.models.medication_log import MedicationLog
 from app.vision.pill_detection import PillDetector
 from app.vision.enhanced_verifier import EnhancedMedicationVerifier
 from flask import Response
+from app import csrf, limiter  # For CSRF and rate limit exemption on API endpoints
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,11 @@ def add_medication():
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else date.today()
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
         
+        # Handle AI training data
+        reference_images = request.form.get('reference_images', '')
+        background_image = request.form.get('background_image', '')  # Background for subtraction
+        ai_trained = request.form.get('ai_trained', 'false') == 'true'
+        
         new_medication = Medication(
             name=request.form.get('name'),
             dosage=request.form.get('dosage'),
@@ -79,7 +85,11 @@ def add_medication():
             custom_reminder_times=custom_reminder_times,
             start_date=start_date,
             end_date=end_date,
-            priority=request.form.get('priority', 'medium')
+            priority=request.form.get('priority', 'medium'),
+            # AI Training data
+            reference_images=reference_images if reference_images else None,
+            background_image=background_image if background_image else None,
+            ai_trained=ai_trained
         )
         db.session.add(new_medication)
         db.session.commit()
@@ -287,33 +297,81 @@ def mark_taken(medication_id):
 # ========== NEW VERIFICATION ROUTES ==========
 
 @medication.route('/verify-realtime', methods=['POST'])
+@limiter.exempt  # Exempt from rate limiting - needs rapid calls
+@csrf.exempt  # Exempt from CSRF for API calls
 @login_required
 def verify_realtime():
     """
     Real-time verification endpoint
-    Receives image frame + expected medication, returns CORRECT/WRONG
+    Receives image frame + expected medication, returns CORRECT/WRONG + detection overlay data
     """
     from app.utils.medication_verification import verify_medication_comprehensive
-    from app.vision.barcode_scanner import MedicationBarcodeScanner
+    from app.vision.barcode_scanner import BarcodeScanner
+    from app.vision.bottle_detector import MedicineBottleDetector
     
     try:
-        data = request.get_json()
+        # Force JSON parsing even if content-type is wrong
+        data = request.get_json(force=True, silent=True)
+        
+        if not data:
+            logger.error(f"verify-realtime: No JSON data received. Content-Type: {request.content_type}")
+            return jsonify({
+                'error': 'No JSON data received',
+                'detections': [],
+                'detection_count': 0
+            }), 400
         
         # Get image from base64
         image_data = data.get('image')
         expected_med_id = data.get('medication_id')
         
-        if not image_data or not expected_med_id:
-            return jsonify({'error': 'Missing image or medication_id'}), 400
+        if not image_data:
+            return jsonify({
+                'error': 'Missing image data',
+                'detections': [],
+                'detection_count': 0
+            }), 400
+            
+        if not expected_med_id:
+            return jsonify({
+                'error': 'Missing medication_id',
+                'detections': [],
+                'detection_count': 0
+            }), 400
         
         # Decode image
         image_bytes = base64.b64decode(image_data.split(',')[1])
         nparr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        # Scan for barcode
-        scanner = MedicationBarcodeScanner()
-        barcodes = scanner.scan_barcode(image)
+        # Get image dimensions for overlay scaling
+        img_height, img_width = image.shape[:2]
+        
+        # Run bottle/pill detection for overlay
+        detector = MedicineBottleDetector()
+        bottles_detected, detections, _ = detector.detect_bottles(image, return_image=False)
+        
+        # Format detections for frontend overlay
+        detection_data = []
+        for det in detections:
+            x1, y1, x2, y2, confidence, class_id = det
+            # Get class name
+            if detector.model:
+                try:
+                    label = detector.model.names[int(class_id)]
+                except:
+                    label = 'object'
+            else:
+                label = 'bottle'
+            
+            detection_data.append({
+                'bbox': [float(x1), float(y1), float(x2), float(y2)],
+                'confidence': float(confidence),
+                'label': label
+            })
+        
+        # Scan for barcode (static method)
+        barcodes = BarcodeScanner.scan_barcodes(image)
         scanned_barcode = barcodes[0]['data'] if barcodes else None
         
         # Comprehensive verification
@@ -324,10 +382,75 @@ def verify_realtime():
             scanned_barcode=scanned_barcode
         )
         
+        # Add detection overlay data to result
+        result['detections'] = detection_data
+        result['detection_count'] = len(detection_data)
+        result['bottles_detected'] = bottles_detected
+        result['image_width'] = img_width
+        result['image_height'] = img_height
+        
+        # Map verification result fields for frontend compatibility
+        result['verified'] = result.get('success', False) and len(detection_data) > 0
+        result['correct_medication'] = result.get('is_correct', False)
+        
         return jsonify(result)
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"verify-realtime error: {e}")
+        return jsonify({'error': str(e), 'detections': [], 'detection_count': 0}), 500
+
+
+@medication.route('/detect-objects', methods=['POST'])
+@limiter.exempt  # Exempt from rate limiting - needs rapid calls
+@csrf.exempt  # Exempt from CSRF for API calls
+@login_required
+def detect_objects():
+    """
+    Simple object detection endpoint for training capture overlay.
+    Returns bounding boxes without full medication verification.
+    """
+    from app.vision.bottle_detector import MedicineBottleDetector
+    
+    try:
+        data = request.get_json()
+        image_data = data.get('image')
+        
+        if not image_data:
+            return jsonify({'detections': [], 'error': 'No image provided'}), 400
+        
+        # Decode image
+        image_bytes = base64.b64decode(image_data.split(',')[1])
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        # Run detection
+        detector = MedicineBottleDetector()
+        bottles_detected, detections, _ = detector.detect_bottles(image, return_image=False)
+        
+        # Format detections
+        detection_data = []
+        for det in detections:
+            x1, y1, x2, y2, confidence, class_id = det
+            label = 'bottle'
+            if detector.model:
+                try:
+                    label = detector.model.names[int(class_id)]
+                except:
+                    pass
+            
+            detection_data.append({
+                'bbox': [float(x1), float(y1), float(x2), float(y2)],
+                'confidence': float(confidence),
+                'label': label
+            })
+        
+        return jsonify({
+            'detections': detection_data,
+            'count': len(detection_data)
+        })
+        
+    except Exception as e:
+        return jsonify({'detections': [], 'error': str(e)}), 500
 
 
 @medication.route('/save-reference-image/<int:medication_id>', methods=['POST'])

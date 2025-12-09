@@ -10,147 +10,439 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/camera_modal.css') }}">
 
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
         }
 
-        .reminder-card {
-            max-width: 900px;
-            margin: 2rem auto;
-            animation: slideUp 0.5s ease-out;
+        .reminder-container {
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 0;
         }
 
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .btn-action {
-            font-size: 1.2rem;
-            padding: 1rem;
-            border-radius: 12px;
-            transition: all 0.3s;
-        }
-
-        .btn-action:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        #cameraFeed {
-            max-height: 400px;
+        /* Left Panel - Camera */
+        .camera-panel {
             background: #000;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
 
-        .detection-overlay-container {
+        .camera-wrapper {
             position: relative;
-            display: inline-block;
             width: 100%;
+            height: 100%;
+        }
+
+        #reminderCameraFeed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         #detectionOverlay {
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
+        }
+
+        /* Scanning animation overlay */
+        .scan-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            box-shadow: 0 0 20px #00d4ff;
+            animation: scanDown 2s linear infinite;
+        }
+
+        @keyframes scanDown {
+            0% {
+                top: 0;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
+        }
+
+        /* Camera status badge */
+        .camera-status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .camera-status .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00c853;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        /* Right Panel - Info & Actions */
+        .info-panel {
+            background: linear-gradient(180deg, #1f1f3a 0%, #1a1a2e 100%);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Header */
+        .reminder-header {
+            text-align: center;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .reminder-header h2 {
+            color: #ff6b6b;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .reminder-header .bell-icon {
+            animation: ring 1s ease infinite;
+        }
+
+        @keyframes ring {
+
+            0%,
+            100% {
+                transform: rotate(0);
+            }
+
+            25% {
+                transform: rotate(15deg);
+            }
+
+            50% {
+                transform: rotate(-15deg);
+            }
+
+            75% {
+                transform: rotate(10deg);
+            }
+        }
+
+        /* Medication Info Card */
+        .med-info {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .med-name {
+            color: #00d4ff;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .med-dosage {
+            color: #888;
+            font-size: 16px;
+        }
+
+        .med-time {
+            color: #666;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        /* Live Detection Panel */
+        .detection-panel {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 16px;
+            padding: 16px;
+            flex-shrink: 0;
+        }
+
+        .detection-panel h6 {
+            color: #00d4ff;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .detection-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #aaa;
+            font-size: 13px;
+        }
+
+        .detection-row:last-child {
+            border-bottom: none;
+        }
+
+        .detection-row .value {
+            color: white;
+            font-weight: 600;
+        }
+
+        .detection-row .value.match {
+            color: #00c853;
+        }
+
+        .detection-row .value.no-match {
+            color: #ff5252;
+        }
+
+        /* Verification Status */
+        .verification-status {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .verification-status.scanning {
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .verification-status.verified {
+            background: rgba(0, 200, 83, 0.15);
+            border: 1px solid rgba(0, 200, 83, 0.3);
+        }
+
+        .verification-status.failed {
+            background: rgba(255, 82, 82, 0.15);
+            border: 1px solid rgba(255, 82, 82, 0.3);
+        }
+
+        .verification-status .status-text {
+            color: white;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        #verificationMessage {
+            color: inherit;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: auto;
+            padding-top: 16px;
+        }
+
+        .btn-action {
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-taken {
+            background: linear-gradient(135deg, #00c853, #00a843);
+            color: white;
+        }
+
+        .btn-snooze {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: white;
+        }
+
+        .btn-dismiss {
+            background: rgba(255, 255, 255, 0.1);
+            color: #888;
+        }
+
+        .btn-dismiss:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #aaa;
+        }
+
+        /* Responsive for smaller screens */
+        @media (max-width: 900px) {
+            .reminder-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 50vh 1fr;
+            }
+
+            .info-panel {
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="container-fluid vh-100 d-flex align-items-center justify-content-center p-3">
-        <div class="card shadow-lg reminder-card w-100">
+    <div class="reminder-container">
+        <!-- Left: Camera Panel -->
+        <div class="camera-panel">
+            <div class="camera-wrapper">
+                <video id="reminderCameraFeed" autoplay playsinline muted></video>
+                <canvas id="detectionOverlay"></canvas>
+                <div class="scan-line"></div>
+            </div>
+
+            <div class="camera-status">
+                <div class="status-dot"></div>
+                <span id="cameraStatusText">Scanning...</span>
+            </div>
+        </div>
+
+        <!-- Right: Info Panel -->
+        <div class="info-panel">
             <!-- Header -->
-            <div class="card-header bg-danger text-white text-center py-4">
-                <h2 class="mb-0">
-                    <i class="fas fa-bell me-2"></i>
+            <div class="reminder-header">
+                <h2>
+                    <i class="fas fa-bell bell-icon"></i>
                     Time to Take Your Medication!
                 </h2>
             </div>
 
-            <div class="card-body p-4">
-                <!-- Medication Details -->
-                <div class="text-center mb-4">
-                    <h3 class="text-primary mb-2">{{ medication.name }}</h3>
-                    <p class="text-muted fs-5 mb-1">{{ medication.dosage }}</p>
-                    {% if medication.instructions %}
-                    <p class="text-secondary">
-                        <i class="fas fa-info-circle me-1"></i>
-                        {{ medication.instructions }}
-                    </p>
-                    {% endif %}
-                    <p class="text-muted">
-                        <i class="fas fa-clock me-1"></i>
-                        Scheduled for: {{ scheduled_time_display }}
-                    </p>
+            <!-- Medication Info -->
+            <div class="med-info">
+                <div class="med-name">{{ medication.name }}</div>
+                <div class="med-dosage">{{ medication.dosage }}</div>
+                {% if medication.instructions %}
+                <div class="med-time" style="color: #aaa;">{{ medication.instructions }}</div>
+                {% endif %}
+                <div class="med-time">
+                    <i class="fas fa-clock me-1"></i>
+                    Scheduled: {{ scheduled_time_display }}
                 </div>
+            </div>
 
-                <!-- Camera Feed Section -->
-                <div class="card border-info mb-4" id="cameraSection">
-                    <div class="card-header bg-light">
-                        <h6 class="mb-0">
-                            <i class="fas fa-camera me-2"></i>Camera Verification
-                            <span id="voiceIndicator" class="float-end text-success" style="display: none;">
-                                <i class="fas fa-microphone"></i> Listening...
-                            </span>
-                        </h6>
-                    </div>
-                    <div class="card-body p-2">
-                        <!-- Live Camera Feed -->
-                        <div class="detection-overlay-container mb-2">
-                            <video id="reminderCameraFeed" class="w-100 rounded" autoplay playsinline muted></video>
-                            <canvas id="detectionOverlay" class="w-100 h-100"></canvas>
-                        </div>
-
-                        <!-- Detection Status -->
-                        <div id="detectionStatus" class="alert alert-info mb-2" style="display: none;">
-                            <i class="fas fa-camera me-2"></i>
-                            <span>Initializing camera...</span>
-                        </div>
-
-                        <!-- Verification Result (required by auto_verification.js) -->
-                        <div id="verificationResult" style="display: none;">
-                            <div class="alert alert-sm mb-1" id="verificationAlert" style="padding: 0.5rem;">
-                                <i class="fas fa-circle-notch fa-spin me-2"></i>
-                                <span id="verificationMessage">Checking...</span>
-                            </div>
-                        </div>
-
-                        <!-- Instructions -->
-                        <p class="text-muted small mb-0 text-center">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Hold your medication up to the camera or say "I took it"
-                        </p>
-                    </div>
+            <!-- Live Detection Info -->
+            <div class="detection-panel" id="detectionPanel">
+                <h6><i class="fas fa-eye"></i> Live Detection</h6>
+                <div class="detection-row">
+                    <span>Objects Detected</span>
+                    <span class="value" id="objectCount">0</span>
                 </div>
-
-                <!-- Action Buttons -->
-                <div class="d-grid gap-3">
-                    <button class="btn btn-success btn-action" onclick="markTaken()">
-                        <i class="fas fa-check-circle me-2"></i>
-                        ✅ I've Taken It
-                    </button>
-                    <button class="btn btn-warning btn-action" onclick="snooze()">
-                        <i class="fas fa-clock me-2"></i>
-                        ⏰ Snooze 5 Minutes
-                    </button>
-                    <button class="btn btn-secondary btn-action" onclick="dismiss()">
-                        <i class="fas fa-times-circle me-2"></i>
-                        ❌ Dismiss
-                    </button>
+                <div class="detection-row">
+                    <span>Confidence</span>
+                    <span class="value" id="confidenceValue">--</span>
                 </div>
+                <div class="detection-row">
+                    <span>AI Match</span>
+                    <span class="value" id="aiMatchValue">--</span>
+                </div>
+                <div class="detection-row">
+                    <span>Method</span>
+                    <span class="value" id="methodValue">--</span>
+                </div>
+            </div>
+
+            <!-- Verification Status -->
+            <div class="verification-status scanning" id="verificationStatus">
+                <div class="status-text">
+                    <i class="fas fa-circle-notch fa-spin" id="statusIcon"></i>
+                    <span id="verificationMessage">Initializing camera...</span>
+                </div>
+            </div>
+
+            <!-- Hidden elements for auto_verification.js compatibility -->
+            <div id="verificationResult" style="display: none;">
+                <div id="verificationAlert"></div>
+            </div>
+            <div id="detectionStatus" style="display: none;"></div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="btn-action btn-taken" onclick="markTaken()">
+                    <i class="fas fa-check-circle"></i>
+                    I've Taken It
+                </button>
+                <button class="btn-action btn-snooze" onclick="snooze()">
+                    <i class="fas fa-clock"></i>
+                    Snooze 5 Minutes
+                </button>
+                <button class="btn-action btn-dismiss" onclick="dismiss()">
+                    <i class="fas fa-times"></i>
+                    Dismiss
+                </button>
             </div>
         </div>
     </div>
@@ -172,6 +464,64 @@
         const scheduledTime = "{{ scheduled_time }}";
 
         console.log("🔵 Reminder page loaded - Med ID:", medicationId, "Time:", scheduledTime);
+
+        // Update the detection panel with live info
+        function updateDetectionPanel(data) {
+            if (data.detection_count !== undefined) {
+                document.getElementById('objectCount').textContent = data.detection_count;
+            }
+            if (data.detections && data.detections.length > 0) {
+                const topConf = Math.max(...data.detections.map(d => d.confidence));
+                document.getElementById('confidenceValue').textContent = Math.round(topConf * 100) + '%';
+            }
+            if (data.confidence !== undefined) {
+                document.getElementById('aiMatchValue').textContent = Math.round(data.confidence * 100) + '%';
+                document.getElementById('aiMatchValue').className = 'value ' + (data.confidence > 0.75 ? 'match' : 'no-match');
+            }
+            if (data.method) {
+                document.getElementById('methodValue').textContent = data.method.replace('_', ' ');
+            }
+        }
+
+        // Update verification status display
+        function updateVerificationStatus(message, status = 'scanning') {
+            const statusDiv = document.getElementById('verificationStatus');
+            const messageSpan = document.getElementById('verificationMessage');
+            const icon = document.getElementById('statusIcon');
+            const cameraStatus = document.getElementById('cameraStatusText');
+
+            messageSpan.textContent = message;
+            statusDiv.className = 'verification-status ' + status;
+
+            if (status === 'verified') {
+                icon.className = 'fas fa-check-circle';
+                icon.style.color = '#00c853';
+                cameraStatus.textContent = 'Verified ✓';
+            } else if (status === 'failed') {
+                icon.className = 'fas fa-times-circle';
+                icon.style.color = '#ff5252';
+                cameraStatus.textContent = 'Not matched';
+            } else {
+                icon.className = 'fas fa-circle-notch fa-spin';
+                icon.style.color = '';
+                cameraStatus.textContent = 'Scanning...';
+            }
+        }
+
+        // Override auto_verification.js updateStatus if needed
+        if (window.medicationAutoVerifier) {
+            const originalUpdate = window.medicationAutoVerifier.updateStatus.bind(window.medicationAutoVerifier);
+            window.medicationAutoVerifier.updateStatus = function (message, type) {
+                originalUpdate(message, type);
+
+                // Map to our status types
+                let status = 'scanning';
+                if (type === 'success') status = 'verified';
+                else if (type === 'danger') status = 'failed';
+
+                updateVerificationStatus(message, status);
+            };
+        }
 
         // Mark medication as taken
         async function markTaken() {
@@ -196,11 +546,8 @@
 
                 if (response.ok) {
                     console.log("✅ Medication marked successfully");
-                    // Stop alarm
                     const alarm = document.getElementById('alarmSound');
                     if (alarm) alarm.pause();
-
-                    // Redirect to dashboard
                     window.location.href = '/dashboard';
                 } else {
                     const error = await response.text();
@@ -252,15 +599,55 @@
             window.location.href = '/dashboard';
         }
 
-        // Auto-start camera verification
-        if (window.medicationAutoVerifier) {
-            console.log("🎥 Auto-starting camera verification");
-            setTimeout(() => {
-                window.medicationAutoVerifier.startAutoVerification(medicationId);
-            }, 500);
-        } else {
-            console.warn("⚠️ MedicationAutoVerifier not loaded");
+        // Direct camera initialization with error handling
+        async function initCamera() {
+            const video = document.getElementById('reminderCameraFeed');
+            const statusText = document.getElementById('cameraStatusText');
+
+            try {
+                updateVerificationStatus('Requesting camera access...', 'scanning');
+                console.log("🎥 Requesting camera...");
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                });
+
+                video.srcObject = stream;
+                await video.play();
+
+                console.log("✅ Camera started!");
+                updateVerificationStatus('Camera active - show medication', 'scanning');
+                statusText.textContent = 'Scanning...';
+
+                // Now start auto verification with the camera already running
+                if (window.medicationAutoVerifier) {
+                    // Camera already started, so we just need to set the stream
+                    window.medicationAutoVerifier.cameraStream = stream;
+                    window.medicationAutoVerifier.currentMedicationId = medicationId;
+                    window.medicationAutoVerifier.isVerifying = false;
+
+                    // Start periodic verification
+                    window.medicationAutoVerifier.verificationInterval = setInterval(() => {
+                        window.medicationAutoVerifier.captureAndVerify();
+                    }, 3000);
+
+                    console.log("🔄 Verification loop started");
+                }
+
+            } catch (error) {
+                console.error("❌ Camera error:", error);
+                updateVerificationStatus('Camera error: ' + error.message, 'failed');
+                statusText.textContent = 'Camera failed';
+            }
         }
+
+        // Start camera immediately
+        initCamera();
     </script>
 </body>
 

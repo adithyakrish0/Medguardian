@@ -71,7 +71,45 @@ def verify_medication_comprehensive(
                 'medication_name': expected_med.name
             }
     
-    # METHOD 2: Visual Similarity (works for most medications)
+    # METHOD 2: AI Training Visual Matching (Multi-angle reference comparison)
+    # This is the NEW method using ResNet embeddings - most robust!
+    # Now with BACKGROUND SUBTRACTION to prevent overfitting to room features
+    if expected_med.reference_images and expected_med.ai_trained:
+        try:
+            from app.vision.feature_extractor import compare_to_references
+            
+            # Pass background image for subtraction if available
+            background_img = getattr(expected_med, 'background_image', None)
+            
+            similarity_score, best_angle = compare_to_references(
+                image, 
+                expected_med.reference_images,
+                background_image_base64=background_img  # NEW: background subtraction
+            )
+            
+            ai_match = similarity_score >= 0.75  # Threshold for AI trained match
+            verification_results.append({
+                'method': 'ai_training',
+                'is_correct': ai_match,
+                'confidence': similarity_score,
+                'details': f'AI Match: {similarity_score:.0%} (angle {best_angle})' + (' [bg-sub]' if background_img else '')
+            })
+            
+            # High confidence AI match = verified!
+            if similarity_score > 0.85:
+                return {
+                    'success': True,
+                    'is_correct': True,
+                    'message': f'✅ AI Verified! {expected_med.name} ({similarity_score:.0%} match)',
+                    'method': 'ai_training',
+                    'confidence': similarity_score,
+                    'medication_name': expected_med.name,
+                    'match_angle': best_angle
+                }
+        except Exception as e:
+            print(f"AI training comparison error: {e}")
+    
+    # METHOD 3: Legacy Visual Similarity (fallback for old medications)
     if expected_med.image_features:
         try:
             stored_features = json.loads(expected_med.image_features)
@@ -98,13 +136,23 @@ def verify_medication_comprehensive(
         except Exception as e:
             print(f"Visual comparison error: {e}")
     
-    # METHOD 3: OCR Text Matching (backup method)
+    # METHOD 4: OCR Text Matching with FUZZY support
     extracted_text = visual_verifier.extract_text_ocr(image)
     if extracted_text:
+        # Try fuzzy matching first
+        from app.vision.feature_extractor import fuzzy_match
+        fuzzy_matched = fuzzy_match(extracted_text, expected_med.name, tolerance=2)
+        
+        # Also try exact matching as fallback
         text_match, text_confidence = visual_verifier.verify_by_text(
             expected_med.name,
             extracted_text
         )
+        
+        # Use fuzzy result if exact didn't match
+        if fuzzy_matched and not text_match:
+            text_match = True
+            text_confidence = 0.75  # Fuzzy match confidence
         
         verification_results.append({
             'method': 'ocr',

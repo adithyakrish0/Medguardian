@@ -39,6 +39,53 @@
                     </div>
                 </div>
 
+                <!-- Section 1.5: AI Training (Visual Recognition) -->
+                <div class="card shadow-sm mb-4 border-0 rounded-4 border-info">
+                    <div class="card-body p-4">
+                        <h5 class="card-title mb-3 text-info fw-bold">
+                            <i class="fas fa-robot me-2"></i>AI Visual Recognition
+                            <span class="badge bg-info bg-opacity-25 text-info ms-2">Optional</span>
+                        </h5>
+                        <p class="text-muted small mb-3">
+                            Train AI to recognize this medication for automatic verification. Capture the bottle/strip
+                            from multiple angles.
+                        </p>
+
+                        <!-- Hidden fields for training data -->
+                        <input type="hidden" name="background_image" id="backgroundImageField" value="">
+                        <input type="hidden" name="reference_images" id="referenceImagesField" value="">
+                        <input type="hidden" name="ai_trained" id="aiTrainedField" value="false">
+
+                        <!-- Training status display -->
+                        <div id="trainingPreviewArea" class="mb-3" style="display: none;">
+                            <div
+                                class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 p-3 rounded-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-check-circle text-success me-2 fa-lg"></i>
+                                    <div>
+                                        <strong class="text-success">AI Trained</strong>
+                                        <div id="trainingPreviewCount" class="small text-muted">6 angles captured</div>
+                                    </div>
+                                </div>
+                                <div id="trainingThumbnails" class="d-flex gap-1">
+                                    <!-- Thumbnails will be inserted here -->
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearTraining()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Train AI button -->
+                        <div id="trainButtonArea">
+                            <button type="button" class="btn btn-outline-info btn-lg w-100"
+                                onclick="openTrainingCapture()">
+                                <i class="fas fa-camera me-2"></i>Train AI Recognition
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Section 2: Schedule -->
                 <div class="card shadow-sm mb-4 border-0 rounded-4">
                     <div class="card-body p-4">
@@ -416,5 +463,86 @@
             });
         }
     });
+
+    // ==============================================
+    // AI TRAINING INTEGRATION
+    // ==============================================
+
+    // Open training capture modal
+    function openTrainingCapture() {
+        if (typeof window.trainingCapture !== 'undefined') {
+            window.trainingCapture.openModal(onTrainingComplete, function () {
+                console.log('Training cancelled');
+            });
+        } else {
+            alert('Training system not loaded. Please refresh the page.');
+        }
+    }
+
+    // Training complete callback
+    function onTrainingComplete(trainingData) {
+        // Handle new 2-phase format: {background, medications}
+        const background = trainingData.background || null;
+        const medications = trainingData.medications || [];
+
+        console.log('Training complete:',
+            background ? '1 background' : 'no background',
+            medications.length, 'medication frames');
+
+        // Store in hidden fields
+        if (background) {
+            document.getElementById('backgroundImageField').value = background;
+        }
+        document.getElementById('referenceImagesField').value = JSON.stringify(medications);
+        document.getElementById('aiTrainedField').value = 'true';
+
+        // Update UI
+        document.getElementById('trainButtonArea').style.display = 'none';
+        document.getElementById('trainingPreviewArea').style.display = 'block';
+
+        const bgText = background ? '+ background' : '';
+        document.getElementById('trainingPreviewCount').textContent =
+            medications.length + ' medication angles ' + bgText;
+
+        // Add thumbnails
+        const thumbContainer = document.getElementById('trainingThumbnails');
+        thumbContainer.innerHTML = '';
+
+        // Add background thumbnail with different styling
+        if (background) {
+            const bgImg = document.createElement('img');
+            bgImg.src = background;
+            bgImg.title = 'Background (for subtraction)';
+            bgImg.style.cssText = 'width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 2px solid #ff9800;';
+            thumbContainer.appendChild(bgImg);
+        }
+
+        // Add medication thumbnails
+        medications.slice(0, 3).forEach(frame => {
+            const img = document.createElement('img');
+            img.src = frame;
+            img.style.cssText = 'width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 2px solid #00c853;';
+            thumbContainer.appendChild(img);
+        });
+
+        if (medications.length > 3) {
+            const more = document.createElement('span');
+            more.className = 'badge bg-secondary';
+            more.textContent = '+' + (medications.length - 3);
+            thumbContainer.appendChild(more);
+        }
+    }
+
+    // Clear training data
+    function clearTraining() {
+        document.getElementById('referenceImagesField').value = '';
+        document.getElementById('aiTrainedField').value = 'false';
+        document.getElementById('trainButtonArea').style.display = 'block';
+        document.getElementById('trainingPreviewArea').style.display = 'none';
+        document.getElementById('trainingThumbnails').innerHTML = '';
+    }
 </script>
+
+<!-- Include Training Capture Script -->
+<script src="{{ url_for('static', filename='js/training_capture.js') }}"></script>
 {% endblock %}
