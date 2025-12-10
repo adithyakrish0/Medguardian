@@ -12,6 +12,9 @@ class User(UserMixin, BaseModel):
     password_hash = db.Column(db.String(200))
     role = db.Column(db.String(20), nullable=False, default='senior', index=True)
     
+    # Telegram integration
+    telegram_chat_id = db.Column(db.String(50), nullable=True, unique=True)
+    
     # Add relationship to medications
     medications = db.relationship('Medication', backref='user', lazy=True, cascade='all, delete-orphan')
     

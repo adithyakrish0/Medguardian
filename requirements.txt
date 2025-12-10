@@ -42,3 +42,9 @@ pydantic[email]==2.5.0
 
 # Caching (NEW)
 redis==5.0.1
+
+# PDF Export
+reportlab==4.0.7
+
+# Telegram Bot
+requests==2.31.0

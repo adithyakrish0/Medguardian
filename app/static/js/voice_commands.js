@@ -1,174 +1,223 @@
 /**
- * Voice Command System for Medication Reminders
- * Uses Web Speech API for hands-free medication confirmation
+ * Voice Commands - Web Speech API
+ * MedGuardian
  */
 
-class VoiceCommandSystem {
+class VoiceAssistant {
     constructor() {
         this.recognition = null;
+        this.synthesis = window.speechSynthesis;
         this.isListening = false;
-        this.onCommandDetected = null;
+        this.supported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
 
-        // Initialize if browser supports it
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            this.recognition = new SpeechRecognition();
-            this.setupRecognition();
-        } else {
-            console.warn('Speech recognition not supported in this browser');
+        if (this.supported) {
+            this.init();
         }
     }
 
-    setupRecognition() {
-        // Configure recognition
-        this.recognition.continuous = true;  // Keep listening
-        this.recognition.interimResults = false;  // Only final results
-        this.recognition.lang = 'en-US';  // English
-        this.recognition.maxAlternatives = 3;  // Get top 3 interpretations
+    init() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        this.recognition = new SpeechRecognition();
+        this.recognition.continuous = false;
+        this.recognition.interimResults = false;
+        this.recognition.lang = 'en-US';
 
-        // Handle results
-        this.recognition.onresult = (event) => {
-            const results = event.results[event.results.length - 1];
-            const transcript = results[0].transcript.toLowerCase().trim();
+        this.recognition.onresult = (event) => this.handleResult(event);
+        this.recognition.onerror = (event) => this.handleError(event);
+        this.recognition.onend = () => this.onEnd();
 
-            console.log('Voice detected:', transcript);
-
-            // Check if it matches our commands
-            if (this.isCommandPhrase(transcript)) {
-                console.log('✓ Command recognized!');
-                if (this.onCommandDetected) {
-                    this.onCommandDetected('taken', transcript);
-                }
-            } else if (this.isSnoozePhrase(transcript)) {
-                console.log('✓ Snooze command recognized!');
-                if (this.onCommandDetected) {
-                    this.onCommandDetected('snooze', transcript);
-                }
-            }
-        };
-
-        // Handle errors
-        this.recognition.onerror = (event) => {
-            console.error('Speech recognition error:', event.error);
-            if (event.error === 'no-speech') {
-                // Restart automatically after no speech
-                setTimeout(() => {
-                    if (this.isListening) {
-                        try {
-                            this.recognition.start();
-                        } catch (e) {
-                            // Already started, ignore
-                        }
-                    }
-                }, 1000);
-            }
-        };
-
-        // Handle end
-        this.recognition.onend = () => {
-            // Auto-restart if still supposed to be listening
-            if (this.isListening) {
-                try {
-                    this.recognition.start();
-                } catch (e) {
-                    // Already started, ignore
-                }
-            }
-        };
+        this.createUI();
     }
 
-    /**
-     * Check if transcript matches "I took it" commands
-     */
-    isCommandPhrase(transcript) {
-        const phrases = [
-            'i took it',
-            'i took the medication',
-            'i took my medication',
-            'i ate it',
-            'i ate the medication',
-            'i ate my medication',
-            'i had it',
-            'i had the medication',
-            'i had my medication',
-            'taken',
-            'done',
-            'finished',
-            'i took my medicine',
-            'i ate my medicine',
-            'medicine taken'
-        ];
+    createUI() {
+        // Create floating microphone button
+        const btn = document.createElement('button');
+        btn.id = 'voiceAssistantBtn';
+        btn.className = 'voice-assistant-btn';
+        btn.innerHTML = '<i class="fas fa-microphone"></i>';
+        btn.title = 'Voice Commands';
+        btn.onclick = () => this.toggle();
 
-        return phrases.some(phrase => transcript.includes(phrase));
+        document.body.appendChild(btn);
+
+        // Create feedback overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'voiceFeedback';
+        overlay.className = 'voice-feedback';
+        overlay.innerHTML = `
+            <div class="voice-feedback-content">
+                <div class="voice-wave">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <p id="voiceText">Listening...</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
     }
 
-    /**
-     * Check if transcript matches snooze commands
-     */
-    isSnoozePhrase(transcript) {
-        const phrases = [
-            'snooze',
-            'later',
-            'remind me later',
-            'not now',
-            'wait',
-            'five minutes'
-        ];
-
-        return phrases.some(phrase => transcript.includes(phrase));
+    toggle() {
+        if (this.isListening) {
+            this.stop();
+        } else {
+            this.start();
+        }
     }
 
-    /**
-     * Start listening for voice commands
-     */
-    startListening(callback) {
-        if (!this.recognition) {
-            console.warn('Voice recognition not available');
-            return false;
+    start() {
+        if (!this.supported) {
+            this.speak("Voice commands are not supported in this browser");
+            return;
         }
 
         this.isListening = true;
-        this.onCommandDetected = callback;
+        document.getElementById('voiceAssistantBtn').classList.add('listening');
+        document.getElementById('voiceFeedback').classList.add('active');
+        document.getElementById('voiceText').textContent = 'Listening...';
 
-        try {
-            this.recognition.start();
-            console.log('🎤 Voice listening started');
-            return true;
-        } catch (e) {
-            console.error('Failed to start voice recognition:', e);
-            return false;
-        }
+        this.recognition.start();
     }
 
-    /**
-     * Stop listening
-     */
-    stopListening() {
-        if (!this.recognition) return;
-
+    stop() {
         this.isListening = false;
-        this.onCommandDetected = null;
+        document.getElementById('voiceAssistantBtn').classList.remove('listening');
+        document.getElementById('voiceFeedback').classList.remove('active');
+        this.recognition.stop();
+    }
 
+    onEnd() {
+        this.isListening = false;
+        document.getElementById('voiceAssistantBtn').classList.remove('listening');
+        document.getElementById('voiceFeedback').classList.remove('active');
+    }
+
+    handleResult(event) {
+        const transcript = event.results[0][0].transcript.toLowerCase();
+        console.log('Voice command:', transcript);
+        document.getElementById('voiceText').textContent = `"${transcript}"`;
+
+        setTimeout(() => this.processCommand(transcript), 500);
+    }
+
+    handleError(event) {
+        console.error('Voice error:', event.error);
+        this.speak("Sorry, I didn't catch that. Please try again.");
+        this.stop();
+    }
+
+    async processCommand(command) {
+        // Navigation commands
+        if (command.includes('dashboard') || command.includes('home')) {
+            this.speak("Opening dashboard");
+            window.location.href = '/dashboard';
+            return;
+        }
+
+        if (command.includes('medications') || command.includes('medicine list')) {
+            this.speak("Opening medications list");
+            window.location.href = '/medication/';
+            return;
+        }
+
+        if (command.includes('add medication') || command.includes('new medication')) {
+            this.speak("Opening add medication page");
+            window.location.href = '/medication/add';
+            return;
+        }
+
+        if (command.includes('analytics') || command.includes('statistics') || command.includes('charts')) {
+            this.speak("Opening analytics dashboard");
+            window.location.href = '/analytics/';
+            return;
+        }
+
+        // Info commands
+        if (command.includes('next medication') || command.includes('what\'s next')) {
+            await this.getNextMedication();
+            return;
+        }
+
+        if (command.includes('how many') || command.includes('medication count')) {
+            await this.getMedicationCount();
+            return;
+        }
+
+        // Action commands
+        if (command.includes('mark') && command.includes('taken')) {
+            this.speak("Please use the dashboard to mark medications as taken");
+            return;
+        }
+
+        if (command.includes('emergency') || command.includes('sos') || command.includes('help')) {
+            this.speak("Activating emergency SOS");
+            document.getElementById('emergencySosBtn')?.click();
+            return;
+        }
+
+        // Toggle dark mode
+        if (command.includes('dark mode') || command.includes('light mode') || command.includes('toggle theme')) {
+            this.speak(`Switching to ${window.themeManager?.theme === 'dark' ? 'light' : 'dark'} mode`);
+            window.themeManager?.toggle();
+            return;
+        }
+
+        // Help
+        if (command.includes('help') || command.includes('commands')) {
+            this.speak("Available commands: Dashboard, Medications, Add medication, Analytics, Next medication, Dark mode, Emergency SOS");
+            return;
+        }
+
+        // Default response
+        this.speak("I didn't understand that command. Say 'help' for available commands.");
+    }
+
+    async getNextMedication() {
         try {
-            this.recognition.stop();
-            console.log('🎤 Voice listening stopped');
-        } catch (e) {
-            // Already stopped, ignore
+            const response = await fetch('/api/next-medication');
+            const data = await response.json();
+
+            if (data.medication) {
+                this.speak(`Your next medication is ${data.medication.name}, ${data.medication.dosage}, at ${data.medication.time}`);
+            } else {
+                this.speak("You have no upcoming medications scheduled");
+            }
+        } catch (error) {
+            this.speak("Unable to fetch medication information");
         }
     }
 
-    /**
-     * Check if voice recognition is supported
-     */
-    isSupported() {
-        return this.recognition !== null;
+    async getMedicationCount() {
+        try {
+            const response = await fetch('/api/medication-count');
+            const data = await response.json();
+            this.speak(`You have ${data.count} medications registered`);
+        } catch (error) {
+            this.speak("Unable to fetch medication count");
+        }
+    }
+
+    speak(text) {
+        if (this.synthesis.speaking) {
+            this.synthesis.cancel();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        this.synthesis.speak(utterance);
+
+        // Show text feedback
+        document.getElementById('voiceText').textContent = text;
+        document.getElementById('voiceFeedback').classList.add('active');
+
+        utterance.onend = () => {
+            setTimeout(() => {
+                document.getElementById('voiceFeedback').classList.remove('active');
+            }, 1000);
+        };
     }
 }
 
-// Create global instance
-window.voiceCommandSystem = new VoiceCommandSystem();
-
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = VoiceCommandSystem;
-}
+// Initialize on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    window.voiceAssistant = new VoiceAssistant();
+});
