@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}{{ senior.username }}'s Details - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Back Button -->
+    <a href="{{ url_for('caregiver.dashboard') }}" class="btn btn-outline-primary mb-3">
+        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+    </a>
+
+    <!-- Senior Header -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3"
+                        style="width: 60px; height: 60px;">
+                        <i class="fas fa-user fa-2x text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0">{{ senior.username }}</h3>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-envelope me-1"></i>{{ senior.email }}
+                        </p>
+                        <span
+                            class="badge bg-{{ 'success' if relationship.relationship_type == 'primary' else 'secondary' }}">
+                            {{ relationship.relationship_type|title }} Caregiver
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeSeniorModal">
+                        <i class="fas fa-user-minus me-1"></i>Remove
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Medications Column -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-pills me-2"></i>Medications ({{ medications|length }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if medications %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Medication</th>
+                                    <th>Dosage</th>
+                                    <th>Schedule</th>
+                                    <th>Priority</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for med in medications %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ med.name }}</strong>
+                                        {% if med.instructions %}
+                                        <br><small class="text-muted">{{ med.instructions[:50] }}...</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ med.dosage }}</td>
+                                    <td>
+                                        {% set times = [] %}
+                                        {% if med.morning %}{% set _ = times.append('🌅 Morning') %}{% endif %}
+                                        {% if med.afternoon %}{% set _ = times.append('☀️ Afternoon') %}{% endif %}
+                                        {% if med.evening %}{% set _ = times.append('🌆 Evening') %}{% endif %}
+                                        {% if med.night %}{% set _ = times.append('🌙 Night') %}{% endif %}
+                                        {{ times|join(', ') if times else 'Custom' }}
+                                    </td>
+                                    <td>
+                                        <span
+                                            class="badge bg-{{ 'danger' if med.priority == 'critical' else 'warning' if med.priority == 'high' else 'info' }}">
+                                            {{ med.priority|default('normal')|title }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-pills fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No medications found for this senior.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity & Stats Column -->
+        <div class="col-lg-4">
+            <!-- Quick Stats -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Total Medications:</span>
+                        <strong>{{ medications|length }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Taken Today:</span>
+                        <strong class="text-success">{{ recent_logs|selectattr('taken_correctly')|list|length
+                            }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Relationship:</span>
+                        <strong>{{ relationship.relationship_type|title }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Added:</span>
+                        <strong>{{ relationship.added_at.strftime('%b %d, %Y') }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            {% if relationship.notes %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Notes</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ relationship.notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if recent_logs %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Medication</th>
+                            <th>Status</th>
+                            <th>Time</th>
+                            <th>Verification</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in recent_logs %}
+                        <tr>
+                            <td>{{ log.medication.name if log.medication else 'Unknown' }}</td>
+                            <td>
+                                {% if log.taken_correctly %}
+                                <span class="badge bg-success"><i class="fas fa-check me-1"></i>Taken</span>
+                                {% else %}
+                                <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Missed</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ log.taken_at.strftime('%b %d, %I:%M %p') }}</td>
+                            <td>
+                                {% if log.verification_method %}
+                                <span class="badge bg-info">{{ log.verification_method }}</span>
+                                {% else %}
+                                <span class="text-muted">Manual</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No recent activity recorded.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Remove Senior Modal -->
+<div class="modal fade" id="removeSeniorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Removal</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to remove <strong>{{ senior.username }}</strong> from your care list?</p>
+                <p class="text-muted mb-0">This will not delete their account or medications.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('main.remove_senior', senior_id=senior.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-user-minus me-1"></i>Remove Senior
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -128,5 +128,126 @@
             </div>
         </div>
     </div>
+
+    <!-- Alerts Panel -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-bell me-2"></i>Missed Dose Alerts</h4>
+                    <button class="btn btn-light btn-sm" onclick="refreshAlerts()">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                </div>
+                <div class="card-body" id="alertsContainer">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted mt-2">Loading alerts...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+    // Fetch and display alerts
+    async function refreshAlerts() {
+        const container = document.getElementById('alertsContainer');
+        container.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2">Loading alerts...</p>
+        </div>
+    `;
+
+        try {
+            const response = await fetch('/caregiver/api/alerts');
+            const data = await response.json();
+
+            if (data.count === 0) {
+                container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <p class="text-muted mb-0">No missed doses! All seniors are on track.</p>
+                </div>
+            `;
+                return;
+            }
+
+            let html = '<div class="list-group list-group-flush">';
+            for (const alert of data.alerts) {
+                const priorityClass = alert.priority === 'critical' ? 'danger' :
+                    alert.priority === 'high' ? 'warning' : 'secondary';
+
+                html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-${priorityClass} me-2">${alert.priority.toUpperCase()}</span>
+                        <strong>${alert.senior_name}</strong> missed 
+                        <strong>${alert.medication_name}</strong>
+                        <br>
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>${alert.missed_times.join(', ')}
+                        </small>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-2" 
+                                onclick="sendReminder(${alert.senior_id}, ${alert.medication_id})">
+                            <i class="fas fa-paper-plane me-1"></i>Send Reminder
+                        </button>
+                        <a href="/caregiver/senior/${alert.senior_id}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye me-1"></i>View
+                        </a>
+                    </div>
+                </div>
+            `;
+            }
+            html += '</div>';
+
+            container.innerHTML = html;
+
+        } catch (error) {
+            container.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Failed to load alerts: ${error.message}
+            </div>
+        `;
+        }
+    }
+
+    // Send reminder to senior
+    async function sendReminder(seniorId, medicationId) {
+        try {
+            const response = await fetch(`/caregiver/api/send-reminder/${seniorId}/${medicationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('✅ ' + data.message);
+            } else {
+                alert('❌ Failed to send reminder: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('❌ Error: ' + error.message);
+        }
+    }
+
+    // Load alerts on page load
+    document.addEventListener('DOMContentLoaded', refreshAlerts);
+
+    // Auto-refresh every 5 minutes
+    setInterval(refreshAlerts, 300000);
+</script>
 {% endblock %}

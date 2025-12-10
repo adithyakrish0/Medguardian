@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Telegram Settings - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-3"
+                    style="width: 60px; height: 60px;">
+                    <i class="fab fa-telegram-plane fa-2x text-white"></i>
+                </div>
+                <div>
+                    <h2 class="mb-0">Telegram Notifications</h2>
+                    <p class="text-muted mb-0">Receive medication reminders on Telegram</p>
+                </div>
+            </div>
+
+            <!-- Status Card -->
+            <div class="card shadow-sm mb-4 {% if is_linked %}border-success{% else %}border-warning{% endif %}">
+                <div class="card-header {% if is_linked %}bg-success text-white{% else %}bg-warning{% endif %}">
+                    <h5 class="mb-0">
+                        {% if is_linked %}
+                        <i class="fas fa-check-circle me-2"></i>Connected
+                        {% else %}
+                        <i class="fas fa-exclamation-circle me-2"></i>Not Connected
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if is_linked %}
+                    <p class="lead text-success">
+                        <i class="fas fa-check me-2"></i>Your Telegram account is linked!
+                    </p>
+                    <p class="text-muted">You will receive:</p>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-pills text-primary me-2"></i>Medication reminders</li>
+                        <li><i class="fas fa-bell text-warning me-2"></i>Missed dose alerts</li>
+                        <li><i class="fas fa-ambulance text-danger me-2"></i>Emergency SOS notifications</li>
+                    </ul>
+
+                    <hr>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-outline-primary" onclick="testNotification()">
+                            <i class="fas fa-paper-plane me-2"></i>Send Test
+                        </button>
+                        <form action="{{ url_for('telegram.unlink') }}" method="POST" class="d-inline"
+                            onsubmit="return confirm('Unlink Telegram account?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="fas fa-unlink me-2"></i>Unlink Account
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <p class="lead">Connect your Telegram to receive instant notifications!</p>
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>How it works:</h6>
+                        <ol class="mb-0">
+                            <li>Click the "Link Telegram" button below</li>
+                            <li>It will open Telegram with our bot</li>
+                            <li>Click "Start" in Telegram</li>
+                            <li>Done! You'll receive notifications</li>
+                        </ol>
+                    </div>
+
+                    <a href="{{ link_url }}" target="_blank" class="btn btn-primary btn-lg">
+                        <i class="fab fa-telegram-plane me-2"></i>Link Telegram Account
+                    </a>
+
+                    <p class="text-muted mt-3 small">
+                        <i class="fas fa-lock me-1"></i>
+                        We only send important medication notifications. No spam.
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Features Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-star me-2 text-warning"></i>Benefits of Telegram Notifications
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex mb-3">
+                                <div class="text-primary me-3"><i class="fas fa-bolt fa-2x"></i></div>
+                                <div>
+                                    <h6>Instant Delivery</h6>
+                                    <p class="text-muted small mb-0">Get alerts immediately on your phone</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex mb-3">
+                                <div class="text-success me-3"><i class="fas fa-dollar-sign fa-2x"></i></div>
+                                <div>
+                                    <h6>100% Free</h6>
+                                    <p class="text-muted small mb-0">No SMS charges, works on WiFi</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex mb-3">
+                                <div class="text-info me-3"><i class="fas fa-globe fa-2x"></i></div>
+                                <div>
+                                    <h6>Works Anywhere</h6>
+                                    <p class="text-muted small mb-0">Phone, tablet, or computer</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex mb-3">
+                                <div class="text-danger me-3"><i class="fas fa-shield-alt fa-2x"></i></div>
+                                <div>
+                                    <h6>Reliable</h6>
+                                    <p class="text-muted small mb-0">Never miss important reminders</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function testNotification() {
+        fetch('{{ url_for("telegram.test_notification") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Test notification sent! Check Telegram.');
+                } else {
+                    alert('❌ Failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                alert('❌ Error: ' + error);
+            });
+    }
+</script>
+{% endblock %}

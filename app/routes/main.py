@@ -440,3 +440,67 @@ def add_user():
     db.session.commit()
     
     return redirect(url_for('main.index'))
+
+# Voice Command API Endpoints
+@main.route('/api/next-medication')
+@login_required
+def api_next_medication():
+    """Get the next scheduled medication for voice commands"""
+    from flask import jsonify
+    from app.models.medication import Medication
+    
+    medications = Medication.query.filter_by(user_id=current_user.id).all()
+    
+    if not medications:
+        return jsonify({'medication': None})
+    
+    now = datetime.now()
+    current_hour = now.hour
+    
+    # Determine next time slot
+    next_med = None
+    next_time = None
+    
+    for med in medications:
+        if current_hour < 9 and med.morning:
+            next_time = "8:00 AM"
+            next_med = med
+            break
+        elif current_hour < 13 and med.afternoon:
+            next_time = "12:00 PM"
+            next_med = med
+            break
+        elif current_hour < 18 and med.evening:
+            next_time = "6:00 PM"
+            next_med = med
+            break
+        elif med.night:
+            next_time = "9:00 PM"
+            next_med = med
+            break
+    
+    if not next_med and medications:
+        next_med = medications[0]
+        next_time = "tomorrow morning"
+    
+    if next_med:
+        return jsonify({
+            'medication': {
+                'name': next_med.name,
+                'dosage': next_med.dosage,
+                'time': next_time
+            }
+        })
+    
+    return jsonify({'medication': None})
+
+@main.route('/api/medication-count')
+@login_required  
+def api_medication_count():
+    """Get count of medications for voice commands"""
+    from flask import jsonify
+    from app.models.medication import Medication
+    
+    count = Medication.query.filter_by(user_id=current_user.id).count()
+    return jsonify({'count': count})
+

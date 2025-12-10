@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard - MedGuardian{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-chart-line me-2"></i>Analytics Dashboard</h2>
+        <div>
+            <button class="btn btn-outline-primary me-2" onclick="exportReport()">
+                <i class="fas fa-file-pdf me-1"></i>Export PDF
+            </button>
+            <button class="btn btn-primary" onclick="refreshData()">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon bg-primary text-white mx-auto mb-2">
+                        <i class="fas fa-pills"></i>
+                    </div>
+                    <h3 class="mb-0" id="totalMeds">-</h3>
+                    <small class="text-muted">Total Medications</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon bg-success text-white mx-auto mb-2">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="mb-0" id="takenToday">-</h3>
+                    <small class="text-muted">Taken Today</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon bg-warning text-white mx-auto mb-2">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3 class="mb-0" id="pendingToday">-</h3>
+                    <small class="text-muted">Pending Today</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon bg-info text-white mx-auto mb-2">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <h3 class="mb-0" id="complianceRate">-</h3>
+                    <small class="text-muted">Compliance Rate</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon bg-danger text-white mx-auto mb-2">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <h3 class="mb-0" id="currentStreak">-</h3>
+                    <small class="text-muted">Day Streak</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon bg-secondary text-white mx-auto mb-2">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h3 class="mb-0" id="totalDoses">-</h3>
+                    <small class="text-muted">Monthly Doses</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Weekly Compliance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-pie-chart me-2"></i>Time Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="distributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Monthly Trend</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div id="insightsContainer">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="text-muted mt-2">Generating insights...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let weeklyChart, distributionChart, trendChart;
+
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function () {
+        initCharts();
+        loadData();
+    });
+
+    function initCharts() {
+        const isDark = document.body.classList.contains('dark-mode');
+        const textColor = isDark ? '#e2e8f0' : '#343a40';
+        const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+
+        Chart.defaults.color = textColor;
+
+        // Weekly compliance chart
+        weeklyChart = new Chart(document.getElementById('weeklyChart'), {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Taken',
+                    data: [],
+                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                    borderRadius: 5
+                }, {
+                    label: 'Missed',
+                    data: [],
+                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: gridColor } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Distribution pie chart
+        distributionChart = new Chart(document.getElementById('distributionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: [
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(23, 162, 184, 0.8)',
+                        'rgba(102, 126, 234, 0.8)',
+                        'rgba(118, 75, 162, 0.8)',
+                        'rgba(40, 167, 69, 0.8)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        // Trend line chart
+        trendChart = new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Compliance %',
+                    data: [],
+                    borderColor: 'rgba(23, 162, 184, 1)',
+                    backgroundColor: 'rgba(23, 162, 184, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: gridColor }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    async function loadData() {
+        await Promise.all([
+            loadSummary(),
+            loadCompliance(),
+            loadDistribution(),
+            loadTrends()
+        ]);
+        generateInsights();
+    }
+
+    async function loadSummary() {
+        try {
+            const response = await fetch('/analytics/api/summary');
+            const data = await response.json();
+
+            document.getElementById('totalMeds').textContent = data.total_medications;
+            document.getElementById('takenToday').textContent = data.taken_today;
+            document.getElementById('pendingToday').textContent = data.pending_today;
+            document.getElementById('complianceRate').textContent = data.compliance_rate + '%';
+            document.getElementById('currentStreak').textContent = data.current_streak;
+            document.getElementById('totalDoses').textContent = data.total_doses_month;
+        } catch (error) {
+            console.error('Failed to load summary:', error);
+        }
+    }
+
+    async function loadCompliance() {
+        try {
+            const response = await fetch('/analytics/api/compliance');
+            const data = await response.json();
+
+            weeklyChart.data.labels = data.labels;
+            weeklyChart.data.datasets[0].data = data.taken;
+            weeklyChart.data.datasets[1].data = data.missed;
+            weeklyChart.update();
+        } catch (error) {
+            console.error('Failed to load compliance:', error);
+        }
+    }
+
+    async function loadDistribution() {
+        try {
+            const response = await fetch('/analytics/api/distribution');
+            const data = await response.json();
+
+            distributionChart.data.labels = data.labels;
+            distributionChart.data.datasets[0].data = data.data;
+            distributionChart.update();
+        } catch (error) {
+            console.error('Failed to load distribution:', error);
+        }
+    }
+
+    async function loadTrends() {
+        try {
+            const response = await fetch('/analytics/api/trends');
+            const data = await response.json();
+
+            trendChart.data.labels = data.labels;
+            trendChart.data.datasets[0].data = data.compliance;
+            trendChart.update();
+        } catch (error) {
+            console.error('Failed to load trends:', error);
+        }
+    }
+
+    function generateInsights() {
+        const compliance = parseInt(document.getElementById('complianceRate').textContent) || 0;
+        const streak = parseInt(document.getElementById('currentStreak').textContent) || 0;
+        const pending = parseInt(document.getElementById('pendingToday').textContent) || 0;
+
+        let insights = [];
+
+        if (compliance >= 90) {
+            insights.push({ icon: 'fa-trophy', color: 'success', text: 'Excellent! Your compliance rate is above 90%!' });
+        } else if (compliance >= 70) {
+            insights.push({ icon: 'fa-thumbs-up', color: 'info', text: 'Good job! Keep up the momentum.' });
+        } else {
+            insights.push({ icon: 'fa-exclamation-triangle', color: 'warning', text: 'Your compliance needs improvement. Set more reminders.' });
+        }
+
+        if (streak >= 7) {
+            insights.push({ icon: 'fa-fire', color: 'danger', text: `Amazing ${streak}-day streak! You're on fire!` });
+        } else if (streak >= 3) {
+            insights.push({ icon: 'fa-star', color: 'warning', text: `Nice ${streak}-day streak! Keep it going!` });
+        }
+
+        if (pending > 0) {
+            insights.push({ icon: 'fa-clock', color: 'info', text: `You have ${pending} medication(s) pending today.` });
+        } else {
+            insights.push({ icon: 'fa-check-circle', color: 'success', text: 'All medications taken for today!' });
+        }
+
+        const html = insights.map(i => `
+        <div class="alert alert-${i.color} d-flex align-items-center mb-2">
+            <i class="fas ${i.icon} me-3 fa-lg"></i>
+            <span>${i.text}</span>
+        </div>
+    `).join('');
+
+        document.getElementById('insightsContainer').innerHTML = html || '<p class="text-muted">No insights available.</p>';
+    }
+
+    function refreshData() {
+        loadData();
+    }
+
+    function exportReport() {
+        window.location.href = '/export/pdf-report';
+    }
+</script>
+{% endblock %}

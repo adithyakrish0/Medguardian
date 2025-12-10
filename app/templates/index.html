@@ -1,66 +1,489 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedGuardian - Smart Medication Management</title>
+    <title>MedGuardian - Smart Medication Management System</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="description"
+        content="AI-powered medication management with smart reminders, camera verification, and caregiver support">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+
+    <!-- Stylesheets -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
     <style>
-        .hero-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 100px 0;
-            border-radius: 0 0 50px 50px;
+        * {
+            font-family: 'Poppins', sans-serif;
         }
+
+        body {
+            overflow-x: hidden;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f64f59 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: pulse-bg 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bg {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.8;
+            }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero-title {
+            font-size: 4rem;
+            font-weight: 800;
+            text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            font-weight: 300;
+            opacity: 0.9;
+        }
+
+        .hero-pills {
+            position: absolute;
+            right: 5%;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20rem;
+            opacity: 0.15;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(-50%) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-55%) rotate(10deg);
+            }
+        }
+
+        .btn-hero {
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-hero:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-hero-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-hero-outline {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+        }
+
+        .btn-hero-outline:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            background: white;
+            margin-top: -50px;
+            position: relative;
+            z-index: 20;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Features Section */
+        .features-section {
+            padding: 100px 0;
+            background: #f8f9ff;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            font-size: 1.1rem;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
         .feature-card {
             background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 25px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+            transition: all 0.4s ease;
             height: 100%;
+            border: 1px solid rgba(102, 126, 234, 0.1);
         }
+
         .feature-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            transform: translateY(-15px);
+            box-shadow: 0 25px 60px rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
         }
+
         .feature-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+            font-size: 2rem;
+        }
+
+        .feature-icon.gradient-1 {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .feature-icon.gradient-2 {
+            background: linear-gradient(135deg, #f64f59, #c471ed);
+            color: white;
+        }
+
+        .feature-icon.gradient-3 {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+        }
+
+        .feature-icon.gradient-4 {
+            background: linear-gradient(135deg, #fc4a1a, #f7b733);
+            color: white;
+        }
+
+        .feature-icon.gradient-5 {
+            background: linear-gradient(135deg, #00b4db, #0083b0);
+            color: white;
+        }
+
+        .feature-icon.gradient-6 {
+            background: linear-gradient(135deg, #8e2de2, #4a00e0);
+            color: white;
+        }
+
+        .feature-card h4 {
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .feature-card p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        /* How It Works */
+        .how-it-works {
+            padding: 100px 0;
+            background: white;
+        }
+
+        .step-card {
+            text-align: center;
+            padding: 30px;
+            position: relative;
+        }
+
+        .step-number {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .step-card::after {
+            content: '';
+            position: absolute;
+            top: 50px;
+            right: -50%;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, transparent);
+        }
+
+        .step-card:last-child::after {
+            display: none;
+        }
+
+        /* Tech Stack */
+        .tech-section {
+            padding: 80px 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+        }
+
+        .tech-badge {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px 30px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .tech-badge:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .tech-badge i {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 100px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .cta-title {
             font-size: 3rem;
-            color: #667eea;
+            font-weight: 700;
             margin-bottom: 20px;
         }
-        .auth-card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            overflow: hidden;
+
+        /* Footer */
+        .footer {
+            background: #1a1a2e;
+            color: white;
+            padding: 60px 0 30px;
+        }
+
+        .footer-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: #667eea;
+        }
+
+        /* Animations */
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.8s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .delay-1 {
+            animation-delay: 0.2s;
+        }
+
+        .delay-2 {
+            animation-delay: 0.4s;
+        }
+
+        .delay-3 {
+            animation-delay: 0.6s;
+        }
+
+        .delay-4 {
+            animation-delay: 0.8s;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+
+            .hero-subtitle {
+                font-size: 1.1rem;
+            }
+
+            .hero-pills {
+                display: none;
+            }
+
+            .step-card::after {
+                display: none;
+            }
         }
     </style>
 </head>
+
 <body>
-    <!-- Hero Section -->
-    <section class="hero-section">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background: transparent; transition: all 0.3s;">
         <div class="container">
-            <div class="row align-items-center">
-                <div class="col-lg-6">
-                    <h1 class="display-4 fw-bold mb-4">
-                        <i class="fas fa-pills me-3"></i>MedGuardian
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="fas fa-pills me-2"></i>MedGuardian
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features">Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#how-it-works">How It Works</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                    </li>
+                    <li class="nav-item ms-2">
+                        <a class="btn btn-light btn-sm px-4" href="{{ url_for('auth.register') }}">Get Started</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section d-flex align-items-center">
+        <i class="fas fa-pills hero-pills"></i>
+        <div class="container hero-content">
+            <div class="row">
+                <div class="col-lg-7">
+                    <h1 class="hero-title text-white mb-4 fade-in-up">
+                        Smart Medication<br>Management
                     </h1>
-                    <p class="lead mb-4">Your intelligent medication management system</p>
-                    <div class="d-flex gap-3">
-                        <a href="{{ url_for('auth.login') }}" class="btn btn-light btn-lg">
-                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                    <p class="hero-subtitle text-white mb-5 fade-in-up delay-1">
+                        AI-powered reminders, camera verification, and caregiver support.<br>
+                        Never miss a dose again.
+                    </p>
+                    <div class="d-flex gap-3 flex-wrap fade-in-up delay-2">
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-hero btn-hero-primary">
+                            <i class="fas fa-rocket me-2"></i>Get Started Free
                         </a>
-                        <a href="{{ url_for('auth.register') }}" class="btn btn-outline-light btn-lg">
-                            <i class="fas fa-user-plus me-2"></i>Get Started
+                        <a href="#features" class="btn btn-hero btn-hero-outline">
+                            <i class="fas fa-play-circle me-2"></i>See How It Works
                         </a>
                     </div>
+                    <div class="mt-5 fade-in-up delay-3">
+                        <div class="d-flex align-items-center gap-4 text-white-50">
+                            <div><i class="fas fa-check-circle text-success me-2"></i>Free to use</div>
+                            <div><i class="fas fa-check-circle text-success me-2"></i>No credit card</div>
+                            <div><i class="fas fa-check-circle text-success me-2"></i>Install as app</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-lg-6">
-                    <div class="text-center">
-                        <i class="fas fa-pills" style="font-size: 15rem; color: rgba(255,255,255,0.9);"></i>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="container">
+        <div class="stats-section">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">🎤</div>
+                        <div class="fw-semibold">Voice Commands</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">📸</div>
+                        <div class="fw-semibold">AI Verification</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">📊</div>
+                        <div class="fw-semibold">Analytics</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">🆘</div>
+                        <div class="fw-semibold">Emergency SOS</div>
                     </div>
                 </div>
             </div>
@@ -68,176 +491,225 @@
     </section>
 
     <!-- Features Section -->
-    <section class="py-5">
+    <section class="features-section" id="features">
         <div class="container">
             <div class="text-center mb-5">
-                <h2 class="fw-bold">Why Choose MedGuardian?</h2>
-                <p class="lead text-muted">Comprehensive medication management with smart features</p>
+                <h2 class="section-title">Powerful Features</h2>
+                <p class="section-subtitle">Everything you need to manage medications safely and effectively</p>
             </div>
-            
+
             <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="feature-card text-center">
-                        <div class="feature-icon">
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card">
+                        <div class="feature-icon gradient-1">
                             <i class="fas fa-bell"></i>
                         </div>
                         <h4>Smart Reminders</h4>
-                        <p class="text-muted">Automated medication reminders with customizable schedules and notifications</p>
+                        <p>Custom schedules with flexible timing. Morning, afternoon, evening, or any time you need.</p>
                     </div>
                 </div>
-                
-                <div class="col-md-4">
-                    <div class="feature-card text-center">
-                        <div class="feature-icon">
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card">
+                        <div class="feature-icon gradient-2">
                             <i class="fas fa-camera"></i>
                         </div>
-                        <h4>Visual Verification</h4>
-                        <p class="text-muted">AI-powered medication verification using computer vision technology</p>
+                        <h4>Camera Verification</h4>
+                        <p>AI-powered visual verification ensures you're taking the right medication every time.</p>
                     </div>
                 </div>
-                
-                <div class="col-md-4">
-                    <div class="feature-card text-center">
-                        <div class="feature-icon">
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card">
+                        <div class="feature-icon gradient-3">
+                            <i class="fas fa-microphone"></i>
+                        </div>
+                        <h4>Voice Commands</h4>
+                        <p>Hands-free control. Just say "What's my next medication?" and get instant answers.</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card">
+                        <div class="feature-icon gradient-4">
                             <i class="fas fa-chart-line"></i>
                         </div>
-                        <h4>Compliance Tracking</h4>
-                        <p class="text-muted">Track medication adherence with detailed reports and analytics</p>
+                        <h4>Analytics Dashboard</h4>
+                        <p>Track compliance, view trends, and export professional PDF reports for doctor visits.</p>
                     </div>
                 </div>
-                
-                <div class="col-md-4">
-                    <div class="feature-card text-center">
-                        <div class="feature-icon">
-                            <i class="fas fa-user-shield"></i>
-                        </div>
-                        <h4>Secure Access</h4>
-                        <p class="text-muted">Role-based access control with encrypted user data</p>
-                    </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="feature-card text-center">
-                        <div class="feature-icon">
-                            <i class="fas fa-mobile-alt"></i>
-                        </div>
-                        <h4>Responsive Design</h4>
-                        <p class="text-muted">Works seamlessly on desktop, tablet, and mobile devices</p>
-                    </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="feature-card text-center">
-                        <div class="feature-icon">
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card">
+                        <div class="feature-icon gradient-5">
                             <i class="fas fa-users"></i>
                         </div>
-                        <h4>Multi-User Support</h4>
-                        <p class="text-muted">Support for seniors and caregivers with customizable roles</p>
+                        <h4>Caregiver Support</h4>
+                        <p>Monitor loved ones remotely. Get alerts for missed doses and send instant reminders.</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card">
+                        <div class="feature-icon gradient-6">
+                            <i class="fas fa-ambulance"></i>
+                        </div>
+                        <h4>Emergency SOS</h4>
+                        <p>One-touch emergency alert. Instantly notify contacts with your medical information.</p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Auth Section -->
-    <section class="py-5 bg-light">
+    <!-- How It Works -->
+    <section class="how-it-works" id="how-it-works">
         <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <div class="row g-4">
-                        <!-- Login Card -->
-                        <div class="col-md-6">
-                            <div class="auth-card">
-                                <div class="card-body p-4">
-                                    <h4 class="text-center mb-4">
-                                        <i class="fas fa-sign-in-alt text-primary me-2"></i>Login
-                                    </h4>
-                                    <form method="POST" action="{{ url_for('auth.login') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                        <div class="mb-3">
-                                            <label class="form-label">Username</label>
-                                            <input type="text" class="form-control" name="username" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Password</label>
-                                            <input type="password" class="form-control" name="password" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="remember">
-                                                <label class="form-check-label">Remember me</label>
-                                            </div>
-                                        </div>
-                                        <button type="submit" class="btn btn-primary w-100">
-                                            <i class="fas fa-sign-in-alt me-2"></i>Login
-                                        </button>
-                                    </form>
-                                    <div class="text-center mt-3">
-                                        <small class="text-muted">Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a></small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Register Card -->
-                        <div class="col-md-6">
-                            <div class="auth-card">
-                                <div class="card-body p-4">
-                                    <h4 class="text-center mb-4">
-                                        <i class="fas fa-user-plus text-success me-2"></i>Register
-                                    </h4>
-                                    <form method="POST" action="{{ url_for('auth.register') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                        <div class="mb-3">
-                                            <label class="form-label">Username</label>
-                                            <input type="text" class="form-control" name="username" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Email</label>
-                                            <input type="email" class="form-control" name="email" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Password</label>
-                                            <input type="password" class="form-control" name="password" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">I am a:</label>
-                                            <select class="form-select" name="role" required>
-                                                <option value="senior">Senior</option>
-                                                <option value="caregiver">Caregiver</option>
-                                            </select>
-                                        </div>
-                                        <button type="submit" class="btn btn-success w-100">
-                                            <i class="fas fa-user-plus me-2"></i>Register
-                                        </button>
-                                    </form>
-                                    <div class="text-center mt-3">
-                                        <small class="text-muted">Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a></small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <div class="text-center mb-5">
+                <h2 class="section-title">How It Works</h2>
+                <p class="section-subtitle">Get started in just 3 simple steps</p>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="step-card">
+                        <div class="step-number">1</div>
+                        <h4>Create Account</h4>
+                        <p class="text-muted">Sign up as a senior or caregiver. It takes less than a minute.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="step-card">
+                        <div class="step-number">2</div>
+                        <h4>Add Medications</h4>
+                        <p class="text-muted">Enter your medications with dosage and schedule. Train the AI for
+                            verification.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="step-card">
+                        <div class="step-number">3</div>
+                        <h4>Stay On Track</h4>
+                        <p class="text-muted">Receive reminders, verify with camera, and track your progress.</p>
                     </div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack -->
+    <section class="tech-section">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="section-title">Built With Modern Tech</h2>
+                <p class="text-white-50">Powered by cutting-edge technologies</p>
+            </div>
+
+            <div class="row g-4 justify-content-center">
+                <div class="col-6 col-md-2">
+                    <div class="tech-badge">
+                        <i class="fab fa-python"></i>
+                        <div>Python</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="tech-badge">
+                        <i class="fas fa-flask"></i>
+                        <div>Flask</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="tech-badge">
+                        <i class="fas fa-brain"></i>
+                        <div>PyTorch</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="tech-badge">
+                        <i class="fas fa-eye"></i>
+                        <div>OpenCV</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="tech-badge">
+                        <i class="fab fa-bootstrap"></i>
+                        <div>Bootstrap</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <h2 class="cta-title">Ready to Get Started?</h2>
+            <p class="lead mb-4">Join MedGuardian today and never miss a medication again.</p>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-hero btn-hero-primary">
+                <i class="fas fa-rocket me-2"></i>Create Free Account
+            </a>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="bg-dark text-white py-4">
+    <footer class="footer">
         <div class="container">
             <div class="row">
-                <div class="col-md-6">
-                    <h5><i class="fas fa-pills me-2"></i>MedGuardian</h5>
-                    <p class="mb-0">Your smart medication management system</p>
+                <div class="col-lg-4 mb-4">
+                    <div class="footer-brand mb-3">
+                        <i class="fas fa-pills me-2"></i>MedGuardian
+                    </div>
+                    <p class="text-white-50">Smart medication management for better health outcomes.</p>
                 </div>
-                <div class="col-md-6 text-md-end">
-                    <p class="mb-0">&copy; 2025 MedGuardian. All rights reserved.</p>
+                <div class="col-lg-2 col-md-4 mb-4">
+                    <h6 class="fw-semibold mb-3">Features</h6>
+                    <div class="footer-links d-flex flex-column gap-2">
+                        <a href="#features">Smart Reminders</a>
+                        <a href="#features">AI Verification</a>
+                        <a href="#features">Analytics</a>
+                    </div>
                 </div>
+                <div class="col-lg-2 col-md-4 mb-4">
+                    <h6 class="fw-semibold mb-3">Support</h6>
+                    <div class="footer-links d-flex flex-column gap-2">
+                        <a href="#">Help Center</a>
+                        <a href="#">Contact Us</a>
+                        <a href="#">FAQ</a>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-4 mb-4">
+                    <h6 class="fw-semibold mb-3">Install App</h6>
+                    <p class="text-white-50 small">Click "Install App" button in your browser or add to home screen on
+                        mobile.</p>
+                </div>
+            </div>
+            <hr class="my-4 border-secondary">
+            <div class="text-center text-white-50">
+                <p class="mb-0">&copy; 2025 MedGuardian. Built for Final Year Project.</p>
             </div>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', function () {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) {
+                navbar.style.background = 'rgba(26, 26, 46, 0.95)';
+                navbar.style.boxShadow = '0 2px 20px rgba(0,0,0,0.1)';
+            } else {
+                navbar.style.background = 'transparent';
+                navbar.style.boxShadow = 'none';
+            }
+        });
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
 </body>
+
 </html>

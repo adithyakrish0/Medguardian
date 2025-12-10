@@ -97,6 +97,11 @@ def create_app(config_name=None):
     from .routes.snooze import snooze
     from .routes.interaction import interaction
     from .routes.caregiver import caregiver
+    from .routes.analytics import analytics
+    from .routes.emergency import emergency
+    from .routes.export import export_bp
+    from .routes.contacts import contacts
+    from .routes.telegram import telegram
     from .routes.api import api_v1  # REST API
     from .routes.test import test_bp  # Test routes
     from .routes.debug import debug_bp  # Debug/forensic logging
@@ -107,6 +112,11 @@ def create_app(config_name=None):
     app.register_blueprint(snooze, url_prefix='/snooze')
     app.register_blueprint(interaction, url_prefix='/interaction')
     app.register_blueprint(caregiver, url_prefix='/caregiver')
+    app.register_blueprint(analytics, url_prefix='/analytics')
+    app.register_blueprint(emergency, url_prefix='/emergency')
+    app.register_blueprint(export_bp, url_prefix='/export')
+    app.register_blueprint(contacts, url_prefix='/contacts')
+    app.register_blueprint(telegram, url_prefix='/telegram')
     app.register_blueprint(api_v1)  # API already has /api/v1 prefix
     app.register_blueprint(test_bp)  # Test routes
     app.register_blueprint(debug_bp)  # Debug routes
