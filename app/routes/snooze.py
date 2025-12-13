@@ -25,10 +25,10 @@ def create_snooze():
             original_medication_time = datetime.fromisoformat(original_time.replace('Z', '+00:00'))
         except ValueError:
             # If parsing fails, use current time
-            original_medication_time = datetime.utcnow()
+            original_medication_time = datetime.now()
         
-        # Calculate snooze until time - ALWAYS use current time, not the original time!
-        current_time = datetime.utcnow()
+        # Calculate snooze until time - use LOCAL time for consistency with comparisons
+        current_time = datetime.now()
         snooze_until = current_time + timedelta(minutes=snooze_duration)
         
         # Create snooze record
@@ -60,7 +60,7 @@ def get_active_snooze():
     """Get the user's active snooze if any"""
     try:
         # Find the most recent snooze that hasn't expired
-        now = datetime.utcnow()
+        now = datetime.now()  # Use local time consistently
         active_snooze = SnoozeLog.query.filter(
             SnoozeLog.user_id == current_user.id,
             SnoozeLog.snooze_until > now
@@ -95,7 +95,7 @@ def cancel_snooze(snooze_id):
             return jsonify({'success': False, 'message': 'Snooze not found'}), 404
         
         # Only allow canceling snoozes that haven't expired yet
-        if snooze_log.snooze_until <= datetime.utcnow():
+        if snooze_log.snooze_until <= datetime.now():  # Use local time consistently
             return jsonify({'success': False, 'message': 'Snooze has already expired'}), 400
         
         db.session.delete(snooze_log)
@@ -112,7 +112,7 @@ def cancel_snooze(snooze_id):
 def clear_expired_snoozes():
     """Clear expired snooze records (housekeeping)"""
     try:
-        now = datetime.utcnow()
+        now = datetime.now()  # Use local time consistently
         expired_snoozes = SnoozeLog.query.filter(
             SnoozeLog.user_id == current_user.id,
             SnoozeLog.snooze_until <= now

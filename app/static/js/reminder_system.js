@@ -21,23 +21,13 @@ class MedicationReminderSystem {
         const timestamp = new Date().toISOString().split('T')[1].slice(0, 12);
         const logMsg = `[FRONTEND | ${component} | ${event} | ${timestamp} | ${status} | ${data}]`;
 
-        // Console log
+        // Console log only (backend logging disabled to reduce noise)
         console.log(logMsg);
 
-        // Send to backend
-        fetch('/debug-log', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                layer: 'FRONTEND',
-                component: component,
-                event: event,
-                time: timestamp,
-                data: data,
-                status: status
-            })
-        }).catch(err => console.warn('Debug log send failed:', err));
+        // Backend logging disabled - was causing 400 errors
+        // If needed later, add CSRF token and proper endpoint
+        // Backend debug logging disabled to reduce 400 error noise
+        // fetch('/debug-log', { ... }).catch(...);
     }
 
     /**
@@ -237,6 +227,19 @@ class MedicationReminderSystem {
         const url = redirect_url || `/medication/medication-reminder/${medication_id}?time=${encodeURIComponent(scheduled_time)}`;
 
         this.debugLog('ReminderSystem', 'handleReminder', 'REDIRECTING', url);
+
+        // Check if already on the page (prevent loop)
+        if (window.location.pathname === new URL(url, window.location.origin).pathname &&
+            window.location.search === new URL(url, window.location.origin).search) {
+            this.debugLog('ReminderSystem', 'handleReminder', 'ALREADY_ON_PAGE', 'Skipping redirect');
+            return;
+        }
+
+        // Also simpler check for path
+        if (window.location.href.includes(url) || (window.location.pathname.includes('/medication-reminder/') && url.includes(medication_id))) {
+            this.debugLog('ReminderSystem', 'handleReminder', 'ALREADY_ON_PAGE_V2', 'Skipping redirect');
+            return;
+        }
 
         // Check if page is visible
         const isVisible = document.visibilityState === 'visible';

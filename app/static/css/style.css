@@ -712,7 +712,7 @@ body.dark-mode {
 
 .voice-assistant-btn {
     position: fixed;
-    bottom: 150px;
+    bottom: 90px;
     right: 20px;
     width: 56px;
     height: 56px;
@@ -815,7 +815,7 @@ body.dark-mode {
 
 .emergency-sos-btn {
     position: fixed;
-    bottom: 80px;
+    bottom: 20px;
     right: 20px;
     width: 60px;
     height: 60px;
@@ -906,4 +906,631 @@ body.dark-mode {
 
 #themeToggle i {
     font-size: 1.2rem;
+}
+
+/* ========================================
+   DARK MODE STYLES
+   ======================================== */
+
+/* Dark Mode CSS Variables */
+body.dark-mode {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-card: #1f2937;
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --border-color: #374151;
+
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Body and main backgrounds */
+body.dark-mode,
+body.dark-mode main {
+    background-color: #1a1a2e;
+    color: #f3f4f6;
+}
+
+/* Cards */
+body.dark-mode .card {
+    background-color: #1f2937;
+    border-color: #374151;
+    color: #f3f4f6;
+}
+
+body.dark-mode .card-header {
+    background-color: #111827 !important;
+    border-color: #374151;
+    color: #f3f4f6;
+}
+
+body.dark-mode .card-footer {
+    background-color: #111827;
+    border-color: #374151;
+}
+
+body.dark-mode .card-body {
+    background-color: #1f2937;
+}
+
+/* Text colors */
+body.dark-mode .text-muted {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .text-dark {
+    color: #f3f4f6 !important;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+    color: #f3f4f6;
+}
+
+/* Forms */
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
+}
+
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: #4b5563;
+    border-color: #667eea;
+    color: #f3f4f6;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+body.dark-mode .form-control::placeholder {
+    color: #9ca3af;
+}
+
+body.dark-mode .form-label {
+    color: #d1d5db;
+}
+
+/* Tables */
+body.dark-mode .table {
+    color: #f3f4f6;
+}
+
+body.dark-mode .table-light {
+    background-color: #374151;
+}
+
+body.dark-mode .table-hover tbody tr:hover {
+    background-color: #374151;
+}
+
+body.dark-mode th {
+    background-color: #111827;
+    color: #f3f4f6;
+}
+
+body.dark-mode td {
+    border-color: #374151;
+}
+
+/* Dropdowns */
+body.dark-mode .dropdown-menu {
+    background-color: #1f2937;
+    border-color: #374151;
+}
+
+body.dark-mode .dropdown-item {
+    color: #f3f4f6;
+}
+
+body.dark-mode .dropdown-item:hover,
+body.dark-mode .dropdown-item:focus {
+    background-color: #374151;
+    color: #f3f4f6;
+}
+
+body.dark-mode .dropdown-divider {
+    border-color: #374151;
+}
+
+/* Alerts */
+body.dark-mode .alert-info {
+    background-color: #1e3a5f;
+    border-color: #3b82f6;
+    color: #93c5fd;
+}
+
+body.dark-mode .alert-success {
+    background-color: #14532d;
+    border-color: #22c55e;
+    color: #86efac;
+}
+
+body.dark-mode .alert-warning {
+    background-color: #713f12;
+    border-color: #fbbf24;
+    color: #fde68a;
+}
+
+body.dark-mode .alert-danger {
+    background-color: #7f1d1d;
+    border-color: #ef4444;
+    color: #fca5a5;
+}
+
+/* Modals */
+body.dark-mode .modal-content {
+    background-color: #1f2937;
+    border-color: #374151;
+    color: #f3f4f6;
+}
+
+body.dark-mode .modal-header {
+    border-color: #374151;
+}
+
+body.dark-mode .modal-footer {
+    border-color: #374151;
+}
+
+body.dark-mode .btn-close {
+    filter: invert(1);
+}
+
+/* Footer */
+body.dark-mode footer {
+    background-color: #111827 !important;
+}
+
+/* Misc backgrounds */
+body.dark-mode .bg-light {
+    background-color: #374151 !important;
+    color: #f3f4f6 !important;
+}
+
+body.dark-mode .bg-white {
+    background-color: #1f2937 !important;
+}
+
+body.dark-mode hr {
+    border-color: #374151;
+}
+
+/* Progress bars */
+body.dark-mode .progress {
+    background-color: #374151;
+}
+
+/* List groups */
+body.dark-mode .list-group-item {
+    background-color: #1f2937;
+    border-color: #374151;
+    color: #f3f4f6;
+}
+
+/* Nav tabs */
+body.dark-mode .nav-tabs .nav-link {
+    color: #9ca3af;
+}
+
+body.dark-mode .nav-tabs .nav-link.active {
+    background-color: #1f2937;
+    border-color: #374151;
+    color: #f3f4f6;
+}
+
+/* Stat cards in dashboards */
+body.dark-mode .stat-card,
+body.dark-mode .page-header~.row .card {
+    background: #1f2937;
+}
+
+/* Page headers keep their gradient - no change needed */
+
+/* Input groups */
+body.dark-mode .input-group-text {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
+}
+
+/* Breadcrumbs */
+body.dark-mode .breadcrumb {
+    background-color: #374151;
+}
+
+body.dark-mode .breadcrumb-item+.breadcrumb-item::before {
+    color: #9ca3af;
+}
+
+/* Smooth transitions */
+body,
+.card,
+.btn,
+.form-control,
+.form-select,
+.dropdown-menu,
+.modal-content,
+.alert,
+footer {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ========================================
+   VOICE CHAT INTERFACE STYLES
+   ======================================== */
+
+.voice-chat-container {
+    position: fixed;
+    bottom: 100px;
+    right: 90px;
+    width: 350px;
+    height: 500px;
+    /* Expands when active */
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    display: none;
+    /* Hidden by default */
+    flex-direction: column;
+    z-index: 2000;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: bottom right;
+    transform: scale(0.9);
+    opacity: 0;
+    pointer-events: none;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.voice-chat-container.active {
+    display: flex;
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* Dark mode support */
+body.dark-mode .voice-chat-container {
+    background: rgba(31, 41, 55, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.voice-chat-header {
+    padding: 15px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.voice-chat-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.voice-chat-close {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.voice-chat-close:hover {
+    opacity: 1;
+}
+
+.voice-chat-messages {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: #f8f9fa;
+}
+
+body.dark-mode .voice-chat-messages {
+    background: #111827;
+}
+
+.chat-message {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    position: relative;
+    animation: messageSlide 0.3s ease-out;
+}
+
+@keyframes messageSlide {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chat-message.system {
+    align-self: flex-start;
+    background: white;
+    color: #374151;
+    border-bottom-left-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+body.dark-mode .chat-message.system {
+    background: #374151;
+    color: #f3f4f6;
+}
+
+.chat-message.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-bottom-right-radius: 5px;
+    box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
+}
+
+
+
+/* Voice Status */
+.voice-chat-status {
+    padding: 15px;
+    background: white;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* Space out left (mic) and right (collapse) */
+    gap: 15px;
+    min-height: 70px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.status-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    cursor: pointer;
+    /* Restore pointer for mic click */
+    flex: 1;
+}
+
+.voice-chat-menu {
+    background: none;
+    border: none;
+    color: #667eea;
+    /* Primary color for menu to make it inviting */
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.voice-chat-menu:hover {
+    background: #f3f4f6;
+    color: #5a67d8;
+}
+
+body.dark-mode .voice-chat-menu:hover {
+    background: #374151;
+    color: #818cf8;
+}
+
+.voice-chat-status:hover {
+    background: white;
+    /* Reset hover if we don't want whole bar hover effect anymore */
+}
+
+.inner-mic-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.inner-mic-btn.listening {
+    background: #ef4444;
+    color: white;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+    animation: pulseMic 1.5s infinite;
+}
+
+@keyframes pulseMic {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+.status-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+body.dark-mode .voice-chat-status {
+    background: #1f2937;
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .voice-chat-status:hover {
+    background: #374151;
+}
+
+body.dark-mode .inner-mic-btn {
+    background: #374151;
+    color: #9ca3af;
+}
+
+body.dark-mode .inner-mic-btn.listening {
+    background: #ef4444;
+    color: white;
+}
+
+.status-dots {
+    display: flex;
+    gap: 4px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background: #667eea;
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.status-dot:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.status-dot:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0);
+    }
+
+    40% {
+        transform: scale(1);
+    }
+}
+
+/* Quick Actions Grid */
+.voice-chat-actions-grid {
+    padding: 15px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    background: white;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+body.dark-mode .voice-chat-actions-grid {
+    background: #1f2937;
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.action-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #4b5563;
+}
+
+body.dark-mode .action-card {
+    background: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+}
+
+.action-card:hover {
+    background: #eff6ff;
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .action-card:hover {
+    background: #4b5563;
+    border-color: #667eea;
+}
+
+.action-icon {
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+    color: #667eea;
+}
+
+body.dark-mode .action-icon {
+    color: #818cf8;
+}
+
+.action-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-text {
+    font-size: 0.9rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+body.dark-mode .status-text {
+    color: #9ca3af;
+}
+
+/* Maximized State */
+.voice-chat-container.maximized {
+    width: 600px;
+    height: 80vh;
+    right: 20px;
+    bottom: 20px;
+    border-radius: 15px;
+    transform: none;
+    /* remove scale transform for cleaner resize */
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    .voice-chat-container.maximized {
+        width: 95%;
+        right: 2.5%;
+        bottom: 20px;
+        height: 85vh;
+    }
 }

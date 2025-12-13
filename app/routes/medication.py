@@ -2,6 +2,7 @@ import os
 import base64
 import io
 import json
+from datetime import datetime, date
 import numpy as np
 import cv2
 import logging
@@ -122,39 +123,52 @@ def edit_medication(medication_id):
         return redirect(url_for('medication.list_medications'))
     
     if request.method == 'POST':
-        # Process custom times
-        custom_times = []
-        if 'custom_time[]' in request.form:
-            custom_times = [time for time in request.form.getlist('custom_time[]') if time.strip()]
-        
-        # Create custom reminder times JSON
-        custom_reminder_times = json.dumps(custom_times) if custom_times else None
-        
-        # Handle dates
-        start_date_str = request.form.get('start_date')
-        end_date_str = request.form.get('end_date')
-        
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else date.today()
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+        try:
+            # Process custom times
+            custom_times = []
+            if 'custom_time[]' in request.form:
+                custom_times = [time for time in request.form.getlist('custom_time[]') if time.strip()]
+            
+            # Create custom reminder times JSON
+            custom_reminder_times = json.dumps(custom_times) if custom_times else None
+            
+            # Handle dates
+            start_date_str = request.form.get('start_date')
+            end_date_str = request.form.get('end_date')
+            
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else date.today()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
 
-        medication.name = request.form.get('name')
-        medication.dosage = request.form.get('dosage')
-        medication.frequency = request.form.get('frequency')
-        medication.instructions = request.form.get('instructions')
-        medication.morning = 'morning' in request.form
-        medication.afternoon = 'afternoon' in request.form
-        medication.evening = 'evening' in request.form
-        medication.night = 'night' in request.form
-        
-        # Update new fields
-        medication.start_date = start_date
-        medication.end_date = end_date
-        medication.priority = request.form.get('priority', 'medium')
-        medication.custom_reminder_times = custom_reminder_times
-        
-        db.session.commit()
-        flash('Medication updated successfully!', 'success')
-        return redirect(url_for('medication.list_medications'))
+            medication.name = request.form.get('name')
+            medication.dosage = request.form.get('dosage')
+            # Use submitted frequency, or keep existing, or default to 'Custom'
+            new_frequency = request.form.get('frequency')
+            if new_frequency:
+                medication.frequency = new_frequency
+            elif not medication.frequency:
+                medication.frequency = 'Custom'
+            medication.instructions = request.form.get('instructions')
+            medication.morning = 'morning' in request.form
+            medication.afternoon = 'afternoon' in request.form
+            medication.evening = 'evening' in request.form
+            medication.night = 'night' in request.form
+            
+            # Update new fields
+            medication.start_date = start_date
+            medication.end_date = end_date
+            medication.priority = request.form.get('priority', 'medium')
+            medication.custom_reminder_times = custom_reminder_times
+            
+            db.session.commit()
+            flash('Medication updated successfully!', 'success')
+            return redirect(url_for('medication.list_medications'))
+        except Exception as e:
+            import traceback
+            print(f"[EDIT ERROR] Exception: {e}")
+            print(f"[EDIT ERROR] Traceback: {traceback.format_exc()}")
+            db.session.rollback()
+            flash(f'Error updating medication: {str(e)}', 'danger')
+            return redirect(url_for('medication.edit_medication', medication_id=medication_id))
     
     return render_template('medication/edit.html', medication=medication)
 
@@ -294,6 +308,61 @@ def mark_taken(medication_id):
         return jsonify({'error': str(e)}), 500
 
 
+
+# Skip medication dose
+@medication.route('/skip-dose/<int:medication_id>', methods=['POST'])
+@login_required
+def skip_dose(medication_id):
+    """Mark a medication dose as skipped"""
+    try:
+        medication_obj = Medication.query.get_or_404(medication_id)
+        
+        # Security check
+        if medication_obj.user_id != current_user.id:
+            if request.is_json:
+                return jsonify({'error': 'Unauthorized'}), 403
+            flash('Unauthorized access', 'danger')
+            return redirect(url_for('main.dashboard'))
+        
+        # Parse scheduled_time from form or JSON
+        scheduled_time = datetime.now()
+        if request.is_json and request.json.get('scheduled_time'):
+            try:
+                scheduled_time_str = request.json.get('scheduled_time')
+                scheduled_time = datetime.fromisoformat(scheduled_time_str.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                scheduled_time = datetime.now()
+        
+        logger.info(f"🔵 Skipping dose: med_id={medication_id}, user_id={current_user.id}")
+        
+        log = MedicationLog(
+            user_id=current_user.id,
+            medication_id=medication_id,
+            taken_at=datetime.now(),
+            scheduled_time=scheduled_time,
+            taken_correctly=False,  # False indicates not taken/skipped
+            verified_by_camera=False,
+            notes="Skipped by user"
+        )
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        # Return JSON for API calls, redirect for form submissions
+        if request.is_json:
+            return jsonify({'success': True, 'message': 'Medication skipped'})
+        else:
+            flash('Dose skipped successfully', 'info')
+            return redirect(url_for('main.dashboard'))
+        
+    except Exception as e:
+        logger.error(f"Error skipping dose: {e}")
+        if request.is_json:
+            return jsonify({'error': str(e)}), 500
+        flash(f'Error skipping dose: {str(e)}', 'danger')
+        return redirect(url_for('main.dashboard'))
+
+
 # ========== NEW VERIFICATION ROUTES ==========
 
 @medication.route('/verify-realtime', methods=['POST'])
@@ -323,6 +392,8 @@ def verify_realtime():
         
         # Get image from base64
         image_data = data.get('image')
+        zone_image_data = data.get('zone_image')  # NEW: cropped zone image
+        zone_only = data.get('zone_only', False)  # NEW: prioritize zone-based verification
         expected_med_id = data.get('medication_id')
         
         if not image_data:
@@ -339,44 +410,59 @@ def verify_realtime():
                 'detection_count': 0
             }), 400
         
-        # Decode image
+        # Decode main image
         image_bytes = base64.b64decode(image_data.split(',')[1])
         nparr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
+        # Decode ZONE image if provided (for AI matching)
+        zone_image = None
+        if zone_image_data:
+            try:
+                zone_bytes = base64.b64decode(zone_image_data.split(',')[1])
+                zone_nparr = np.frombuffer(zone_bytes, np.uint8)
+                zone_image = cv2.imdecode(zone_nparr, cv2.IMREAD_COLOR)
+            except Exception as e:
+                logger.warning(f"Zone image decode failed: {e}")
+        
         # Get image dimensions for overlay scaling
         img_height, img_width = image.shape[:2]
         
-        # Run bottle/pill detection for overlay
-        detector = MedicineBottleDetector()
-        bottles_detected, detections, _ = detector.detect_bottles(image, return_image=False)
-        
-        # Format detections for frontend overlay
+        # Detection data (for legacy compatibility)
         detection_data = []
-        for det in detections:
-            x1, y1, x2, y2, confidence, class_id = det
-            # Get class name
-            if detector.model:
-                try:
-                    label = detector.model.names[int(class_id)]
-                except:
-                    label = 'object'
-            else:
-                label = 'bottle'
-            
-            detection_data.append({
-                'bbox': [float(x1), float(y1), float(x2), float(y2)],
-                'confidence': float(confidence),
-                'label': label
-            })
+        bottles_detected = False
         
-        # Scan for barcode (static method)
-        barcodes = BarcodeScanner.scan_barcodes(image)
+        # If NOT zone_only mode, run YOLO detection (optional enhancement)
+        if not zone_only:
+            detector = MedicineBottleDetector()
+            bottles_detected, detections, _ = detector.detect_bottles(image, return_image=False)
+            
+            for det in detections:
+                x1, y1, x2, y2, confidence, class_id = det
+                if detector.model:
+                    try:
+                        label = detector.model.names[int(class_id)]
+                    except:
+                        label = 'object'
+                else:
+                    label = 'bottle'
+                
+                detection_data.append({
+                    'bbox': [float(x1), float(y1), float(x2), float(y2)],
+                    'confidence': float(confidence),
+                    'label': label
+                })
+        
+        # Scan for barcode (always useful)
+        barcodes = BarcodeScanner.scan_barcodes(zone_image if zone_image is not None else image)
         scanned_barcode = barcodes[0]['data'] if barcodes else None
         
-        # Comprehensive verification
+        # COMPREHENSIVE VERIFICATION
+        # Use ZONE image for AI matching if available (shape-agnostic!)
+        verification_image = zone_image if zone_image is not None else image
+        
         result = verify_medication_comprehensive(
-            image=image,
+            image=verification_image,
             expected_medication_id=expected_med_id,
             user_id=current_user.id,
             scanned_barcode=scanned_barcode
@@ -388,9 +474,17 @@ def verify_realtime():
         result['bottles_detected'] = bottles_detected
         result['image_width'] = img_width
         result['image_height'] = img_height
+        result['zone_used'] = zone_image is not None  # NEW: indicate zone was used
         
         # Map verification result fields for frontend compatibility
-        result['verified'] = result.get('success', False) and len(detection_data) > 0
+        # IMPORTANT: In zone_only mode, don't require YOLO detection!
+        if zone_only:
+            # Zone-based: success depends solely on AI match
+            result['verified'] = result.get('success', False) and result.get('is_correct', False)
+        else:
+            # Legacy: require both detection and verification
+            result['verified'] = result.get('success', False) and len(detection_data) > 0
+        
         result['correct_medication'] = result.get('is_correct', False)
         
         return jsonify(result)
@@ -457,14 +551,17 @@ def detect_objects():
 @login_required
 def save_reference_image(medication_id):
     """
-    Save reference image for a medication (for visual verification)
-    Called when user first adds a medication
+    Save reference image for a medication (for visual verification).
+    Now properly populates BOTH legacy (histogram) AND EfficientNet (embeddings) fields.
+    Supports multi-angle training - call multiple times to add more angles.
     """
     from app.vision.visual_verifier import visual_verifier
     
     try:
         data = request.get_json()
         image_data = data.get('image')
+        is_background = data.get('is_background', False)  # Optional: capture background only
+        append_mode = data.get('append', True)  # Add to existing images or replace?
         
         if not image_data:
             return jsonify({'error': 'No image provided'}), 400
@@ -475,32 +572,94 @@ def save_reference_image(medication_id):
             user_id=current_user.id
         ).first_or_404()
         
-        # Decode image
+        # Decode image for OpenCV processing
         image_bytes = base64.b64decode(image_data.split(',')[1])
         nparr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        # Save reference image
+        # === BACKGROUND IMAGE MODE ===
+        if is_background:
+            # Store background-only image for subtraction during verification
+            medication.background_image = image_data
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Background image saved for subtraction',
+                'type': 'background'
+            })
+        
+        # === REFERENCE IMAGE MODE ===
+        
+        # 1. Save physical file (legacy - for display purposes)
         image_path = visual_verifier.save_reference_image(image, medication_id)
         
-        # Extract features
+        # 2. Extract legacy features (histogram-based)
         features = visual_verifier.extract_features(image)
         
-        # Extract text via OCR
+        # 3. Extract text via OCR
         label_text = visual_verifier.extract_text_ocr(image)
         
-        # Update medication
+        # 4. Store base64 for EfficientNet (THE KEY FIX!)
+        # Parse existing reference_images or start fresh
+        existing_images = []
+        if append_mode and medication.reference_images:
+            try:
+                existing_images = json.loads(medication.reference_images)
+            except:
+                existing_images = []
+        
+        # Add new image (keep original base64, not re-encoded)
+        existing_images.append(image_data)
+        
+        # Limit to 5 angles max to prevent DB bloat
+        MAX_ANGLES = 5
+        if len(existing_images) > MAX_ANGLES:
+            existing_images = existing_images[-MAX_ANGLES:]  # Keep latest 5
+        
+        # 5. Update ALL fields
         medication.reference_image_path = image_path
         medication.image_features = json.dumps(features)
         medication.label_text = label_text
+        medication.reference_images = json.dumps(existing_images)  # For EfficientNet!
+        medication.ai_trained = True  # Mark as trained!
         
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': 'Reference image saved',
+            'message': f'Reference image saved ({len(existing_images)} angle{"s" if len(existing_images) > 1 else ""})',
             'features_extracted': True,
-            'ocr_text': label_text[:100] if label_text else 'None'
+            'ocr_text': label_text[:100] if label_text else 'None',
+            'total_angles': len(existing_images),
+            'ai_trained': True
+        })
+        
+    except Exception as e:
+        logger.error(f"save-reference-image error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@medication.route('/clear-training/<int:medication_id>', methods=['POST'])
+@login_required
+def clear_training(medication_id):
+    """Clear all AI training data for a medication (for re-training)"""
+    try:
+        medication = Medication.query.filter_by(
+            id=medication_id,
+            user_id=current_user.id
+        ).first_or_404()
+        
+        medication.reference_images = None
+        medication.background_image = None
+        medication.image_features = None
+        medication.label_text = None
+        medication.ai_trained = False
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'AI training data cleared. You can now re-train.'
         })
         
     except Exception as e:
@@ -639,21 +798,32 @@ def check_due_reminders():
             
             # Check if within window: past 5 mins to future 1 min
             if -5 <= diff_minutes <= 1:
-                # Check if already taken today for this scheduled time
+                # 1. CHECK SNOOZE FIRST
+                # If there is an active snooze for this medication, IGNORE the due status
+                from app.models.snooze_log import SnoozeLog
+                active_snooze = SnoozeLog.query.filter(
+                    SnoozeLog.medication_id == med.id,
+                    SnoozeLog.user_id == user_id,
+                    SnoozeLog.snooze_until > now  # Use local time consistently
+                ).first()
+                if active_snooze:
+                    continue  # Skip this medication, it is snoozed!
+
+                # Check if already taken OR skipped today for this scheduled time
                 today_start = datetime.combine(now.date(), datetime.min.time())
                 today_end = datetime.combine(now.date(), datetime.max.time())
                 
+                # Check for ANY log entry (taken correctly OR skipped)
                 log = MedicationLog.query.filter_by(
                     medication_id=med.id,
-                    user_id=user_id,
-                    taken_correctly=True
+                    user_id=user_id
                 ).filter(
                     MedicationLog.taken_at >= today_start,
                     MedicationLog.taken_at <= today_end
                 ).first()
                 
                 if not log:
-                    # This medication is DUE and not taken!
+                    # This medication is DUE and not taken/skipped!
                     return jsonify({
                         'due': True,
                         'medication_id': med.id,

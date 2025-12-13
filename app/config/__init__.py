@@ -12,4 +12,4 @@ config = {
     'default': DevelopmentConfig
 }
 
-__all__ = ['Config', 'config']
+__all__ = ['Config', 'config', 'DevelopmentConfig', 'ProductionConfig', 'TestingConfig']

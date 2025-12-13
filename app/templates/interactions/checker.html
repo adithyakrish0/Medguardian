@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+
+{% block title %}Drug Interaction Checker - MedGuardian{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .interaction-page .page-header {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+
+    .interaction-page .card {
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .interaction-page .card-header {
+        border-radius: 16px 16px 0 0 !important;
+    }
+
+    .med-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        margin: 0.25rem;
+        font-size: 0.9rem;
+    }
+
+    .med-pill .remove-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: white;
+        font-size: 0.7rem;
+    }
+
+    .med-pill .remove-btn:hover {
+        background: rgba(255, 255, 255, 0.4);
+    }
+
+    .severity-high {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+    }
+
+    .severity-moderate {
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        color: #000;
+    }
+
+    .severity-low {
+        background: linear-gradient(135deg, #17a2b8, #138496);
+        color: white;
+    }
+
+    .interaction-card {
+        border-left: 4px solid;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+    }
+
+    .interaction-card.high {
+        border-color: #dc3545;
+        background: rgba(220, 53, 69, 0.1);
+    }
+
+    .interaction-card.moderate {
+        border-color: #ffc107;
+        background: rgba(255, 193, 7, 0.1);
+    }
+
+    .interaction-card.low {
+        border-color: #17a2b8;
+        background: rgba(23, 162, 184, 0.1);
+    }
+
+    .safe-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .safe-badge.safe {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+    }
+
+    .safe-badge.unsafe {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid interaction-page py-4">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2 class="mb-1">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Drug Interaction Checker
+                </h2>
+                <p class="mb-0 opacity-90">Check if your medications are safe to take together</p>
+            </div>
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-light">
+                <i class="fas fa-arrow-left me-1"></i>Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Input Section -->
+        <div class="col-lg-5 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-pills me-2"></i>Select Medications</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Quick Add from My Medications -->
+                    {% if medications %}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">My Current Medications</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for med in medications %}
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                onclick="addMedication('{{ med.name }}')">
+                                <i class="fas fa-plus me-1"></i>{{ med.name }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Manual Entry -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Or Add Manually</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-lg" id="medInput"
+                                placeholder="Enter medication name..."
+                                onkeypress="if(event.key==='Enter'){addMedication()}">
+                            <button class="btn btn-primary" onclick="addMedication()">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Selected Medications -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Medications to Check</label>
+                        <div id="selectedMeds" class="border rounded-3 p-3 min-height-100"
+                            style="min-height: 100px; background: #f8f9fa;">
+                            <p class="text-muted mb-0 text-center" id="noMedsMsg">
+                                Click medications above or type to add
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Check Button -->
+                    <button id="checkBtn" class="btn btn-danger btn-lg w-100" onclick="checkInteractions()" disabled>
+                        <i class="fas fa-search me-2"></i>Check for Interactions
+                    </button>
+
+                    <p class="text-muted small mt-3 text-center">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Add at least 2 medications to check for interactions
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="col-lg-7 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Results</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Initial State -->
+                    <div id="initialState" class="text-center py-5">
+                        <i class="fas fa-pills fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">Select medications and click "Check" to analyze</h5>
+                        <p class="text-muted small">Our AI will check for known drug interactions</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loadingState" class="text-center py-5 d-none">
+                        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+                        <h5>Analyzing medications...</h5>
+                        <p class="text-muted">Checking for interactions</p>
+                    </div>
+
+                    <!-- Results State -->
+                    <div id="resultsState" class="d-none">
+                        <!-- Safety Badge -->
+                        <div class="text-center mb-4">
+                            <span id="safetyBadge" class="safe-badge"></span>
+                        </div>
+
+                        <!-- Summary -->
+                        <div id="summaryBox" class="alert mb-4"></div>
+
+                        <!-- Interactions List -->
+                        <div id="interactionsList"></div>
+
+                        <!-- Disclaimer -->
+                        <div class="alert alert-warning mt-4">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Important Disclaimer</h6>
+                            <p class="mb-0 small">
+                                This tool provides general information only and is <strong>not a substitute for
+                                    professional medical advice</strong>.
+                                Always consult your doctor or pharmacist before changing your medications.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedMedications = [];
+
+    function addMedication(name) {
+        name = name || document.getElementById('medInput').value.trim();
+
+        if (!name) return;
+
+        // Check duplicate
+        if (selectedMedications.includes(name)) {
+            alert('This medication is already added');
+            return;
+        }
+
+        selectedMedications.push(name);
+        renderSelectedMeds();
+        document.getElementById('medInput').value = '';
+        updateCheckButton();
+    }
+
+    function removeMedication(name) {
+        selectedMedications = selectedMedications.filter(m => m !== name);
+        renderSelectedMeds();
+        updateCheckButton();
+    }
+
+    function renderSelectedMeds() {
+        const container = document.getElementById('selectedMeds');
+        const noMsg = document.getElementById('noMedsMsg');
+
+        if (selectedMedications.length === 0) {
+            container.innerHTML = '<p class="text-muted mb-0 text-center" id="noMedsMsg">Click medications above or type to add</p>';
+            return;
+        }
+
+        let html = '';
+        selectedMedications.forEach(med => {
+            html += `
+                <span class="med-pill">
+                    <i class="fas fa-pills"></i>
+                    ${med}
+                    <button class="remove-btn" onclick="removeMedication('${med}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </span>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function updateCheckButton() {
+        const btn = document.getElementById('checkBtn');
+        btn.disabled = selectedMedications.length < 2;
+    }
+
+    async function checkInteractions() {
+        if (selectedMedications.length < 2) return;
+
+        // Show loading
+        document.getElementById('initialState').classList.add('d-none');
+        document.getElementById('resultsState').classList.add('d-none');
+        document.getElementById('loadingState').classList.remove('d-none');
+
+        try {
+            const response = await fetch('/interactions/check', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ medications: selectedMedications })
+            });
+
+            const result = await response.json();
+
+            document.getElementById('loadingState').classList.add('d-none');
+
+            if (result.success) {
+                displayResults(result.data);
+            } else {
+                alert('Error: ' + result.error);
+                document.getElementById('initialState').classList.remove('d-none');
+            }
+        } catch (error) {
+            document.getElementById('loadingState').classList.add('d-none');
+            document.getElementById('initialState').classList.remove('d-none');
+            alert('Error checking interactions: ' + error.message);
+        }
+    }
+
+    function displayResults(data) {
+        document.getElementById('resultsState').classList.remove('d-none');
+
+        // Safety Badge
+        const badge = document.getElementById('safetyBadge');
+        if (data.safe) {
+            badge.className = 'safe-badge safe';
+            badge.innerHTML = '<i class="fas fa-check-circle"></i> No Known Interactions';
+        } else {
+            badge.className = 'safe-badge unsafe';
+            badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Interactions Found';
+        }
+
+        // Summary
+        const summaryBox = document.getElementById('summaryBox');
+        summaryBox.className = `alert ${data.safe ? 'alert-success' : 'alert-danger'}`;
+        summaryBox.innerHTML = `<strong>Summary:</strong> ${data.summary}`;
+
+        // Interactions List
+        const list = document.getElementById('interactionsList');
+
+        if (!data.interactions || data.interactions.length === 0) {
+            list.innerHTML = `
+                <div class="text-center text-success">
+                    <i class="fas fa-shield-alt fa-3x mb-3"></i>
+                    <h5>All Clear!</h5>
+                    <p>No known interactions between these medications.</p>
+                </div>
+            `;
+        } else {
+            let html = '<h6 class="mb-3"><i class="fas fa-list me-2"></i>Interactions Found:</h6>';
+
+            data.interactions.forEach(interaction => {
+                html += `
+                    <div class="interaction-card ${interaction.severity} p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <strong>
+                                <i class="fas fa-pills me-1"></i>
+                                ${interaction.drugs.join(' + ')}
+                            </strong>
+                            <span class="badge severity-${interaction.severity}">
+                                ${interaction.severity.toUpperCase()}
+                            </span>
+                        </div>
+                        <p class="mb-2">${interaction.description}</p>
+                        <p class="mb-0 small">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            <strong>Recommendation:</strong> ${interaction.recommendation}
+                        </p>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }
+    }
+</script>
+{% endblock %}

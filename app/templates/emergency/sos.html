@@ -2,120 +2,227 @@
 
 {% block title %}Emergency SOS - MedGuardian{% endblock %}
 
-{% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <!-- SOS Card -->
-            <div class="card shadow-lg border-danger">
-                <div class="card-header bg-danger text-white text-center py-4">
-                    <h2 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Emergency SOS</h2>
-                </div>
-                <div class="card-body text-center py-5">
-                    <div id="sosNormal">
-                        <p class="lead mb-4">Press the button below to alert your emergency contacts.</p>
+{% block head %}
+{{ super() }}
+<style>
+    .sos-page {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-bottom: 100px;
+        /* Space for floating buttons */
+    }
 
-                        <button id="sosButton" class="btn btn-danger btn-lg rounded-circle"
-                            style="width: 150px; height: 150px; font-size: 2rem;" onclick="triggerSOS()">
-                            <i class="fas fa-phone-alt fa-2x"></i>
-                            <br><span style="font-size: 1rem;">SOS</span>
+    .sos-button {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        font-size: 1.2rem;
+        background: linear-gradient(145deg, #dc3545, #c82333);
+        border: none;
+        box-shadow: 0 10px 40px rgba(220, 53, 69, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .sos-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 15px 50px rgba(220, 53, 69, 0.5);
+    }
+
+    .sos-button:active {
+        transform: scale(0.95);
+    }
+
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+        }
+
+        70% {
+            box-shadow: 0 0 0 30px rgba(220, 53, 69, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+        }
+    }
+
+    .sos-button.pulsing {
+        animation: pulse 1.5s infinite;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid sos-page py-3">
+    <div class="row g-4 align-items-stretch">
+        <!-- Left Side: SOS Button -->
+        <div class="col-lg-6">
+            <div class="card shadow-lg h-100" style="border-radius: 20px; border: 3px solid #dc3545;">
+                <div class="card-body d-flex flex-column justify-content-center align-items-center p-4">
+
+                    <!-- Normal State -->
+                    <div id="sosNormal" class="text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-exclamation-triangle text-danger" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h3 class="text-danger fw-bold mb-2">Emergency SOS</h3>
+                        <p class="text-muted mb-4">Press to alert your emergency contacts</p>
+
+                        <button id="sosButton" class="sos-button pulsing btn btn-danger text-white mb-3">
+                            <i class="fas fa-phone-alt fa-2x mb-1"></i>
+                            <br>
+                            <span class="fw-bold">SOS</span>
                         </button>
 
-                        <p class="text-muted mt-4">
+                        <p class="text-muted small">
                             <i class="fas fa-info-circle me-1"></i>
-                            This will send an emergency alert with your medical information.
+                            Sends location & medical info to contacts
                         </p>
                     </div>
 
-                    <div id="sosActivating" style="display: none;">
-                        <div class="spinner-border text-danger mb-3" style="width: 100px; height: 100px;" role="status">
+                    <!-- Activating State -->
+                    <div id="sosActivating" class="text-center" style="display: none;">
+                        <div class="spinner-border text-danger mb-3" style="width: 80px; height: 80px;" role="status">
                             <span class="visually-hidden">Activating...</span>
                         </div>
-                        <h3 class="text-danger">Activating Emergency Alert...</h3>
-                        <p class="text-muted">Sending notifications to emergency contacts</p>
+                        <h4 class="text-danger fw-bold mb-2">Sending Alert...</h4>
+                        <p class="text-muted">Notifying your emergency contacts</p>
                     </div>
 
-                    <div id="sosActivated" style="display: none;">
-                        <i class="fas fa-check-circle fa-5x text-success mb-3"></i>
-                        <h3 class="text-success">Emergency Alert Sent!</h3>
-                        <p>Your emergency contacts have been notified.</p>
-                        <div class="alert alert-info mt-3">
-                            <i class="fas fa-phone me-2"></i>
-                            If this is a medical emergency, also call <strong>108</strong> (Ambulance) or
-                            <strong>112</strong> (Emergency)
+                    <!-- Activated State -->
+                    <div id="sosActivated" class="text-center" style="display: none;">
+                        <i class="fas fa-check-circle text-success mb-3" style="font-size: 4rem;"></i>
+                        <h4 class="text-success fw-bold mb-2">Alert Sent!</h4>
+                        <p>Your contacts have been notified.</p>
+
+                        <div class="d-flex gap-2 justify-content-center flex-wrap mt-3">
+                            <a href="tel:108" class="btn btn-outline-danger">📞 108</a>
+                            <a href="tel:112" class="btn btn-outline-danger">📞 112</a>
                         </div>
+
                         <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary mt-3">
-                            <i class="fas fa-home me-1"></i>Return to Dashboard
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Medical Info & Quick Actions -->
+        <div class="col-lg-6">
+            <!-- Medical Info Card -->
+            <div class="card shadow-sm mb-3" style="border-radius: 16px;">
+                <div class="card-header bg-info text-white" style="border-radius: 16px 16px 0 0;">
+                    <h5 class="mb-0"><i class="fas fa-id-card-alt me-2"></i>Your Medical Info</h5>
+                </div>
+                <div class="card-body p-3">
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1 text-muted small">Name</p>
+                            <p class="fw-bold mb-2">{{ current_user.username }}</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1 text-muted small">Email</p>
+                            <p class="fw-bold mb-2">{{ current_user.email }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm mb-3" style="border-radius: 16px;">
+                <div class="card-header bg-secondary text-white" style="border-radius: 16px 16px 0 0;">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body p-3">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('emergency.medical_info') }}" class="btn btn-outline-info">
+                            <i class="fas fa-print me-2"></i>View Medical Card
+                        </a>
+                        <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-address-book me-2"></i>Manage Contacts
+                        </a>
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-home me-2"></i>Back to Dashboard
                         </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Medical Info Card -->
-            <div class="card shadow-sm mt-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-id-card-alt me-2"></i>Your Medical Information</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Name:</strong> {{ current_user.username }}</p>
-                    <p><strong>Email:</strong> {{ current_user.email }}</p>
-
-                    <h6 class="mt-3">Current Medications:</h6>
-                    {% set medications = [] %}
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item text-muted">Loading medications...</li>
-                    </ul>
-
-                    <div class="mt-3">
-                        <a href="{{ url_for('emergency.medical_info') }}" class="btn btn-outline-info btn-sm"
-                            target="_blank">
-                            <i class="fas fa-print me-1"></i>Print Medical Card
-                        </a>
+            <!-- Emergency Numbers -->
+            <div class="card shadow-sm" style="border-radius: 16px; border: 2px solid #ffc107;">
+                <div class="card-body p-3">
+                    <h6 class="mb-2"><i class="fas fa-phone-volume text-warning me-2"></i>Emergency Numbers</h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="tel:108" class="btn btn-warning btn-sm">📞 108 (Ambulance)</a>
+                        <a href="tel:112" class="btn btn-warning btn-sm">📞 112 (Emergency)</a>
+                        <a href="tel:100" class="btn btn-warning btn-sm">📞 100 (Police)</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-    async function triggerSOS() {
-        const button = document.getElementById('sosButton');
+    document.addEventListener('DOMContentLoaded', function () {
+        const sosButton = document.getElementById('sosButton');
 
-        // Confirm
-        if (!confirm('Are you sure you want to trigger an emergency SOS? This will alert your emergency contacts.')) {
-            return;
-        }
+        sosButton.addEventListener('click', async function () {
+            console.log('🔴 SOS Button Clicked');
 
-        // Show activating state
-        document.getElementById('sosNormal').style.display = 'none';
-        document.getElementById('sosActivating').style.display = 'block';
-
-        try {
-            const response = await fetch('/emergency/api/trigger', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                }
-            });
-
-            const data = await response.json();
-
-            // Show activated state
-            document.getElementById('sosActivating').style.display = 'none';
-            document.getElementById('sosActivated').style.display = 'block';
-
-            if (!data.success) {
-                alert('Warning: ' + (data.error || 'There was an issue sending the alert'));
+            // Confirm
+            if (!confirm('Are you sure you want to trigger an emergency SOS? This will alert your emergency contacts.')) {
+                console.log('❌ SOS Cancelled by user');
+                return;
             }
 
-        } catch (error) {
-            console.error('SOS error:', error);
-            document.getElementById('sosActivating').style.display = 'none';
-            document.getElementById('sosNormal').style.display = 'block';
-            alert('Failed to send emergency alert. Please try again or call emergency services directly.');
-        }
-    }
+            console.log('✅ User confirmed SOS');
+
+            // Show activating state
+            document.getElementById('sosNormal').style.display = 'none';
+            document.getElementById('sosActivating').style.display = 'block';
+
+            try {
+                console.log('🚀 Sending SOS request...');
+                const response = await fetch('/emergency/api/trigger', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
+
+                console.log('📥 Response received:', response.status);
+
+                // Handle non-JSON responses (e.g. 500 HTML error page)
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error("Server returned non-JSON response: " + response.statusText);
+                }
+
+                const data = await response.json();
+                console.log('📦 Data:', data);
+
+                // Show activated state
+                document.getElementById('sosActivating').style.display = 'none';
+                document.getElementById('sosActivated').style.display = 'block';
+
+                if (!data.success) {
+                    alert('Warning: ' + (data.error || 'There was an issue sending the alert'));
+                }
+
+            } catch (error) {
+                console.error('❌ SOS Error:', error);
+                document.getElementById('sosActivating').style.display = 'none';
+                document.getElementById('sosNormal').style.display = 'block';
+                alert('Failed to send emergency alert. Please tell Admin about this error: ' + error.message);
+            }
+        });
+    });
 </script>
 {% endblock %}

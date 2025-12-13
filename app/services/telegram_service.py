@@ -45,14 +45,16 @@ class TelegramService:
             print(f"❌ Telegram send failed: {e}")
             return False
     
-    def send_medication_reminder(self, chat_id, medication_name, dosage, time_str):
+    def send_medication_reminder(self, chat_id, medication_name, dosage, time, instructions=None):
         """Send a medication reminder"""
+        instruction_text = f"\n📝 <i>{instructions}</i>" if instructions else ""
+        
         message = f"""
-💊 <b>Medication Reminder!</b>
+💊 <b>Time for Your Medication!</b>
 
 <b>{medication_name}</b>
 Dosage: {dosage}
-Time: {time_str}
+Scheduled: {time}{instruction_text}
 
 Please take your medication now.
 Reply /taken when done ✅
@@ -77,17 +79,29 @@ Reply /taken when done ✅
         """
         return self.send_message(chat_id, message.strip())
     
-    def send_missed_dose_alert(self, chat_id, user_name, medication_name, scheduled_time):
-        """Send missed dose notification to caregiver/contact"""
-        message = f"""
+    def send_missed_dose_alert(self, chat_id, medication_name, scheduled_time, senior_name=None):
+        """Send missed dose notification to user or caregiver"""
+        if senior_name:
+            # Alert for caregiver
+            message = f"""
 ⚠️ <b>Missed Dose Alert</b>
 
-<b>User:</b> {user_name}
+<b>Senior:</b> {senior_name}
 <b>Medication:</b> {medication_name}
-<b>Scheduled:</b> {scheduled_time}
+<b>Was due at:</b> {scheduled_time}
 
-The medication was not taken on time.
-        """
+The medication has not been taken. Please check on them.
+            """
+        else:
+            # Alert for user themselves
+            message = f"""
+⚠️ <b>Missed Medication!</b>
+
+<b>{medication_name}</b> was due at {scheduled_time}
+
+You haven't marked this medication as taken.
+If you've taken it, reply /taken
+            """
         return self.send_message(chat_id, message.strip())
     
     def get_link_url(self, user_id):

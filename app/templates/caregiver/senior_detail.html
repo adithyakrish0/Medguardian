@@ -2,89 +2,99 @@
 
 {% block title %}{{ senior.username }}'s Details - MedGuardian{% endblock %}
 
-{% block content %}
-<div class="container-fluid py-4">
-    <!-- Back Button -->
-    <a href="{{ url_for('caregiver.dashboard') }}" class="btn btn-outline-primary mb-3">
-        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-    </a>
+{% block head %}
+{{ super() }}
+<style>
+    .senior-detail .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
 
-    <!-- Senior Header -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3"
-                        style="width: 60px; height: 60px;">
-                        <i class="fas fa-user fa-2x text-white"></i>
-                    </div>
-                    <div>
-                        <h3 class="mb-0">{{ senior.username }}</h3>
-                        <p class="text-muted mb-0">
-                            <i class="fas fa-envelope me-1"></i>{{ senior.email }}
-                        </p>
-                        <span
-                            class="badge bg-{{ 'success' if relationship.relationship_type == 'primary' else 'secondary' }}">
-                            {{ relationship.relationship_type|title }} Caregiver
-                        </span>
-                    </div>
+    .senior-detail .card {
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .senior-detail .card-header {
+        border-radius: 16px 16px 0 0 !important;
+    }
+
+    .senior-detail .stat-item {
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid senior-detail py-4">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex align-items-center">
+                <div class="bg-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                    style="width: 70px; height: 70px;">
+                    <i class="fas fa-user fa-2x text-primary"></i>
                 </div>
                 <div>
-                    <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeSeniorModal">
-                        <i class="fas fa-user-minus me-1"></i>Remove
-                    </button>
+                    <h2 class="mb-1">{{ senior.username }}</h2>
+                    <p class="mb-0 opacity-90">
+                        <i class="fas fa-envelope me-1"></i>{{ senior.email }}
+                    </p>
+                    <span class="badge bg-light text-dark">
+                        {{ relationship.relationship_type|title }} Caregiver
+                    </span>
                 </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('caregiver.dashboard') }}" class="btn btn-light">
+                    <i class="fas fa-arrow-left me-1"></i>Back
+                </a>
+                <button class="btn btn-outline-light" data-bs-toggle="modal" data-bs-target="#removeSeniorModal">
+                    <i class="fas fa-user-minus me-1"></i>Remove
+                </button>
             </div>
         </div>
     </div>
 
     <div class="row">
         <!-- Medications Column -->
-        <div class="col-lg-8">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white">
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white py-3">
                     <h5 class="mb-0"><i class="fas fa-pills me-2"></i>Medications ({{ medications|length }})</h5>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body">
                     {% if medications %}
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Medication</th>
-                                    <th>Dosage</th>
-                                    <th>Schedule</th>
-                                    <th>Priority</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for med in medications %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ med.name }}</strong>
-                                        {% if med.instructions %}
-                                        <br><small class="text-muted">{{ med.instructions[:50] }}...</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ med.dosage }}</td>
-                                    <td>
-                                        {% set times = [] %}
-                                        {% if med.morning %}{% set _ = times.append('🌅 Morning') %}{% endif %}
-                                        {% if med.afternoon %}{% set _ = times.append('☀️ Afternoon') %}{% endif %}
-                                        {% if med.evening %}{% set _ = times.append('🌆 Evening') %}{% endif %}
-                                        {% if med.night %}{% set _ = times.append('🌙 Night') %}{% endif %}
-                                        {{ times|join(', ') if times else 'Custom' }}
-                                    </td>
-                                    <td>
-                                        <span
-                                            class="badge bg-{{ 'danger' if med.priority == 'critical' else 'warning' if med.priority == 'high' else 'info' }}">
-                                            {{ med.priority|default('normal')|title }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="row">
+                        {% for med in medications %}
+                        <div class="col-md-6 mb-3">
+                            <div class="p-3 bg-light rounded-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="mb-0 fw-bold">{{ med.name }}</h6>
+                                    <span
+                                        class="badge bg-{{ 'danger' if med.priority == 'critical' else 'warning' if med.priority == 'high' else 'info' }}">
+                                        {{ med.priority|default('normal')|title }}
+                                    </span>
+                                </div>
+                                <p class="text-muted mb-2">{{ med.dosage }}</p>
+                                <div class="small">
+                                    {% if med.morning %}<span class="badge bg-warning text-dark me-1">🌅 AM</span>{%
+                                    endif %}
+                                    {% if med.afternoon %}<span class="badge bg-info text-white me-1">☀️ Noon</span>{%
+                                    endif %}
+                                    {% if med.evening %}<span class="badge bg-primary me-1">🌆 Eve</span>{% endif %}
+                                    {% if med.night %}<span class="badge bg-dark me-1">🌙 Night</span>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                     {% else %}
                     <div class="text-center py-5">
@@ -96,38 +106,36 @@
             </div>
         </div>
 
-        <!-- Activity & Stats Column -->
-        <div class="col-lg-4">
-            <!-- Quick Stats -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-info text-white">
+        <!-- Stats Column -->
+        <div class="col-lg-4 mb-4">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white py-3">
                     <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Total Medications:</span>
+                    <div class="stat-item d-flex justify-content-between">
+                        <span><i class="fas fa-pills text-primary me-2"></i>Total Medications</span>
                         <strong>{{ medications|length }}</strong>
                     </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Taken Today:</span>
+                    <div class="stat-item d-flex justify-content-between">
+                        <span><i class="fas fa-check-circle text-success me-2"></i>Taken Today</span>
                         <strong class="text-success">{{ recent_logs|selectattr('taken_correctly')|list|length
                             }}</strong>
                     </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Relationship:</span>
+                    <div class="stat-item d-flex justify-content-between">
+                        <span><i class="fas fa-heart text-danger me-2"></i>Relationship</span>
                         <strong>{{ relationship.relationship_type|title }}</strong>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Added:</span>
+                    <div class="stat-item d-flex justify-content-between">
+                        <span><i class="fas fa-calendar text-secondary me-2"></i>Added</span>
                         <strong>{{ relationship.added_at.strftime('%b %d, %Y') }}</strong>
                     </div>
                 </div>
             </div>
 
-            <!-- Notes -->
             {% if relationship.notes %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-warning text-dark">
+            <div class="card">
+                <div class="card-header bg-warning text-dark py-3">
                     <h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Notes</h5>
                 </div>
                 <div class="card-body">
@@ -139,11 +147,11 @@
     </div>
 
     <!-- Recent Activity -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-success text-white">
+    <div class="card">
+        <div class="card-header bg-success text-white py-3">
             <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
         </div>
-        <div class="card-body p-0">
+        <div class="card-body">
             {% if recent_logs %}
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -158,7 +166,7 @@
                     <tbody>
                         {% for log in recent_logs %}
                         <tr>
-                            <td>{{ log.medication.name if log.medication else 'Unknown' }}</td>
+                            <td><strong>{{ log.medication.name if log.medication else 'Unknown' }}</strong></td>
                             <td>
                                 {% if log.taken_correctly %}
                                 <span class="badge bg-success"><i class="fas fa-check me-1"></i>Taken</span>
@@ -180,7 +188,7 @@
                 </table>
             </div>
             {% else %}
-            <div class="text-center py-5">
+            <div class="text-center py-4">
                 <i class="fas fa-history fa-3x text-muted mb-3"></i>
                 <p class="text-muted">No recent activity recorded.</p>
             </div>
@@ -191,14 +199,15 @@
 
 <!-- Remove Senior Modal -->
 <div class="modal fade" id="removeSeniorModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px;">
+            <div class="modal-header bg-danger text-white" style="border-radius: 16px 16px 0 0;">
                 <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Removal</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <p>Are you sure you want to remove <strong>{{ senior.username }}</strong> from your care list?</p>
+            <div class="modal-body py-4">
+                <p class="mb-2">Are you sure you want to remove <strong>{{ senior.username }}</strong> from your care
+                    list?</p>
                 <p class="text-muted mb-0">This will not delete their account or medications.</p>
             </div>
             <div class="modal-footer">

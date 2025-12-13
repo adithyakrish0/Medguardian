@@ -1,0 +1,433 @@
+/* ========================================
+   ACCESSIBILITY STYLES
+   MedGuardian - Senior-Friendly Options
+   ======================================== */
+
+/* ========================================
+   FLOATING ACCESSIBILITY BUTTON
+   ======================================== */
+
+.accessibility-floating-btn {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    z-index: 1000;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.accessibility-floating-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+/* ========================================
+   ACCESSIBILITY MODAL
+   ======================================== */
+
+.accessibility-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 1rem;
+}
+
+.accessibility-modal {
+    background: white;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 450px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .accessibility-modal {
+    background: #1f2937;
+    color: #f3f4f6;
+}
+
+.accessibility-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px 20px 0 0;
+}
+
+.accessibility-modal-header h4 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.accessibility-close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.accessibility-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.accessibility-modal-body {
+    padding: 1.5rem;
+}
+
+.accessibility-option {
+    margin-bottom: 1.5rem;
+}
+
+.accessibility-option:last-child {
+    margin-bottom: 0;
+}
+
+.accessibility-option label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+body.dark-mode .accessibility-option label {
+    color: #f3f4f6;
+}
+
+.accessibility-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-top: 1px solid #eee;
+}
+
+body.dark-mode .accessibility-modal-footer {
+    border-color: #374151;
+}
+
+/* ========================================
+   FONT SIZE OPTIONS
+   ======================================== */
+
+body.font-small {
+    font-size: 14px !important;
+}
+
+body.font-medium {
+    font-size: 16px !important;
+}
+
+body.font-large {
+    font-size: 18px !important;
+}
+
+body.font-large h1,
+body.font-large .h1 {
+    font-size: 2.5rem !important;
+}
+
+body.font-large h2,
+body.font-large .h2 {
+    font-size: 2rem !important;
+}
+
+body.font-large h3,
+body.font-large .h3 {
+    font-size: 1.75rem !important;
+}
+
+body.font-large h4,
+body.font-large .h4 {
+    font-size: 1.5rem !important;
+}
+
+body.font-large p,
+body.font-large span,
+body.font-large a {
+    font-size: 1.125rem;
+}
+
+body.font-xlarge {
+    font-size: 20px !important;
+}
+
+body.font-xlarge h1,
+body.font-xlarge .h1 {
+    font-size: 3rem !important;
+}
+
+body.font-xlarge h2,
+body.font-xlarge .h2 {
+    font-size: 2.5rem !important;
+}
+
+body.font-xlarge h3,
+body.font-xlarge .h3 {
+    font-size: 2rem !important;
+}
+
+body.font-xlarge h4,
+body.font-xlarge .h4 {
+    font-size: 1.75rem !important;
+}
+
+body.font-xlarge p,
+body.font-xlarge span,
+body.font-xlarge a {
+    font-size: 1.25rem;
+}
+
+body.font-xlarge .btn {
+    font-size: 1.1rem !important;
+    padding: 0.75rem 1.5rem !important;
+}
+
+body.font-xlarge .form-control,
+body.font-xlarge .form-select {
+    font-size: 1.1rem !important;
+}
+
+/* ========================================
+   HIGH CONTRAST MODE
+   ======================================== */
+
+body.high-contrast {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+body.high-contrast * {
+    border-color: #fff !important;
+}
+
+body.high-contrast .card,
+body.high-contrast .modal-content {
+    background-color: #000 !important;
+    border: 2px solid #fff !important;
+    color: #fff !important;
+}
+
+body.high-contrast .card-header,
+body.high-contrast .card-footer {
+    background-color: #333 !important;
+    color: #fff !important;
+}
+
+body.high-contrast .btn-primary,
+body.high-contrast .btn-success {
+    background-color: #00f !important;
+    border-color: #fff !important;
+    color: #fff !important;
+}
+
+body.high-contrast .btn-danger {
+    background-color: #f00 !important;
+    border-color: #fff !important;
+}
+
+body.high-contrast .btn-outline-primary,
+body.high-contrast .btn-outline-secondary {
+    border: 2px solid #fff !important;
+    color: #fff !important;
+}
+
+body.high-contrast a {
+    color: #ff0 !important;
+    text-decoration: underline !important;
+}
+
+body.high-contrast .text-muted {
+    color: #ccc !important;
+}
+
+body.high-contrast .form-control,
+body.high-contrast .form-select {
+    background-color: #000 !important;
+    color: #fff !important;
+    border: 2px solid #fff !important;
+}
+
+body.high-contrast .navbar {
+    background: #000 !important;
+    border-bottom: 2px solid #fff !important;
+}
+
+body.high-contrast .dropdown-menu {
+    background-color: #000 !important;
+    border: 2px solid #fff !important;
+}
+
+body.high-contrast .dropdown-item {
+    color: #fff !important;
+}
+
+body.high-contrast .dropdown-item:hover {
+    background-color: #333 !important;
+}
+
+body.high-contrast footer {
+    background-color: #000 !important;
+    border-top: 2px solid #fff !important;
+}
+
+body.high-contrast .alert {
+    border: 2px solid #fff !important;
+}
+
+body.high-contrast .badge {
+    border: 1px solid #fff !important;
+}
+
+/* ========================================
+   LARGE BUTTONS MODE
+   ======================================== */
+
+body.large-buttons .btn {
+    padding: 1rem 2rem !important;
+    font-size: 1.1rem !important;
+    min-height: 56px !important;
+}
+
+body.large-buttons .btn-sm {
+    padding: 0.75rem 1.5rem !important;
+    min-height: 48px !important;
+}
+
+body.large-buttons .btn-lg {
+    padding: 1.25rem 2.5rem !important;
+    font-size: 1.25rem !important;
+    min-height: 64px !important;
+}
+
+body.large-buttons .form-control,
+body.large-buttons .form-select {
+    padding: 0.875rem 1rem !important;
+    font-size: 1.1rem !important;
+    min-height: 56px !important;
+}
+
+body.large-buttons .nav-link {
+    padding: 0.75rem 1.25rem !important;
+}
+
+body.large-buttons .dropdown-item {
+    padding: 0.75rem 1.25rem !important;
+}
+
+/* ========================================
+   REDUCE MOTION MODE
+   ======================================== */
+
+body.reduce-motion,
+body.reduce-motion * {
+    animation: none !important;
+    transition: none !important;
+}
+
+body.reduce-motion .spinner-border,
+body.reduce-motion .spinner-grow {
+    animation: spinner-border 1.5s linear infinite !important;
+}
+
+/* ========================================
+   LINE SPACING OPTIONS
+   ======================================== */
+
+body.line-spacing-normal {
+    line-height: 1.5;
+}
+
+body.line-spacing-relaxed {
+    line-height: 1.75;
+}
+
+body.line-spacing-relaxed p,
+body.line-spacing-relaxed li,
+body.line-spacing-relaxed td {
+    line-height: 1.85;
+}
+
+body.line-spacing-loose {
+    line-height: 2;
+}
+
+body.line-spacing-loose p,
+body.line-spacing-loose li,
+body.line-spacing-loose td {
+    line-height: 2.25;
+}
+
+/* ========================================
+   LARGE CURSOR MODE
+   ======================================== */
+
+body.large-cursor,
+body.large-cursor * {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath fill='%23000' stroke='%23fff' stroke-width='1' d='M8 2 L8 28 L14 22 L20 32 L24 30 L18 20 L26 20 Z'/%3E%3C/svg%3E"), auto !important;
+}
+
+body.large-cursor a,
+body.large-cursor button,
+body.large-cursor .btn,
+body.large-cursor [role="button"],
+body.large-cursor input[type="submit"] {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10' fill='%23667eea' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23fff'/%3E%3C/svg%3E"), pointer !important;
+}
+
+/* ========================================
+   FOCUS IMPROVEMENTS (Always Active)
+   ======================================== */
+
+*:focus-visible {
+    outline: 3px solid #667eea !important;
+    outline-offset: 2px !important;
+}
+
+body.high-contrast *:focus-visible {
+    outline: 3px solid #ff0 !important;
+}
+
+/* Skip to main content link */
+.skip-to-main {
+    position: absolute;
+    top: -100px;
+    left: 0;
+    background: #667eea;
+    color: white;
+    padding: 1rem;
+    z-index: 9999;
+    text-decoration: none;
+}
+
+.skip-to-main:focus {
+    top: 0;
+}
