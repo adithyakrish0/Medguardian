@@ -264,8 +264,9 @@ function initializeCountdownTimer() {
             // Store interval ID and nextTime for cleanup
             window.countdownInterval = intervalId;
             window.nextMedicationTime = nextTime;
+            window.nextMedicationId = nextMed.id; // Store ID for auto-redirect
 
-            console.log("Countdown timer started successfully!");
+            console.log("Countdown timer started successfully for med ID:", window.nextMedicationId);
         } else {
             console.error("One or more DOM elements not found or nextTime invalid:", {
                 timer: !!timerElement,
@@ -353,18 +354,30 @@ function showNoMedications() {
 }
 
 function showTimeUpAlarm() {
-    // ⚠️ DISABLED - Reminders now redirect to dedicated page
-    // This function is called when countdown reaches 00:00:00
-    // But actual reminder comes from backend scheduler via SocketIO
-    // which triggers redirect in reminder_system.js
-
     console.log('⏰ Countdown reached 00:00:00');
-    console.log('🔄 Waiting for backend scheduler to fire...');
-    console.log('🚀 Will redirect to reminder page when backend emits event');
+    console.log('🚀 Initiating auto-redirect to medication verification...');
 
-    // Do NOT show any UI on dashboard
-    // The backend scheduler will emit medication_reminder event
-    // reminder_system.js will handle redirect
+    // Trigger explicit check to wake up scheduler if needed
+    if (window.reminderSystem) {
+        window.reminderSystem.checkDueReminders();
+    }
+
+    // FORCE REDIRECT if we have the ID
+    if (window.nextMedicationId) {
+        // Construct clean ISO string for time
+        const isoTime = window.nextMedicationTime ? window.nextMedicationTime.toISOString() : new Date().toISOString();
+
+        console.log(`Redirecting to /medication/medication-reminder/${window.nextMedicationId}`);
+        window.location.href = `/medication/medication-reminder/${window.nextMedicationId}?time=${encodeURIComponent(isoTime)}`;
+    } else {
+        console.error('Cannot redirect: Missing nextMedicationId');
+        // Do NOT reload - this causes infinite loop!
+        // Instead, show a message to the user
+        const infoElement = document.getElementById('next-medication-info');
+        if (infoElement) {
+            infoElement.innerHTML = "<p class='mb-0 text-warning'><strong>⏰ Time's up! Please check your medications.</strong></p>";
+        }
+    }
 }
 
 // ⚠️ REMOVED - Modal button handlers moved to reminder page

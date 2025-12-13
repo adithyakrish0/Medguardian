@@ -16,7 +16,7 @@ load_dotenv()
 csrf = CSRFProtect()
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["2000 per day", "400 per hour"]
 )
 mail = Mail()
 
@@ -102,9 +102,14 @@ def create_app(config_name=None):
     from .routes.export import export_bp
     from .routes.contacts import contacts
     from .routes.telegram import telegram
+    from .routes.prescription import prescription
+    from .routes.insights import insights
+    from .routes.print_schedule import print_schedule
+    from .routes.interactions import interactions
     from .routes.api import api_v1  # REST API
     from .routes.test import test_bp  # Test routes
     from .routes.debug import debug_bp  # Debug/forensic logging
+    from .routes.health import health  # Health check
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
@@ -117,9 +122,14 @@ def create_app(config_name=None):
     app.register_blueprint(export_bp, url_prefix='/export')
     app.register_blueprint(contacts, url_prefix='/contacts')
     app.register_blueprint(telegram, url_prefix='/telegram')
+    app.register_blueprint(prescription, url_prefix='/prescription')
+    app.register_blueprint(insights, url_prefix='/insights')
+    app.register_blueprint(print_schedule, url_prefix='/print')
+    app.register_blueprint(interactions, url_prefix='/interactions')
     app.register_blueprint(api_v1)  # API already has /api/v1 prefix
     app.register_blueprint(test_bp)  # Test routes
     app.register_blueprint(debug_bp)  # Debug routes
+    app.register_blueprint(health)  # Health check endpoints
     
     # Import all models to register with SQLAlchemy
     from .models.auth import User

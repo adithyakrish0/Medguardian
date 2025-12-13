@@ -25,7 +25,20 @@ class MedicineBottleDetector:
         self.nms_threshold = 0.4
         self.min_detection_area = 3000  # Minimum bbox area in pixels to filter tiny detections
         self.max_input_size = 416  # Resize input for faster inference (was 640)
-        self.target_class_names = ['bottle', 'pill', 'medicine', 'tablet', 'capsule', 'cup', 'vase']
+        
+        # Target classes with confidence weights
+        # Generic "bottle" class is penalized - too many false positives
+        # Medical-specific classes get full trust
+        self.target_classes = {
+            'bottle': 0.7,      # Penalized - too generic, catches water bottles etc.
+            'pill': 1.0,        # Full trust - medical specific
+            'medicine': 1.0,    # Full trust - medical specific
+            'tablet': 1.0,      # Full trust - medical specific  
+            'capsule': 1.0,     # Full trust - medical specific
+            'cup': 0.5,         # Low trust - often false positive
+            'vase': 0.5,        # Low trust - often false positive
+        }
+        self.target_class_names = list(self.target_classes.keys())
         
         # Initialize fallback detection parameters
         self.fallback_params = {
@@ -109,13 +122,18 @@ class MedicineBottleDetector:
                 # Calculate bounding box area
                 area = (x2 - x1) * (y2 - y1)
                 
-                # Filter: confidence, class, and minimum size
-                if (confidence > self.confidence_threshold and 
+                # Apply class-specific confidence weight
+                # Generic classes like 'bottle' get penalized
+                class_weight = self.target_classes.get(class_name, 0.5)
+                adjusted_confidence = confidence * class_weight
+                
+                # Filter: adjusted confidence, class, and minimum size
+                if (adjusted_confidence > self.confidence_threshold and 
                     class_name in self.target_class_names and
                     area >= self.min_detection_area):
                     filtered_detections.append([
                         float(x1), float(y1), float(x2), float(y2),
-                        float(confidence), int(class_id)
+                        float(adjusted_confidence), int(class_id)  # Store adjusted confidence
                     ])
             
             # Apply Non-Maximum Suppression

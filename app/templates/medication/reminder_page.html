@@ -10,6 +10,7 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         * {
@@ -22,14 +23,15 @@
         body {
             height: 100%;
             overflow: hidden;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            font-family: 'Outfit', sans-serif;
+            color: white;
         }
 
         .reminder-container {
             height: 100vh;
             display: grid;
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: 1fr 400px;
             gap: 0;
         }
 
@@ -41,6 +43,7 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5);
         }
 
         .camera-wrapper {
@@ -53,6 +56,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            opacity: 0.9;
         }
 
         #detectionOverlay {
@@ -62,17 +66,20 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
+            z-index: 10;
+            /* Ensure canvas renders above video */
         }
 
-        /* Scanning animation overlay */
+        /* Sophisticated Scanning Animation */
         .scan-line {
             position: absolute;
             left: 0;
             width: 100%;
-            height: 3px;
+            height: 2px;
             background: linear-gradient(90deg, transparent, #00d4ff, transparent);
-            box-shadow: 0 0 20px #00d4ff;
-            animation: scanDown 2s linear infinite;
+            box-shadow: 0 0 15px #00d4ff, 0 0 30px rgba(0, 212, 255, 0.5);
+            animation: scanDown 3s ease-in-out infinite;
+            opacity: 0.8;
         }
 
         @keyframes scanDown {
@@ -95,134 +102,140 @@
             }
         }
 
-        /* Camera status badge */
+        /* Premium Camera Status */
         .camera-status {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+            top: 24px;
+            left: 24px;
+            background: rgba(15, 23, 42, 0.6);
+            color: rgba(255, 255, 255, 0.9);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 500;
             display: flex;
             align-items: center;
             gap: 10px;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 10;
         }
 
         .camera-status .status-dot {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            background: #00c853;
-            animation: blink 1s infinite;
+            background: #00e676;
+            box-shadow: 0 0 10px #00e676;
+            animation: pulse 2s infinite;
         }
 
-        @keyframes blink {
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4);
+            }
 
-            0%,
+            70% {
+                box-shadow: 0 0 0 10px rgba(0, 230, 118, 0);
+            }
+
             100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.3;
+                box-shadow: 0 0 0 0 rgba(0, 230, 118, 0);
             }
         }
 
-        /* Right Panel - Info & Actions */
+        /* Right Panel - Glassmorphism */
         .info-panel {
-            background: linear-gradient(180deg, #1f1f3a 0%, #1a1a2e 100%);
-            padding: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 32px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            overflow-y: auto;
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 20px;
+            overflow: hidden;
+            position: relative;
         }
 
-        /* Header */
+        /* Header Area */
         .reminder-header {
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             text-align: center;
-            padding-bottom: 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .reminder-header h2 {
-            color: #ff6b6b;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .reminder-header .bell-icon {
-            animation: ring 1s ease infinite;
-        }
-
-        @keyframes ring {
-
-            0%,
-            100% {
-                transform: rotate(0);
-            }
-
-            25% {
-                transform: rotate(15deg);
-            }
-
-            50% {
-                transform: rotate(-15deg);
-            }
-
-            75% {
-                transform: rotate(10deg);
-            }
-        }
-
-        /* Medication Info Card */
-        .med-info {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .med-name {
-            color: #00d4ff;
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .med-dosage {
-            color: #888;
-            font-size: 16px;
-        }
-
-        .med-time {
-            color: #666;
-            font-size: 13px;
-            margin-top: 8px;
-        }
-
-        /* Live Detection Panel */
-        .detection-panel {
-            background: rgba(0, 212, 255, 0.1);
-            border: 1px solid rgba(0, 212, 255, 0.2);
-            border-radius: 16px;
-            padding: 16px;
             flex-shrink: 0;
         }
 
-        .detection-panel h6 {
-            color: #00d4ff;
-            font-size: 13px;
+        .reminder-header h2 {
+            font-size: 1.4rem;
             font-weight: 600;
+            background: linear-gradient(to right, #fff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        /* Medication Card */
+        .med-info {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+
+        .med-info:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .med-name {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .med-dosage {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 400;
+        }
+
+        .med-time {
+            margin-top: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: #93c5fd;
+            border: 1px solid rgba(147, 197, 253, 0.2);
+        }
+
+        /* Detection Panel (Scrollable Area) */
+        .detection-panel {
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 16px;
+            padding: 16px;
+            flex-grow: 1;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            min-height: 0;
+        }
+
+        .detection-panel h6 {
+            color: #38bdf8;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             margin-bottom: 12px;
             display: flex;
             align-items: center;
@@ -232,11 +245,10 @@
         .detection-row {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             padding: 8px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            color: #aaa;
-            font-size: 13px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
         }
 
         .detection-row:last-child {
@@ -245,111 +257,113 @@
 
         .detection-row .value {
             color: white;
-            font-weight: 600;
+            font-weight: 500;
         }
 
-        .detection-row .value.match {
-            color: #00c853;
-        }
-
-        .detection-row .value.no-match {
-            color: #ff5252;
-        }
-
-        /* Verification Status */
+        /* Status Bar */
         .verification-status {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.03);
             border-radius: 12px;
-            padding: 14px;
+            padding: 12px;
             text-align: center;
             flex-shrink: 0;
-        }
-
-        .verification-status.scanning {
-            border: 1px solid rgba(0, 212, 255, 0.3);
-        }
-
-        .verification-status.verified {
-            background: rgba(0, 200, 83, 0.15);
-            border: 1px solid rgba(0, 200, 83, 0.3);
-        }
-
-        .verification-status.failed {
-            background: rgba(255, 82, 82, 0.15);
-            border: 1px solid rgba(255, 82, 82, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .verification-status .status-text {
-            color: white;
-            font-size: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-        }
-
-        #verificationMessage {
-            color: inherit;
+            gap: 10px;
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.9);
         }
 
         /* Action Buttons */
         .action-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            /* Two main actions side-by-side */
+            gap: 12px;
             margin-top: auto;
-            padding-top: 16px;
+            padding-top: 10px;
+            flex-shrink: 0;
         }
 
         .btn-action {
-            padding: 14px 20px;
-            border-radius: 12px;
-            font-size: 15px;
+            width: 100%;
+            padding: 14px;
+            border-radius: 16px;
+            font-size: 0.95rem;
             font-weight: 600;
             border: none;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
+            text-decoration: none;
         }
 
         .btn-action:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            filter: brightness(1.1);
         }
 
+        /* Main action - spanning full width */
         .btn-taken {
-            background: linear-gradient(135deg, #00c853, #00a843);
+            grid-column: span 2;
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
             color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            font-size: 1.1rem;
+            padding: 16px;
         }
 
         .btn-snooze {
-            background: linear-gradient(135deg, #ff9800, #f57c00);
+            background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
             color: white;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
         }
 
         .btn-dismiss {
-            background: rgba(255, 255, 255, 0.1);
-            color: #888;
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .btn-dismiss:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #aaa;
+        .btn-skip {
+            grid-column: span 2;
+            /* Full width at bottom */
+            background: transparent;
+            color: rgba(248, 113, 113, 0.8);
+            border: 1px solid rgba(248, 113, 113, 0.2);
+            font-size: 0.9rem;
+            margin-top: 4px;
         }
 
-        /* Responsive for smaller screens */
+        .btn-skip:hover {
+            background: rgba(248, 113, 113, 0.1);
+            color: #ef4444;
+            border-color: rgba(248, 113, 113, 0.4);
+        }
+
+        /* Responsive Design */
         @media (max-width: 900px) {
             .reminder-container {
                 grid-template-columns: 1fr;
-                grid-template-rows: 50vh 1fr;
+                grid-template-rows: 45vh 1fr;
             }
 
             .info-panel {
                 border-left: none;
                 border-top: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 24px;
+            }
+
+            .med-name {
+                font-size: 1.75rem;
             }
         }
     </style>
@@ -375,10 +389,7 @@
         <div class="info-panel">
             <!-- Header -->
             <div class="reminder-header">
-                <h2>
-                    <i class="fas fa-bell bell-icon"></i>
-                    Time to Take Your Medication!
-                </h2>
+                <h2>Time for Medication</h2>
             </div>
 
             <!-- Medication Info -->
@@ -386,17 +397,22 @@
                 <div class="med-name">{{ medication.name }}</div>
                 <div class="med-dosage">{{ medication.dosage }}</div>
                 {% if medication.instructions %}
-                <div class="med-time" style="color: #aaa;">{{ medication.instructions }}</div>
+                <div class="med-time" style="margin-top: 8px; background: transparent; padding: 0;">
+                    <small style="opacity: 0.7">{{ medication.instructions }}</small>
+                </div>
                 {% endif %}
                 <div class="med-time">
-                    <i class="fas fa-clock me-1"></i>
-                    Scheduled: {{ scheduled_time_display }}
+                    <i class="fas fa-clock"></i>
+                    {{ scheduled_time_display }}
                 </div>
             </div>
 
             <!-- Live Detection Info -->
             <div class="detection-panel" id="detectionPanel">
-                <h6><i class="fas fa-eye"></i> Live Detection</h6>
+                <h6>
+                    <i class="fas fa-robot"></i>
+                    AI Analysis
+                </h6>
                 <div class="detection-row">
                     <span>Objects Detected</span>
                     <span class="value" id="objectCount">0</span>
@@ -431,17 +447,26 @@
 
             <!-- Action Buttons -->
             <div class="action-buttons">
+                <!-- Primary Action -->
                 <button class="btn-action btn-taken" onclick="markTaken()">
                     <i class="fas fa-check-circle"></i>
                     I've Taken It
                 </button>
+
+                <!-- Secondary Actions -->
                 <button class="btn-action btn-snooze" onclick="snooze()">
                     <i class="fas fa-clock"></i>
-                    Snooze 5 Minutes
+                    Snooze (5m)
                 </button>
                 <button class="btn-action btn-dismiss" onclick="dismiss()">
-                    <i class="fas fa-times"></i>
-                    Dismiss
+                    <i class="fas fa-history"></i>
+                    Remind Later (15m)
+                </button>
+
+                <!-- Tertiary Action -->
+                <button class="btn-action btn-skip" onclick="skipDose()">
+                    <i class="fas fa-ban"></i>
+                    Skip This Dose
                 </button>
             </div>
         </div>
@@ -457,6 +482,7 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/ar_overlay.js') }}"></script>
     <script src="{{ url_for('static', filename='js/auto_verification.js') }}"></script>
 
     <script>
@@ -476,7 +502,8 @@
             }
             if (data.confidence !== undefined) {
                 document.getElementById('aiMatchValue').textContent = Math.round(data.confidence * 100) + '%';
-                document.getElementById('aiMatchValue').className = 'value ' + (data.confidence > 0.75 ? 'match' : 'no-match');
+                const valEl = document.getElementById('aiMatchValue');
+                valEl.style.color = data.confidence > 0.75 ? '#00e676' : '#ff5252';
             }
             if (data.method) {
                 document.getElementById('methodValue').textContent = data.method.replace('_', ' ');
@@ -491,20 +518,31 @@
             const cameraStatus = document.getElementById('cameraStatusText');
 
             messageSpan.textContent = message;
-            statusDiv.className = 'verification-status ' + status;
+
+            // Reset classes
+            statusDiv.className = 'verification-status';
 
             if (status === 'verified') {
+                statusDiv.style.background = 'rgba(0, 230, 118, 0.15)';
+                statusDiv.style.borderColor = 'rgba(0, 230, 118, 0.3)';
                 icon.className = 'fas fa-check-circle';
-                icon.style.color = '#00c853';
+                icon.style.color = '#00e676';
                 cameraStatus.textContent = 'Verified ✓';
+                cameraStatus.style.color = '#00e676';
             } else if (status === 'failed') {
+                statusDiv.style.background = 'rgba(255, 82, 82, 0.15)';
+                statusDiv.style.borderColor = 'rgba(255, 82, 82, 0.3)';
                 icon.className = 'fas fa-times-circle';
                 icon.style.color = '#ff5252';
                 cameraStatus.textContent = 'Not matched';
+                cameraStatus.style.color = '#ff5252';
             } else {
+                statusDiv.style.background = 'rgba(255, 255, 255, 0.03)';
+                statusDiv.style.borderColor = 'rgba(255, 255, 255, 0.05)';
                 icon.className = 'fas fa-circle-notch fa-spin';
-                icon.style.color = '';
+                icon.style.color = '#38bdf8';
                 cameraStatus.textContent = 'Scanning...';
+                cameraStatus.style.color = 'white';
             }
         }
 
@@ -525,6 +563,13 @@
 
         // Mark medication as taken
         async function markTaken() {
+            const btn = document.querySelector('.btn-taken');
+            const icon = btn.querySelector('i');
+
+            // UI Feedback
+            btn.disabled = true;
+            icon.className = 'fas fa-spinner fa-spin';
+
             console.log("🔵 markTaken called");
 
             try {
@@ -553,21 +598,37 @@
                     const error = await response.text();
                     console.error("❌ Error:", error);
                     alert("Failed to mark medication as taken. Please try again.");
+
+                    // Reset UI on failure
+                    btn.disabled = false;
+                    icon.className = 'fas fa-check-circle';
                 }
             } catch (error) {
                 console.error("❌ Exception:", error);
                 alert("Network error. Please check your connection.");
+
+                // Reset UI on failure
+                btn.disabled = false;
+                icon.className = 'fas fa-check-circle';
             }
         }
 
-        // Snooze reminder for 5 minutes
+        // Snooze reminder
         async function snooze() {
-            console.log("🔵 snooze called");
+            const btn = document.querySelector('.btn-snooze');
+            const icon = btn.querySelector('i');
+
+            // UI Feedback
+            btn.disabled = true;
+            icon.className = 'fas fa-spinner fa-spin';
+
+            console.log("🔵 snooze (5m) called");
 
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-                const response = await fetch('/snooze/create', {
+                // FIXED: Changed endpoint from /snooze/create to /snooze/create-snooze
+                const response = await fetch('/snooze/create-snooze', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -576,7 +637,8 @@
                     body: JSON.stringify({
                         medication_id: medicationId,
                         medication_name: "{{ medication.name }}",
-                        dosage: "{{ medication.dosage }}"
+                        dosage: "{{ medication.dosage }}",
+                        original_medication_time: scheduledTime
                     })
                 });
 
@@ -585,18 +647,112 @@
                     const alarm = document.getElementById('alarmSound');
                     if (alarm) alarm.pause();
                     window.location.href = '/dashboard';
+                } else {
+                    console.error("❌ Snooze failed");
+                    alert("Failed to snooze reminder.");
+                    btn.disabled = false;
+                    icon.className = 'fas fa-clock';
                 }
             } catch (error) {
                 console.error("❌ Snooze error:", error);
+                btn.disabled = false;
+                icon.className = 'fas fa-clock';
             }
         }
 
-        // Dismiss reminder
-        function dismiss() {
-            console.log("🔵 dismiss called");
-            const alarm = document.getElementById('alarmSound');
-            if (alarm) alarm.pause();
-            window.location.href = '/dashboard';
+        // Dismiss reminder - Now acts as a 15 min snooze
+        async function dismiss() {
+            const btn = document.querySelector('.btn-dismiss');
+            const icon = btn.querySelector('i');
+
+            // UI Feedback
+            btn.disabled = true;
+            icon.className = 'fas fa-spinner fa-spin';
+
+            console.log("🔵 dismiss (snooze 15m) called");
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                const response = await fetch('/snooze/create-snooze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        medication_id: medicationId,
+                        medication_name: "{{ medication.name }}",
+                        dosage: "{{ medication.dosage }}",
+                        original_medication_time: scheduledTime,
+                        snooze_duration_minutes: 15 // Longer snooze for dismiss
+                    })
+                });
+
+                if (response.ok) {
+                    console.log("✅ Dismiss/Snooze successful");
+                    const alarm = document.getElementById('alarmSound');
+                    if (alarm) alarm.pause();
+                    window.location.href = '/dashboard';
+                } else {
+                    alert("Failed to dismiss.");
+                    btn.disabled = false;
+                    icon.className = 'fas fa-history';
+                }
+            } catch (error) {
+                console.error("❌ Dismiss error:", error);
+                btn.disabled = false;
+                icon.className = 'fas fa-history';
+            }
+        }
+
+        // Skip current dose
+        async function skipDose() {
+            if (!confirm('Are you sure you want to skip this dose? This will be recorded as a missed dose.')) {
+                return;
+            }
+
+            const btn = document.querySelector('.btn-skip');
+            const icon = btn.querySelector('i');
+
+            // UI Feedback
+            btn.disabled = true;
+            icon.className = 'fas fa-spinner fa-spin';
+
+            console.log("🔵 skipDose called");
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                const response = await fetch(`/medication/skip-dose/${medicationId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        scheduled_time: scheduledTime
+                    })
+                });
+
+                if (response.ok) {
+                    console.log("✅ Medication skipped successfully");
+                    const alarm = document.getElementById('alarmSound');
+                    if (alarm) alarm.pause();
+                    window.location.href = '/dashboard';
+                } else {
+                    const error = await response.text();
+                    console.error("❌ Error:", error);
+                    alert("Failed to skip dose. Please try again.");
+                    btn.disabled = false;
+                    icon.className = 'fas fa-ban';
+                }
+            } catch (error) {
+                console.error("❌ Exception:", error);
+                alert("Network error.");
+                btn.disabled = false;
+                icon.className = 'fas fa-ban';
+            }
         }
 
         // Direct camera initialization with error handling
@@ -648,6 +804,39 @@
 
         // Start camera immediately
         initCamera();
+
+        // Inactivity Timeout Logic
+        const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes
+        let inactivityTimer;
+        let warningTimer;
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            clearTimeout(warningTimer);
+
+            // Start warning timer (9 mins)
+            warningTimer = setTimeout(() => {
+                const statusDiv = document.getElementById('cameraStatusText');
+                if (statusDiv) {
+                    statusDiv.textContent = 'Auto-skipping in 60s...';
+                    statusDiv.style.color = '#ff9800';
+                }
+            }, INACTIVITY_LIMIT - 60000);
+
+            // Start final action timer (10 mins)
+            inactivityTimer = setTimeout(() => {
+                console.log("⏰ Inactivity timeout reached. Auto-skipping.");
+                skipDose(); // Auto-skip and redirect
+            }, INACTIVITY_LIMIT);
+        }
+
+        // Listen for user activity
+        ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll'].forEach(evt => {
+            document.addEventListener(evt, resetInactivityTimer, true);
+        });
+
+        // Initialize timer
+        resetInactivityTimer();
     </script>
 </body>
 

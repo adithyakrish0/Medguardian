@@ -1,6 +1,7 @@
 """
 Feature Extractor for Visual Similarity
-Uses ResNet18 to extract feature embeddings and cosine similarity for comparison.
+Uses EfficientNet-B0 to extract feature embeddings and cosine similarity for comparison.
+Upgraded from ResNet-18 for better texture and layout sensitivity.
 Supports multi-angle reference images for robust matching.
 """
 import numpy as np
@@ -18,20 +19,23 @@ _feature_model = None
 _transform = None
 
 def get_feature_model():
-    """Get or load the pretrained ResNet18 model for feature extraction"""
+    """Get or load the pretrained EfficientNet-B0 model for feature extraction"""
     global _feature_model, _transform
     
     if _feature_model is None:
         try:
             import torchvision.models as models
             
-            # Use ResNet18 - lightweight but effective
-            _feature_model = models.resnet18(pretrained=True)
-            # Remove the final classification layer to get features
+            # Use EfficientNet-B0 - better texture/layout sensitivity than ResNet-18
+            # More robust to rotation and lighting while still lightweight
+            weights = models.EfficientNet_B0_Weights.IMAGENET1K_V1
+            _feature_model = models.efficientnet_b0(weights=weights)
+            
+            # Remove the final classification layer to get 1280-dim features
             _feature_model = torch.nn.Sequential(*list(_feature_model.children())[:-1])
             _feature_model.eval()
             
-            # Standard ImageNet preprocessing
+            # Standard ImageNet preprocessing (EfficientNet uses same as ResNet)
             _transform = transforms.Compose([
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
@@ -42,39 +46,101 @@ def get_feature_model():
                 )
             ])
             
-            print("✅ Feature extractor (ResNet18) loaded successfully")
+            print("✅ Feature extractor (EfficientNet-B0) loaded successfully")
         except Exception as e:
-            print(f"⚠️ Feature extractor failed to load: {e}")
-            return None, None
+            print(f"⚠️ EfficientNet failed, falling back to ResNet-18: {e}")
+            try:
+                # Fallback to ResNet-18 if EfficientNet not available
+                import torchvision.models as models
+                _feature_model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+                _feature_model = torch.nn.Sequential(*list(_feature_model.children())[:-1])
+                _feature_model.eval()
+                
+                _transform = transforms.Compose([
+                    transforms.Resize(256),
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                ])
+                print("✅ Feature extractor (ResNet-18 fallback) loaded")
+            except Exception as e2:
+                print(f"⚠️ Feature extractor failed to load: {e2}")
+                return None, None
     
     return _feature_model, _transform
 
 
+def normalize_lighting(image: np.ndarray) -> np.ndarray:
+    """
+    Normalize lighting using CLAHE (Contrast Limited Adaptive Histogram Equalization).
+    Critical for Indian indoor environments - handles:
+    - Morning vs night lighting differences
+    - Tube light glare
+    - Uneven shadows
+    - Color cast from warm/cool lighting
+    
+    Args:
+        image: OpenCV image (BGR format)
+    
+    Returns:
+        Lighting-normalized image (BGR format)
+    """
+    try:
+        # Convert to LAB color space (L = lightness, A/B = color)
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        
+        # Split into channels
+        l, a, b = cv2.split(lab)
+        
+        # Apply CLAHE to the L (lightness) channel only
+        # clipLimit=2.0 prevents over-amplification of noise
+        # tileGridSize=(8,8) provides good local adaptation
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        l_normalized = clahe.apply(l)
+        
+        # Merge back
+        lab_normalized = cv2.merge([l_normalized, a, b])
+        
+        # Convert back to BGR
+        normalized = cv2.cvtColor(lab_normalized, cv2.COLOR_LAB2BGR)
+        
+        return normalized
+        
+    except Exception as e:
+        print(f"Lighting normalization failed, using original: {e}")
+        return image
+
+
 def extract_features(image: np.ndarray) -> Optional[np.ndarray]:
     """
-    Extract feature vector from an image using ResNet18.
+    Extract feature vector from an image using EfficientNet-B0.
+    Includes CLAHE lighting normalization for robustness.
     
     Args:
         image: OpenCV image (BGR format)
         
     Returns:
-        512-dimensional feature vector as numpy array, or None on failure
+        Feature vector as numpy array, or None on failure
     """
     model, transform = get_feature_model()
     if model is None:
         return None
     
     try:
-        # Convert BGR to RGB
-        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # Step 1: Normalize lighting (CLAHE)
+        # Critical for Indian indoor lighting variations
+        normalized = normalize_lighting(image)
         
-        # Convert to PIL Image
+        # Step 2: Convert BGR to RGB
+        rgb_image = cv2.cvtColor(normalized, cv2.COLOR_BGR2RGB)
+        
+        # Step 3: Convert to PIL Image
         pil_image = Image.fromarray(rgb_image)
         
-        # Apply transforms
+        # Step 4: Apply transforms (resize, normalize for ImageNet)
         tensor = transform(pil_image).unsqueeze(0)
         
-        # Extract features
+        # Step 5: Extract features
         with torch.no_grad():
             features = model(tensor)
         

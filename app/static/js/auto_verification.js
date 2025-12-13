@@ -61,10 +61,13 @@ class MedicationAutoVerifier {
                 }
             }
 
-            // Start periodic camera verification (every 3 seconds)
+            // Initialize AR overlay
+            this.initAROverlay();
+
+            // Start periodic camera verification (every 2 seconds for smoother AR)
             this.verificationInterval = setInterval(() => {
                 this.captureAndVerify();
-            }, 3000);
+            }, 2000);  // Reduced from 3s to 2s for smoother overlay updates
 
         } catch (error) {
             console.error('Auto-verification failed to start:', error);
@@ -104,6 +107,7 @@ class MedicationAutoVerifier {
 
     /**
      * Capture frame and send for verification
+     * NOW: Captures only the scanning zone (center crop) for shape-agnostic verification
      */
     async captureAndVerify() {
         if (this.isVerifying) return;
@@ -120,25 +124,58 @@ class MedicationAutoVerifier {
             // Setup overlay canvas if not done
             this.setupOverlayCanvas(video);
 
-            // Capture frame
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
+            // Get scanning zone coordinates from AR overlay
+            let zoneCoords = null;
+            if (this.arOverlay && this.arOverlay.getScanZoneCoords) {
+                zoneCoords = this.arOverlay.getScanZoneCoords();
+            } else {
+                // Fallback: center 45% x 55% of frame
+                const zoneW = video.videoWidth * 0.45;
+                const zoneH = video.videoHeight * 0.55;
+                zoneCoords = {
+                    x: Math.floor((video.videoWidth - zoneW) / 2),
+                    y: Math.floor((video.videoHeight - zoneH) / 2),
+                    width: Math.floor(zoneW),
+                    height: Math.floor(zoneH)
+                };
+            }
 
-            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            // Capture FULL frame first
+            const fullCanvas = document.createElement('canvas');
+            fullCanvas.width = video.videoWidth;
+            fullCanvas.height = video.videoHeight;
+            fullCanvas.getContext('2d').drawImage(video, 0, 0);
 
-            // Show scanning status
+            // Crop the scanning zone
+            const zoneCanvas = document.createElement('canvas');
+            zoneCanvas.width = zoneCoords.width;
+            zoneCanvas.height = zoneCoords.height;
+            zoneCanvas.getContext('2d').drawImage(
+                fullCanvas,
+                zoneCoords.x, zoneCoords.y, zoneCoords.width, zoneCoords.height,  // Source
+                0, 0, zoneCoords.width, zoneCoords.height  // Destination
+            );
+
+            const zoneImageData = zoneCanvas.toDataURL('image/jpeg', 0.85);
+            const fullImageData = fullCanvas.toDataURL('image/jpeg', 0.7);
+
+            // Update AR overlay state to "verifying"
+            if (this.arOverlay) {
+                this.arOverlay.displayState = 'verifying';
+            }
             this.updateStatus('verifying', '🔍 Scanning...');
 
-            // Send to server with credentials for session cookies
+            // Send BOTH full frame and zone crop to server
+            // Backend will use zone for AI matching, full for optional YOLO
             const response = await fetch('/medication/verify-realtime', {
                 method: 'POST',
                 credentials: 'same-origin',  // IMPORTANT: Send session cookies
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    image: imageData,
-                    medication_id: this.currentMedicationId
+                    image: fullImageData,
+                    zone_image: zoneImageData,  // NEW: cropped zone for AI matching
+                    medication_id: this.currentMedicationId,
+                    zone_only: true  // NEW: flag to prioritize zone-based verification
                 })
             });
 
@@ -152,11 +189,19 @@ class MedicationAutoVerifier {
             const result = await response.json();
             console.log('Verification result:', result);
 
-            // Draw detection overlay
-            if (result.detections && result.detections.length > 0) {
-                this.drawDetectionOverlay(result.detections, video.videoWidth, video.videoHeight);
-            } else {
-                this.clearOverlay();
+            // Update AR overlay STATE based on verification result
+            if (this.arOverlay) {
+                if (result.verified && result.correct_medication) {
+                    // CORRECT - lock the result
+                    this.arOverlay.displayState = 'correct';
+                    this.arOverlay._lockResult('correct');
+                } else if (result.is_correct === false && result.confidence > 0) {
+                    // WRONG - show error state
+                    this.arOverlay.displayState = 'wrong';
+                } else {
+                    // STILL SCANNING - waiting for better match
+                    this.arOverlay.displayState = 'scanning';
+                }
             }
 
             // Update live info panel
@@ -165,17 +210,23 @@ class MedicationAutoVerifier {
             // Handle verification result with detailed feedback
             if (result.verified && result.correct_medication) {
                 const confidence = Math.round((result.confidence || 0) * 100);
-                const method = result.method || 'unknown';
+                const method = result.method || 'ai_training';
                 const methodLabel = this.getMethodLabel(method);
 
                 this.updateStatus('success', `✅ VERIFIED! ${confidence}% match via ${methodLabel}`);
 
-                // Auto-mark as taken after 2 seconds
+                // STOP further verification to keep green state visible
+                if (this.verificationInterval) {
+                    clearInterval(this.verificationInterval);
+                    this.verificationInterval = null;
+                }
+
+                // Auto-mark as taken after 4 seconds (increased for better UX)
                 setTimeout(() => {
                     this.autoMarkTaken();
-                }, 2000);
+                }, 4000);
 
-            } else if (result.is_correct === false && result.detection_count > 0) {
+            } else if (result.is_correct === false && result.confidence > 0) {
                 // Wrong medication detected
                 this.updateStatus('error', `❌ Wrong medication! Expected: ${result.expected_medication || 'this medication'}`);
 
@@ -310,7 +361,13 @@ class MedicationAutoVerifier {
         // Clear previous drawings
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw each detection
+        // Use AR overlay if available, otherwise fall back to basic rendering
+        if (this.arOverlay) {
+            // AR overlay handles its own rendering via animation loop
+            return;
+        }
+
+        // Fallback: Basic detection overlay (if AR not loaded)
         for (const det of detections) {
             const [x1, y1, x2, y2] = det.bbox;
             const confidence = det.confidence;
@@ -347,6 +404,43 @@ class MedicationAutoVerifier {
     }
 
     /**
+     * Initialize AR overlay system (call once when camera starts)
+     */
+    initAROverlay() {
+        console.log('🎯 Attempting to initialize AR overlay...');
+
+        // Check if AR overlay class is available
+        if (typeof MedicationAROverlay === 'undefined') {
+            console.warn('❌ AR overlay class not loaded! Check if ar_overlay.js is included.');
+            return;
+        }
+        console.log('✓ MedicationAROverlay class found');
+
+        const video = document.getElementById('reminderCameraFeed');
+        const canvas = document.getElementById('detectionOverlay');
+
+        console.log('   Video element:', video ? 'found' : 'NOT FOUND');
+        console.log('   Canvas element:', canvas ? 'found' : 'NOT FOUND');
+
+        if (video && canvas) {
+            this.arOverlay = new MedicationAROverlay(video, canvas);
+            this.arOverlay.start();
+            console.log('✅ AR overlay initialized and started!');
+        } else {
+            console.error('❌ Cannot initialize AR overlay - missing video or canvas element');
+        }
+    }
+
+    /**
+     * Update AR overlay with verification results
+     */
+    updateAROverlay(result) {
+        if (!this.arOverlay) return;
+
+        this.arOverlay.updateDetection(result);
+    }
+
+    /**
      * Clear the overlay canvas
      */
     clearOverlay() {
@@ -355,6 +449,11 @@ class MedicationAutoVerifier {
 
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Also reset AR overlay if present
+        if (this.arOverlay) {
+            this.arOverlay.reset();
+        }
     }
 
 
@@ -387,8 +486,16 @@ class MedicationAutoVerifier {
 
         this.stopVerification();
 
-        if (typeof markMedicationTaken === 'function') {
-            await markMedicationTaken();
+        // Call the markTaken function from reminder_page.html
+        // Falls back to direct redirect if not available
+        if (typeof markTaken === 'function') {
+            await markTaken();
+        } else if (typeof window.markTaken === 'function') {
+            await window.markTaken();
+        } else {
+            // Fallback: redirect directly to dashboard
+            console.log('markTaken not found, redirecting to dashboard...');
+            window.location.href = '/dashboard';
         }
     }
 

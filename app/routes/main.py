@@ -30,13 +30,17 @@ def dashboard():
             
         # Get today's logs
         today = date.today()
-        today_logs = MedicationLog.query.filter_by(
-            user_id=current_user.id,
-            taken_at=today
+        today_start = datetime.combine(today, datetime.min.time())
+        today_end = datetime.combine(today, datetime.max.time())
+        
+        today_logs = MedicationLog.query.filter(
+            MedicationLog.user_id == current_user.id,
+            MedicationLog.taken_at >= today_start,
+            MedicationLog.taken_at <= today_end
         ).all()
             
         # Check for active snooze
-        now = datetime.utcnow()
+        now = datetime.now()  # Use local time consistently
         active_snooze = SnoozeLog.query.filter(
             SnoozeLog.user_id == current_user.id,
             SnoozeLog.snooze_until > now
@@ -54,15 +58,50 @@ def dashboard():
         # Get today's medications with status
         today_medications = []
         for med in medications:
-            taken = any(log.medication_id == med.id and log.taken_at.date() == today and log.taken_correctly 
-                       for log in today_logs)
+            # Get logs for this medication today
+            med_logs = [log for log in today_logs if log.medication_id == med.id]
                 
-            # Parse scheduled times for display
+            # Parse scheduled times for display with individual taken status
             scheduled_times = []
+            now = datetime.now()
+            
             if med.custom_reminder_times:
                 try:
                     custom_times = json.loads(med.custom_reminder_times)
-                    scheduled_times.extend([{'time': t, 'period': 'Custom', 'is_custom': True} for t in custom_times])
+                    for t in custom_times:
+                        # Parse the time string to create a datetime for comparison
+                        try:
+                            time_parts = t.split(':')
+                            hour = int(time_parts[0])
+                            minute = int(time_parts[1])
+                            dose_time = datetime(now.year, now.month, now.day, hour, minute)
+                            
+                            # Check if this specific time slot has been taken
+                            slot_taken = False
+                            for log in med_logs:
+                                if log.scheduled_time and log.taken_correctly:
+                                    margin = timedelta(minutes=5)
+                                    if abs(dose_time - log.scheduled_time) <= margin:
+                                        slot_taken = True
+                                        break
+                            
+                            # Determine status: taken, missed, or upcoming
+                            status = 'upcoming'
+                            if slot_taken:
+                                status = 'taken'
+                            elif dose_time < now - timedelta(minutes=15):  # Past the grace period
+                                status = 'missed'
+                            
+                            scheduled_times.append({
+                                'time': t, 
+                                'period': 'Custom', 
+                                'is_custom': True,
+                                'taken': slot_taken,
+                                'status': status,
+                                'dose_datetime': dose_time
+                            })
+                        except:
+                            scheduled_times.append({'time': t, 'period': 'Custom', 'is_custom': True, 'taken': False, 'status': 'unknown'})
                 except:
                     pass
                 
@@ -78,41 +117,103 @@ def dashboard():
                     'time': period,
                     'period': period,
                     'is_custom': False,
-                    'time_range': get_period_time_range(period)  # For tooltip
+                    'time_range': get_period_time_range(period),  # For tooltip
+                    'taken': False,  # Period-based don't have exact matching yet
+                    'status': 'upcoming'
                 })
-                
+            # Check if medication is available to take now
+            now = datetime.now()
+            current_hour = now.hour
+            is_available = False
+            availability_reason = "Not yet time"
+            
+            # Check period-based times
+            if med.morning and 6 <= current_hour < 12:
+                is_available = True
+                availability_reason = "Morning dose available"
+            elif med.afternoon and 12 <= current_hour < 17:
+                is_available = True
+                availability_reason = "Afternoon dose available"
+            elif med.evening and 17 <= current_hour < 21:
+                is_available = True
+                availability_reason = "Evening dose available"
+            elif med.night and (current_hour >= 21 or current_hour < 6):
+                is_available = True
+                availability_reason = "Night dose available"
+            
+            # Check custom reminder times
+            if med.custom_reminder_times:
+                try:
+                    custom_times = json.loads(med.custom_reminder_times)
+                    for time_str in custom_times:
+                        try:
+                            scheduled = datetime.strptime(time_str, "%H:%M").replace(
+                                year=now.year, month=now.month, day=now.day
+                            )
+                            # Available 15 min before to 2 hours after
+                            time_diff = (now - scheduled).total_seconds() / 60
+                            if -15 <= time_diff <= 120:  # -15 min to +120 min
+                                is_available = True
+                                availability_reason = f"Custom dose at {time_str} available"
+                                break
+                        except:
+                            pass
+                except:
+                    pass
+            # Calculate overall taken status (all slots taken = fully taken)
+            # Also calculate if any untaken slot is available now
+            all_taken = len(scheduled_times) > 0 and all(st.get('taken', False) for st in scheduled_times)
+            any_taken = any(st.get('taken', False) for st in scheduled_times)
+            
+            # Check if any untaken slot is available now
+            has_upcoming_available = False
+            for st in scheduled_times:
+                if not st.get('taken', False) and st.get('status') == 'upcoming':
+                    dose_dt = st.get('dose_datetime')
+                    if dose_dt:
+                        time_diff = (now - dose_dt).total_seconds() / 60
+                        if -15 <= time_diff <= 120:
+                            has_upcoming_available = True
+                            availability_reason = f"Dose at {st['time']} available"
+                            break
+            
+            is_available = has_upcoming_available or is_available
+            
             today_medications.append({
                 'id': med.id,
                 'name': med.name,
                 'dosage': med.dosage,
                 'frequency': med.frequency,
                 'instructions': med.instructions,
-                'taken': taken,
-                'is_available': True,  # Can be enhanced later
-                'scheduled_times': scheduled_times if scheduled_times else [{'time': 'Not scheduled', 'period': 'None', 'is_custom': False}]
+                'taken': all_taken,  # True only if ALL doses are taken
+                'any_taken': any_taken,  # True if at least one dose is taken
+                'is_available': is_available and not all_taken,
+                'availability_reason': availability_reason if not all_taken else "All doses taken",
+                'scheduled_times': scheduled_times if scheduled_times else [{'time': 'Not scheduled', 'period': 'None', 'is_custom': False, 'taken': False, 'status': 'upcoming'}]
             })
             
         # Get upcoming medications with proper timing
         now = datetime.now()
         upcoming_medications = []
             
-        # If there's an active snooze, add it to upcoming
-        if active_snooze:
-            # Convert UTC snooze time to local time for correct display and sorting
-            # active_snooze.snooze_until is stored in UTC
-            utc_now = datetime.utcnow()
-            local_now = datetime.now()
-            time_diff = local_now - utc_now
-            local_snooze_time = active_snooze.snooze_until + time_diff
-            
+        # Get ALL active snoozes for this user (using local time since snoozes are stored in local time)
+        active_snoozes = SnoozeLog.query.filter(
+            SnoozeLog.user_id == current_user.id, 
+            SnoozeLog.snooze_until > now  # Use local time consistently
+        ).all()
+        snoozed_med_ids = [s.medication_id for s in active_snoozes]
+
+        # Add snoozed items to upcoming list
+        for snooze in active_snoozes:
+            # Snooze is stored in local time, so use it directly
             snooze_info = {
-                'name': active_snooze.medication.name if active_snooze.medication else 'Medication',
-                'dosage': active_snooze.medication.dosage if active_snooze.medication else 'Unknown dosage',
-                'time': local_snooze_time,
+                'name': snooze.medication.name if snooze.medication else 'Medication',
+                'dosage': snooze.medication.dosage if snooze.medication else 'Unknown dosage',
+                'time': snooze.snooze_until,
                 'period': 'Snooze',
                 'is_custom': False,
                 'is_snooze': True,
-                'snooze_until': local_snooze_time.isoformat()
+                'snooze_until': snooze.snooze_until.isoformat()
             }
             upcoming_medications.append(snooze_info)
 
@@ -131,17 +232,24 @@ def dashboard():
                 # Only check if dose is today (or past)
                 if isinstance(dose_time, datetime) and dose_time.date() <= now.date():
                     for log in med_logs:
-                        # If log is within -2 hours to +2 hours of dose time?
-                        # This handles taking it early, or late.
-                        # And ensures we don't match morning log to evening dose (unless they are < 2 hours apart)
-                        margin = timedelta(hours=2)
-                        # Ensure log.taken_at is aware/naive consistent with dose_time
-                        # Usually both are naive local time in this app context
-                        if (dose_time - margin) <= log.taken_at <= (dose_time + margin):
-                            is_taken = True
-                            break
+                        # Prefer matching against scheduled_time (exact match with 5-min tolerance)
+                        if log.scheduled_time:
+                            margin = timedelta(minutes=5)
+                            if abs(dose_time - log.scheduled_time) <= margin:
+                                is_taken = True
+                                break
+                        else:
+                            # Legacy fallback for logs without scheduled_time (old 2-hour margin)
+                            margin = timedelta(hours=2)
+                            if (dose_time - margin) <= log.taken_at <= (dose_time + margin):
+                                is_taken = True
+                                break
                 
                 if not is_taken:
+                    # If this is ANY snoozed med, SKIP IT (it's already added at top)
+                    if med.id in snoozed_med_ids:
+                        continue
+                        
                     all_doses.append({
                         'id': med.id,
                         'name': med.name,
@@ -165,8 +273,105 @@ def dashboard():
         # Count taken and missed
         taken_count = len([log for log in total_logs if log.taken_correctly])
         missed_count = len([log for log in total_logs if not log.taken_correctly])
+        
+        # ======== NEW: Dashboard State Calculation ========
+        # Determine if user needs to take medication NOW
+        dashboard_state = 'calm'  # Default: no medication due
+        current_medication = None  # The medication that needs action NOW
+        next_medication = None  # The next upcoming medication
+        
+        now = datetime.now()
+        
+        # Build today's schedule (simple list of all doses with status)
+        today_schedule = []
+        for med in medications:
+            if med.custom_reminder_times:
+                try:
+                    times = json.loads(med.custom_reminder_times)
+                    med_logs = [l for l in today_logs if l.medication_id == med.id]
+                    
+                    for time_str in times:
+                        try:
+                            parts = time_str.split(':')
+                            dose_time = datetime(now.year, now.month, now.day, int(parts[0]), int(parts[1]))
+                            
+                            # Check if taken
+                            is_taken = False
+                            for log in med_logs:
+                                if log.scheduled_time and log.taken_correctly:
+                                    if abs(dose_time - log.scheduled_time) <= timedelta(minutes=5):
+                                        is_taken = True
+                                        break
+                            
+                            # Determine status
+                            if is_taken:
+                                status = 'taken'
+                            elif dose_time < now - timedelta(minutes=15):
+                                status = 'missed'
+                            elif dose_time <= now + timedelta(minutes=15):
+                                status = 'due'
+                            else:
+                                status = 'upcoming'
+                            
+                            today_schedule.append({
+                                'id': med.id,
+                                'name': med.name,
+                                'dosage': med.dosage,
+                                'time': time_str,
+                                'time_display': dose_time.strftime('%I:%M %p'),
+                                'dose_datetime': dose_time,
+                                'status': status,
+                                'instructions': med.instructions
+                            })
+                        except:
+                            pass
+                except:
+                    pass
+        
+        # Sort schedule by time
+        today_schedule.sort(key=lambda x: x.get('dose_datetime', now))
+        
+        # Find current medication (due now) and next medication
+        for dose in today_schedule:
+            if dose['status'] == 'due':
+                dashboard_state = 'due'
+                current_medication = dose
+                break
+            elif dose['status'] == 'missed' and not current_medication:
+                dashboard_state = 'overdue'
+                current_medication = dose
+        
+        # Find next upcoming medication
+        for dose in today_schedule:
+            if dose['status'] == 'upcoming':
+                next_medication = dose
+                break
+        
+        # If current is overdue but there's also a due one, prioritize due
+        if dashboard_state == 'overdue':
+            for dose in today_schedule:
+                if dose['status'] == 'due':
+                    dashboard_state = 'due'
+                    current_medication = dose
+                    break
+        
+        # Calculate time until next medication
+        time_until_next = None
+        if next_medication and next_medication.get('dose_datetime'):
+            delta = next_medication['dose_datetime'] - now
+            if delta.total_seconds() > 0:
+                hours, remainder = divmod(int(delta.total_seconds()), 3600)
+                minutes, seconds = divmod(remainder, 60)
+                time_until_next = f"{hours}h {minutes}m"
             
         return render_template('senior/dashboard.html',
+                             # New simplified data
+                             dashboard_state=dashboard_state,
+                             current_medication=current_medication,
+                             next_medication=next_medication,
+                             today_schedule=today_schedule,
+                             time_until_next=time_until_next,
+                             # Keep some existing data for compatibility
                              upcoming_count=upcoming_count,
                              today_count=today_count,
                              compliance_rate=compliance_rate,
@@ -175,7 +380,7 @@ def dashboard():
                              taken_count=taken_count,
                              missed_count=missed_count,
                              active_snooze=active_snooze.to_dict() if active_snooze else None,
-                             current_medications=medications)  # Add current medications for interaction checker
+                             current_medications=medications)
     else:  # caregiver
         # Get seniors managed by this caregiver
         from app.models.relationship import CaregiverSenior

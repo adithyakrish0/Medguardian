@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}AI Health Insights - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <h2><i class="fas fa-brain text-primary me-2"></i>AI Health Insights</h2>
+        <p class="text-muted">Personalized analysis of your medication adherence powered by AI</p>
+    </div>
+
+    <!-- Generate Button -->
+    <div class="text-center mb-4" id="generateSection">
+        <div class="card shadow-sm">
+            <div class="card-body py-5">
+                <i class="fas fa-robot fa-4x text-primary mb-3"></i>
+                <h4>Get Your Personalized Insights</h4>
+                <p class="text-muted">Our AI will analyze your medication patterns and provide actionable suggestions.
+                </p>
+                <button class="btn btn-primary btn-lg" onclick="generateInsights()" id="generateBtn">
+                    <i class="fas fa-magic me-2"></i>Generate AI Insights
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="text-center py-5 d-none" id="loadingSection">
+        <div class="spinner-grow text-primary me-1"></div>
+        <div class="spinner-grow text-success me-1"></div>
+        <div class="spinner-grow text-info"></div>
+        <h5 class="mt-3">Analyzing your data...</h5>
+        <p class="text-muted">Our AI is generating personalized insights</p>
+    </div>
+
+    <!-- Results -->
+    <div class="d-none" id="resultsSection">
+        <!-- Score Card -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm text-center h-100" id="scoreCard">
+                    <div class="card-body py-4">
+                        <div id="overallScore" class="display-1 fw-bold text-primary">-</div>
+                        <h5>Overall Score</h5>
+                        <p class="text-muted mb-0" id="scoreSummary">Loading...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Key Insights</h5>
+                    </div>
+                    <div class="card-body" id="insightsList">
+                        <!-- Insights will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tips Card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Recommendations</h5>
+            </div>
+            <div class="card-body">
+                <div class="row" id="tipsList">
+                    <!-- Tips will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Regenerate Button -->
+        <div class="text-center">
+            <button class="btn btn-outline-primary" onclick="generateInsights()">
+                <i class="fas fa-redo me-2"></i>Regenerate Insights
+            </button>
+            <a href="{{ url_for('analytics.dashboard') }}" class="btn btn-outline-secondary ms-2">
+                <i class="fas fa-chart-bar me-2"></i>View Analytics
+            </a>
+        </div>
+    </div>
+
+    <!-- Error -->
+    <div class="d-none" id="errorSection">
+        <div class="alert alert-danger">
+            <h5><i class="fas fa-exclamation-circle me-2"></i>Error</h5>
+            <p id="errorMessage"></p>
+            <button class="btn btn-danger" onclick="generateInsights()">Try Again</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function generateInsights() {
+        // Show loading
+        document.getElementById('generateSection').classList.add('d-none');
+        document.getElementById('loadingSection').classList.remove('d-none');
+        document.getElementById('resultsSection').classList.add('d-none');
+        document.getElementById('errorSection').classList.add('d-none');
+
+        fetch('/insights/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loadingSection').classList.add('d-none');
+
+                if (data.success) {
+                    displayInsights(data.data);
+                    document.getElementById('resultsSection').classList.remove('d-none');
+                } else {
+                    document.getElementById('errorMessage').textContent = data.error || 'Failed to generate insights';
+                    document.getElementById('errorSection').classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                document.getElementById('loadingSection').classList.add('d-none');
+                document.getElementById('errorMessage').textContent = error.message;
+                document.getElementById('errorSection').classList.remove('d-none');
+            });
+    }
+
+    function displayInsights(data) {
+        // Score
+        const scoreCard = document.getElementById('scoreCard');
+        const score = data.overall_score || 'B';
+        document.getElementById('overallScore').textContent = score;
+        document.getElementById('scoreSummary').textContent = data.summary || '';
+
+        // Color score card based on grade
+        scoreCard.classList.remove('border-success', 'border-warning', 'border-danger');
+        if (score === 'A') {
+            scoreCard.classList.add('border-success');
+            document.getElementById('overallScore').className = 'display-1 fw-bold text-success';
+        } else if (score === 'B') {
+            scoreCard.classList.add('border-warning');
+            document.getElementById('overallScore').className = 'display-1 fw-bold text-warning';
+        } else {
+            scoreCard.classList.add('border-danger');
+            document.getElementById('overallScore').className = 'display-1 fw-bold text-danger';
+        }
+
+        // Insights
+        const insightsList = document.getElementById('insightsList');
+        insightsList.innerHTML = '';
+
+        (data.insights || []).forEach(insight => {
+            const div = document.createElement('div');
+            const typeClass = insight.type === 'positive' ? 'success' :
+                (insight.type === 'warning' ? 'warning' : 'info');
+            div.className = `alert alert-${typeClass} py-2 mb-2`;
+            div.innerHTML = `
+            <span class="me-2">${insight.icon || '💡'}</span>
+            <strong>${insight.title}</strong>: ${insight.message}
+        `;
+            insightsList.appendChild(div);
+        });
+
+        // Tips
+        const tipsList = document.getElementById('tipsList');
+        tipsList.innerHTML = '';
+
+        (data.tips || []).forEach((tip, index) => {
+            const col = document.createElement('div');
+            col.className = 'col-md-4 mb-2';
+            col.innerHTML = `
+            <div class="d-flex align-items-start">
+                <span class="badge bg-success me-2">${index + 1}</span>
+                <span>${tip}</span>
+            </div>
+        `;
+            tipsList.appendChild(col);
+        });
+    }
+</script>
+{% endblock %}

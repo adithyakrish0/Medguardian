@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Print Medication Schedule - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="text-center mb-4">
+        <h2><i class="fas fa-print text-primary me-2"></i>Print & Share</h2>
+        <p class="text-muted">Generate printable schedules and QR codes for easy medication reference</p>
+    </div>
+
+    <div class="row">
+        <!-- Medication Schedule PDF -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center mb-3"
+                        style="width: 80px; height: 80px;">
+                        <i class="fas fa-file-pdf fa-2x text-white"></i>
+                    </div>
+                    <h5>Medication Schedule</h5>
+                    <p class="text-muted small">
+                        Beautiful PDF with your daily medication times.
+                        Perfect for sticking on the refrigerator!
+                    </p>
+                    <a href="{{ url_for('print_schedule.generate_pdf') }}" class="btn btn-primary">
+                        <i class="fas fa-download me-2"></i>Download PDF
+                    </a>
+                </div>
+                <div class="card-footer bg-light text-center">
+                    <small class="text-muted">📌 Stick on fridge</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- QR Code -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="rounded-circle bg-success d-inline-flex align-items-center justify-content-center mb-3"
+                        style="width: 80px; height: 80px;">
+                        <i class="fas fa-qrcode fa-2x text-white"></i>
+                    </div>
+                    <h5>QR Code</h5>
+                    <p class="text-muted small">
+                        Doctors can scan this to instantly see your medication list.
+                        No need to remember everything!
+                    </p>
+                    <button class="btn btn-success" onclick="showQRCode()">
+                        <i class="fas fa-eye me-2"></i>View QR Code
+                    </button>
+                </div>
+                <div class="card-footer bg-light text-center">
+                    <small class="text-muted">📱 Easy sharing with doctors</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Medical Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="rounded-circle bg-danger d-inline-flex align-items-center justify-content-center mb-3"
+                        style="width: 80px; height: 80px;">
+                        <i class="fas fa-id-card fa-2x text-white"></i>
+                    </div>
+                    <h5>Medical ID Card</h5>
+                    <p class="text-muted small">
+                        Wallet-sized card with QR code and medication list.
+                        Carry it for emergencies!
+                    </p>
+                    <a href="{{ url_for('print_schedule.medical_card') }}" class="btn btn-danger">
+                        <i class="fas fa-download me-2"></i>Download Card
+                    </a>
+                </div>
+                <div class="card-footer bg-light text-center">
+                    <small class="text-muted">💳 Keep in wallet</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Preview Modal -->
+    <div class="card shadow-sm mt-4 d-none" id="qrPreview">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>Your Medical QR Code</h5>
+        </div>
+        <div class="card-body text-center">
+            <img src="{{ url_for('print_schedule.generate_qr') }}" alt="Medical QR Code" class="img-fluid mb-3"
+                style="max-width: 250px;">
+            <p class="text-muted">
+                Show this QR code to doctors or pharmacists.<br>
+                They can scan it to see your complete medication list.
+            </p>
+            <button class="btn btn-outline-success" onclick="downloadQR()">
+                <i class="fas fa-download me-2"></i>Save QR Code
+            </button>
+        </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6><i class="fas fa-lightbulb text-warning me-2"></i>Tips for Seniors</h6>
+                    <ul class="small mb-0">
+                        <li>Print the schedule and put it on your refrigerator</li>
+                        <li>Keep the medical card in your wallet</li>
+                        <li>Show QR code to doctors at appointments</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6><i class="fas fa-user-nurse text-primary me-2"></i>Tips for Caregivers</h6>
+                    <ul class="small mb-0">
+                        <li>Print schedules for each senior you care for</li>
+                        <li>Share QR codes with other family members</li>
+                        <li>Keep a copy of medical cards for emergencies</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showQRCode() {
+        document.getElementById('qrPreview').classList.remove('d-none');
+        document.getElementById('qrPreview').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function downloadQR() {
+        const link = document.createElement('a');
+        link.href = '{{ url_for("print_schedule.generate_qr") }}';
+        link.download = 'medication_qr_code.png';
+        link.click();
+    }
+</script>
+{% endblock %}

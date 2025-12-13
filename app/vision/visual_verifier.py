@@ -1,6 +1,7 @@
 """
 Phase 3: Visual Verification System
 Uses image similarity and OCR when barcodes aren't available (most real-world cases)
+Now integrated with EfficientNet embeddings and CLAHE lighting normalization.
 """
 import cv2
 import numpy as np
@@ -16,21 +17,41 @@ class VisualMedicationVerifier:
         
     def extract_features(self, image: np.ndarray) -> Dict:
         """
-        Extract visual features from medication image
-        Returns features that can identify the medication
+        Extract visual features from medication image.
+        Uses CLAHE preprocessing for lighting normalization.
+        Returns features that can identify the medication.
         """
+        # Apply CLAHE lighting normalization FIRST
+        # Critical for Indian indoor lighting (tube lights, morning/night variations)
+        normalized = self._normalize_lighting(image)
+        
         features = {}
         
-        # 1. Color Histogram (dominant colors)
-        features['color_histogram'] = self._compute_color_histogram(image)
+        # 1. Color Histogram (dominant colors) - on NORMALIZED image
+        features['color_histogram'] = self._compute_color_histogram(normalized)
         
         # 2. Shape features (aspect ratio, size guidance)
-        features['shape'] = self._extract_shape_features(image)
+        features['shape'] = self._extract_shape_features(normalized)
         
         # 3. Text regions (where labels might be)
-        features['text_regions'] = self._detect_text_regions(image)
+        features['text_regions'] = self._detect_text_regions(normalized)
         
         return features
+    
+    def _normalize_lighting(self, image: np.ndarray) -> np.ndarray:
+        """
+        Normalize lighting using CLAHE (same as feature_extractor.py).
+        Handles morning/night, tube light glare, uneven shadows.
+        """
+        try:
+            lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            l_normalized = clahe.apply(l)
+            lab_normalized = cv2.merge([l_normalized, a, b])
+            return cv2.cvtColor(lab_normalized, cv2.COLOR_LAB2BGR)
+        except Exception:
+            return image  # Fallback to original
     
     def _compute_color_histogram(self, image: np.ndarray) -> list:
         """Compute normalized color histogram (identifies bottle by color)"""
