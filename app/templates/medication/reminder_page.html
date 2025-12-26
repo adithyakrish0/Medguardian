@@ -31,7 +31,7 @@
         .reminder-container {
             height: 100vh;
             display: grid;
-            grid-template-columns: 1fr 400px;
+            grid-template-columns: 1fr 380px;
             gap: 0;
         }
 
@@ -147,14 +147,15 @@
 
         /* Right Panel - Glassmorphism */
         .info-panel {
+            width: 380px;
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-left: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 32px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
             overflow: hidden;
             position: relative;
         }
@@ -281,10 +282,9 @@
 
         /* Action Buttons */
         .action-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            /* Two main actions side-by-side */
-            gap: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
             margin-top: auto;
             padding-top: 10px;
             flex-shrink: 0;
@@ -293,7 +293,7 @@
         .btn-action {
             width: 100%;
             padding: 14px;
-            border-radius: 16px;
+            border-radius: 14px;
             font-size: 0.95rem;
             font-weight: 600;
             border: none;
@@ -311,9 +311,8 @@
             filter: brightness(1.1);
         }
 
-        /* Main action - spanning full width */
+        /* Main action - full width */
         .btn-taken {
-            grid-column: span 2;
             background: linear-gradient(135deg, #059669 0%, #10b981 100%);
             color: white;
             box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
@@ -327,16 +326,10 @@
             box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
         }
 
-        .btn-dismiss {
-            background: rgba(255, 255, 255, 0.05);
+        .btn-skip {
+            background: rgba(255, 255, 255, 0.08);
             color: rgba(255, 255, 255, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .btn-skip {
-            grid-column: span 2;
-            /* Full width at bottom */
-            background: transparent;
             color: rgba(248, 113, 113, 0.8);
             border: 1px solid rgba(248, 113, 113, 0.2);
             font-size: 0.9rem;
@@ -387,18 +380,17 @@
 
         <!-- Right: Info Panel -->
         <div class="info-panel">
-            <!-- Header -->
-            <div class="reminder-header">
-                <h2>Time for Medication</h2>
-            </div>
-
-            <!-- Medication Info -->
+            <!-- Medication Info (Combined Header + Card) -->
             <div class="med-info">
+                <div
+                    style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #93c5fd; margin-bottom: 12px;">
+                    ⏰ Time for Medication
+                </div>
                 <div class="med-name">{{ medication.name }}</div>
                 <div class="med-dosage">{{ medication.dosage }}</div>
                 {% if medication.instructions %}
-                <div class="med-time" style="margin-top: 8px; background: transparent; padding: 0;">
-                    <small style="opacity: 0.7">{{ medication.instructions }}</small>
+                <div style="margin-top: 8px; font-size: 0.85rem; opacity: 0.7;">
+                    {{ medication.instructions }}
                 </div>
                 {% endif %}
                 <div class="med-time">
@@ -407,35 +399,11 @@
                 </div>
             </div>
 
-            <!-- Live Detection Info -->
-            <div class="detection-panel" id="detectionPanel">
-                <h6>
-                    <i class="fas fa-robot"></i>
-                    AI Analysis
-                </h6>
-                <div class="detection-row">
-                    <span>Objects Detected</span>
-                    <span class="value" id="objectCount">0</span>
-                </div>
-                <div class="detection-row">
-                    <span>Confidence</span>
-                    <span class="value" id="confidenceValue">--</span>
-                </div>
-                <div class="detection-row">
-                    <span>AI Match</span>
-                    <span class="value" id="aiMatchValue">--</span>
-                </div>
-                <div class="detection-row">
-                    <span>Method</span>
-                    <span class="value" id="methodValue">--</span>
-                </div>
-            </div>
-
-            <!-- Verification Status -->
+            <!-- Compact Verification Status -->
             <div class="verification-status scanning" id="verificationStatus">
                 <div class="status-text">
                     <i class="fas fa-circle-notch fa-spin" id="statusIcon"></i>
-                    <span id="verificationMessage">Initializing camera...</span>
+                    <span id="verificationMessage">Show medication to camera...</span>
                 </div>
             </div>
 
@@ -444,30 +412,32 @@
                 <div id="verificationAlert"></div>
             </div>
             <div id="detectionStatus" style="display: none;"></div>
+            <div id="detectionPanel" style="display: none;">
+                <span id="objectCount">0</span>
+                <span id="confidenceValue">--</span>
+                <span id="aiMatchValue">--</span>
+                <span id="methodValue">--</span>
+            </div>
 
-            <!-- Action Buttons -->
+            <!-- Action Buttons (Simplified to 3) -->
             <div class="action-buttons">
                 <!-- Primary Action -->
                 <button class="btn-action btn-taken" onclick="markTaken()">
                     <i class="fas fa-check-circle"></i>
-                    I've Taken It
+                    ✅ I've Taken It
                 </button>
 
-                <!-- Secondary Actions -->
-                <button class="btn-action btn-snooze" onclick="snooze()">
-                    <i class="fas fa-clock"></i>
-                    Snooze (5m)
-                </button>
-                <button class="btn-action btn-dismiss" onclick="dismiss()">
-                    <i class="fas fa-history"></i>
-                    Remind Later (15m)
-                </button>
-
-                <!-- Tertiary Action -->
-                <button class="btn-action btn-skip" onclick="skipDose()">
-                    <i class="fas fa-ban"></i>
-                    Skip This Dose
-                </button>
+                <!-- Secondary Actions (Side by Side) -->
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-action btn-snooze" style="flex: 1;" onclick="snooze()">
+                        <i class="fas fa-clock"></i>
+                        ⏰ Snooze
+                    </button>
+                    <button class="btn-action btn-skip" style="flex: 1;" onclick="skipDose()">
+                        <i class="fas fa-times"></i>
+                        ⏭️ Skip
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -780,17 +750,28 @@
                 updateVerificationStatus('Camera active - show medication', 'scanning');
                 statusText.textContent = 'Scanning...';
 
+                // Initialize AR overlay NOW that camera is ready
+                const canvas = document.getElementById('detectionOverlay');
+                if (typeof MedicationAROverlay !== 'undefined' && canvas) {
+                    window.arOverlay = new MedicationAROverlay(video, canvas);
+                    window.arOverlay.start();
+                    console.log("✅ AR Overlay initialized!");
+                } else {
+                    console.warn("⚠️ AR Overlay not available");
+                }
+
                 // Now start auto verification with the camera already running
                 if (window.medicationAutoVerifier) {
                     // Camera already started, so we just need to set the stream
                     window.medicationAutoVerifier.cameraStream = stream;
                     window.medicationAutoVerifier.currentMedicationId = medicationId;
                     window.medicationAutoVerifier.isVerifying = false;
+                    window.medicationAutoVerifier.arOverlay = window.arOverlay; // Link AR overlay
 
                     // Start periodic verification
                     window.medicationAutoVerifier.verificationInterval = setInterval(() => {
                         window.medicationAutoVerifier.captureAndVerify();
-                    }, 3000);
+                    }, 2000);
 
                     console.log("🔄 Verification loop started");
                 }

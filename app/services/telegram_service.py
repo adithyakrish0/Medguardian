@@ -110,14 +110,18 @@ If you've taken it, reply /taken
         link_code = f"link_{user_id}"
         return f"https://t.me/{self.bot_username}?start={link_code}"
     
-    def get_updates(self):
-        """Get new messages (for webhook or polling)"""
+    def get_updates(self, offset=None):
+        """Get new messages from Telegram with offset tracking"""
         if not self.is_configured():
             return []
         
         try:
             url = f"{self.base_url}/getUpdates"
-            response = requests.get(url, timeout=10)
+            params = {'timeout': 5}
+            if offset:
+                params['offset'] = offset
+            
+            response = requests.get(url, params=params, timeout=15)
             result = response.json()
             
             if result.get('ok'):
@@ -126,6 +130,86 @@ If you've taken it, reply /taken
         except Exception as e:
             print(f"Failed to get updates: {e}")
             return []
+    
+    def process_update(self, update):
+        """Process a single Telegram update"""
+        try:
+            message = update.get('message', {})
+            text = message.get('text', '')
+            chat_id = message.get('chat', {}).get('id')
+            
+            if not text or not chat_id:
+                return
+            
+            if text.startswith('/start'):
+                parts = text.split(' ')
+                if len(parts) > 1 and parts[1].startswith('link_'):
+                    # Link account
+                    try:
+                        user_id = int(parts[1].replace('link_', ''))
+                        from app.models.auth import User
+                        from app.extensions import db
+                        
+                        user = User.query.get(user_id)
+                        if user:
+                            user.telegram_chat_id = str(chat_id)
+                            db.session.commit()
+                            
+                            self.send_message(
+                                chat_id,
+                                f"✅ <b>Account Linked!</b>\n\n"
+                                f"Hello {user.username}! Your MedGuardian account is now connected.\n\n"
+                                f"You will receive:\n"
+                                f"• 💊 Medication reminders\n"
+                                f"• 🆘 Emergency SOS alerts\n\n"
+                                f"Commands:\n"
+                                f"/status - Check your medications\n"
+                                f"/help - Get help"
+                            )
+                            print(f"✅ Telegram linked: user {user_id} -> chat {chat_id}")
+                            return
+                    except Exception as e:
+                        print(f"Link error: {e}")
+                
+                # Regular /start
+                self.send_message(
+                    chat_id,
+                    "👋 <b>Welcome to MedGuardian!</b>\n\n"
+                    "To receive medication reminders, please link your account through the MedGuardian website.\n\n"
+                    "Go to: Settings → Telegram → Link Account"
+                )
+            
+            elif text == '/help':
+                self.send_message(
+                    chat_id,
+                    "📖 <b>MedGuardian Bot Help</b>\n\n"
+                    "/start - Start the bot\n"
+                    "/status - Check your medication status\n"
+                    "/help - Show this help\n\n"
+                    "You will automatically receive:\n"
+                    "• Medication reminders\n"
+                    "• Emergency alerts\n"
+                    "• Missed dose notifications"
+                )
+            
+            elif text == '/status':
+                from app.models.auth import User
+                user = User.query.filter_by(telegram_chat_id=str(chat_id)).first()
+                
+                if user:
+                    from app.models.medication import Medication
+                    meds = Medication.query.filter_by(user_id=user.id).all()
+                    
+                    if meds:
+                        med_list = "\n".join([f"• {m.name} ({m.dosage})" for m in meds])
+                        self.send_message(chat_id, f"💊 <b>Your Medications</b>\n\n{med_list}")
+                    else:
+                        self.send_message(chat_id, "📭 You don't have any medications registered yet.")
+                else:
+                    self.send_message(chat_id, "❌ Your account is not linked. Please link through MedGuardian website.")
+                    
+        except Exception as e:
+            print(f"Error processing update: {e}")
 
 
 # Singleton instance
@@ -135,3 +219,35 @@ telegram_service = TelegramService()
 def send_telegram_notification(chat_id, message):
     """Helper function to send telegram message"""
     return telegram_service.send_message(chat_id, message)
+
+
+def start_telegram_polling(app):
+    """Start background polling for Telegram updates (for local development)"""
+    import threading
+    import time
+    
+    def poll_loop():
+        offset = None
+        print("📡 Telegram polling started...")
+        
+        while True:
+            try:
+                with app.app_context():
+                    updates = telegram_service.get_updates(offset)
+                    
+                    for update in updates:
+                        telegram_service.process_update(update)
+                        # Update offset to mark this message as processed
+                        offset = update.get('update_id', 0) + 1
+                
+                time.sleep(2)  # Poll every 2 seconds
+            except Exception as e:
+                print(f"Polling error: {e}")
+                time.sleep(5)
+    
+    if telegram_service.is_configured():
+        thread = threading.Thread(target=poll_loop, daemon=True)
+        thread.start()
+        print("✅ Telegram polling thread started")
+    else:
+        print("⚠️ Telegram not configured, polling disabled")
