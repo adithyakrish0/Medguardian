@@ -5,51 +5,103 @@
 {% block head %}
 {{ super() }}
 <style>
-    /* Senior-Friendly Simplified Dashboard */
+    /* Compact Senior-Friendly Dashboard - Minimal Scrolling */
     .senior-dashboard {
-        font-size: 1.2rem;
-        max-width: 800px;
+        font-size: 1.1rem;
+        max-width: 700px;
         margin: 0 auto;
-        padding: 1.5rem;
+        padding: 1rem;
     }
 
+    /* Compact Welcome Header */
     .welcome-header {
-        text-align: center;
-        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 1rem 1.25rem;
+        color: white;
+        margin-bottom: 1rem;
     }
 
-    .welcome-header h1 {
-        font-size: 1.8rem;
+    .welcome-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .greeting-icon {
+        font-size: 2rem;
+    }
+
+    .greeting-text h1 {
+        font-size: 1.3rem;
         font-weight: 600;
-        color: #333;
+        margin: 0;
+        color: white;
     }
 
-    /* Main Alert Card */
-    .alert-card {
+    .greeting-text .date {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+
+    /* Compact Progress Summary - Inline */
+    .progress-summary {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .progress-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.35rem 0.6rem;
         border-radius: 20px;
-        padding: 2rem;
-        margin-bottom: 2rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .progress-badge.taken {
+        background: rgba(40, 167, 69, 0.3);
+    }
+
+    .progress-badge.remaining {
+        background: rgba(255, 193, 7, 0.3);
+    }
+
+    .progress-badge.missed {
+        background: rgba(220, 53, 69, 0.3);
+    }
+
+    /* Compact Alert Card */
+    .alert-card {
+        border-radius: 16px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
         text-align: center;
     }
 
     .alert-calm {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        border: 3px solid #28a745;
+        background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+        color: white;
     }
 
     .alert-due {
-        background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
-        border: 3px solid #ffc107;
-        animation: pulse-attention 2s infinite;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        animation: pulse 2s infinite;
     }
 
     .alert-overdue {
-        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-        border: 3px solid #dc3545;
-        animation: pulse-urgent 1s infinite;
+        background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        color: white;
+        animation: pulse 1s infinite;
     }
 
-    @keyframes pulse-attention {
+    @keyframes pulse {
 
         0%,
         100% {
@@ -61,159 +113,187 @@
         }
     }
 
-    @keyframes pulse-urgent {
-
-        0%,
-        100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
-        }
-
-        50% {
-            transform: scale(1.02);
-            box-shadow: 0 0 20px 5px rgba(220, 53, 69, 0.3);
-        }
+    .alert-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
     }
 
     .alert-icon {
-        font-size: 4rem;
+        font-size: 2.5rem;
+    }
+
+    .alert-text .alert-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .alert-text .alert-subtitle {
+        font-size: 1rem;
+        opacity: 0.95;
+    }
+
+    /* Next Medication (Compact) */
+    .next-med-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1rem;
         margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 2px solid #e9ecef;
     }
 
-    .alert-title {
+    .next-med-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .next-med-info .med-icon {
         font-size: 1.8rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
     }
 
-    .alert-subtitle {
-        font-size: 1.2rem;
-        color: #555;
-    }
-
-    /* Medication Card */
-    .med-card {
-        background: white;
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin: 1.5rem 0;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        border-left: 6px solid #667eea;
-    }
-
-    .med-name {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #333;
-    }
-
-    .med-dosage {
-        font-size: 1.3rem;
-        color: #666;
-        margin-bottom: 0.5rem;
-    }
-
-    .med-instructions {
+    .next-med-info .med-details .med-name {
         font-size: 1.1rem;
-        color: #888;
-        font-style: italic;
+        font-weight: 600;
+    }
+
+    .next-med-info .med-details .med-time {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+
+    .countdown-badge {
+        font-size: 1.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    /* Current Medication Card (When Due) */
+    .current-med-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border-left: 5px solid #667eea;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .current-med-card .med-icon {
+        font-size: 2rem;
+    }
+
+    .current-med-card .med-details {
+        flex: 1;
+    }
+
+    .current-med-card .med-name {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .current-med-card .med-dosage {
+        font-size: 1rem;
+        color: #667eea;
+        font-weight: 600;
+    }
+
+    .current-med-card .med-instructions {
+        font-size: 0.9rem;
+        color: #6c757d;
     }
 
     /* Action Buttons */
     .action-btn-primary {
         display: block;
         width: 100%;
-        padding: 1.5rem 2rem;
-        font-size: 1.5rem;
+        padding: 1rem;
+        font-size: 1.2rem;
         font-weight: 700;
         border: none;
-        border-radius: 16px;
+        border-radius: 12px;
         cursor: pointer;
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
         text-decoration: none;
         text-align: center;
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
     }
 
-    .btn-verify {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
-    }
-
-    .btn-verify:hover {
-        background: linear-gradient(135deg, #218838 0%, #1aa179 100%);
-        color: white;
+    .action-btn-primary:hover {
         transform: translateY(-2px);
+        color: white;
+    }
+
+    .secondary-actions {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
     }
 
     .action-btn-secondary {
-        display: inline-block;
-        padding: 1rem 1.5rem;
-        font-size: 1.1rem;
+        padding: 0.6rem 1rem;
+        font-size: 0.95rem;
         font-weight: 600;
         border: 2px solid #6c757d;
-        border-radius: 12px;
+        border-radius: 10px;
         cursor: pointer;
         text-decoration: none;
-        text-align: center;
         background: white;
         color: #6c757d;
-        margin: 0.25rem;
     }
 
     .action-btn-secondary:hover {
-        background: #f8f9fa;
-        color: #495057;
+        background: #6c757d;
+        color: white;
     }
 
-    /* Countdown */
-    .countdown-section {
-        text-align: center;
-        padding: 1.5rem;
-        background: #f8f9fa;
-        border-radius: 16px;
-        margin-bottom: 2rem;
-    }
-
-    .countdown-label {
-        font-size: 1rem;
-        color: #666;
-        margin-bottom: 0.5rem;
-    }
-
-    .countdown-time {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #333;
-    }
-
-    .countdown-med {
-        font-size: 1.2rem;
-        color: #667eea;
-        margin-top: 0.5rem;
-    }
-
-    /* Today's Schedule */
+    /* Compact Schedule Section */
     .schedule-section {
-        margin-top: 2rem;
+        margin-top: 0.75rem;
+    }
+
+    .schedule-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
     }
 
     .schedule-title {
-        font-size: 1.3rem;
+        font-size: 1rem;
         font-weight: 600;
         color: #333;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
+    }
+
+    .view-all-link {
+        font-size: 0.85rem;
+        color: #667eea;
+        text-decoration: none;
     }
 
     .schedule-item {
         display: flex;
         align-items: center;
-        padding: 1rem;
-        border-radius: 12px;
-        margin-bottom: 0.75rem;
+        padding: 0.6rem 0.75rem;
+        border-radius: 10px;
+        margin-bottom: 0.5rem;
         background: white;
-        border: 2px solid #e9ecef;
+        border: 1px solid #e9ecef;
     }
 
     .schedule-item.taken {
@@ -232,34 +312,32 @@
     }
 
     .schedule-item.upcoming {
-        background: #e9ecef;
-        border-color: #6c757d;
+        background: #f8f9fa;
     }
 
-    .schedule-status-icon {
-        font-size: 1.5rem;
-        margin-right: 1rem;
-        width: 40px;
+    .schedule-icon {
+        font-size: 1.2rem;
+        width: 30px;
         text-align: center;
     }
 
     .schedule-time {
-        font-size: 1.2rem;
+        font-size: 0.95rem;
         font-weight: 600;
-        min-width: 100px;
+        min-width: 75px;
     }
 
-    .schedule-med-name {
-        font-size: 1.1rem;
-        color: #333;
-        flex-grow: 1;
+    .schedule-med {
+        flex: 1;
+        font-size: 0.95rem;
     }
 
-    .schedule-status-text {
-        font-size: 0.9rem;
+    .schedule-status {
+        font-size: 0.75rem;
         font-weight: 600;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        text-transform: uppercase;
     }
 
     .status-taken {
@@ -281,157 +359,244 @@
         background: #6c757d;
         color: white;
     }
+
+    /* Compact Quick Actions */
+    .quick-actions {
+        display: flex;
+        justify-content: center;
+        gap: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e9ecef;
+        margin-top: 0.75rem;
+    }
+
+    .quick-action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        text-decoration: none;
+        color: #495057;
+        font-size: 0.8rem;
+        min-width: 70px;
+    }
+
+    .quick-action-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .quick-action-btn .action-icon {
+        font-size: 1.3rem;
+    }
+
+    .quick-action-btn .action-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="senior-dashboard">
-    <!-- Welcome Header -->
+    <!-- Compact Welcome Header with Progress -->
     <div class="welcome-header">
-        <h1>👋 Hello, {{ current_user.username }}!</h1>
+        <div class="welcome-left">
+            <span class="greeting-icon">
+                {% set hour = now_hour|default(12) %}
+                {% if hour < 12 %}☀️{% elif hour < 17 %}🌤️{% elif hour < 20 %}🌅{% else %}🌙{% endif %} </span>
+                    <div class="greeting-text">
+                        <h1>{% if hour < 12 %}Good Morning{% elif hour < 17 %}Good Afternoon{% elif hour < 20 %}Good
+                                Evening{% else %}Good Night{% endif %}, {{ current_user.username }}!</h1>
+                                <div class="date">{{ today_date }}</div>
+                    </div>
+        </div>
+        {% if today_schedule %}
+        {% set taken_count = today_schedule|selectattr('status', 'equalto', 'taken')|list|length %}
+        {% set remaining_count = today_schedule|selectattr('status', 'in', ['upcoming', 'due'])|list|length %}
+        <div class="progress-summary">
+            <span class="progress-badge taken">✅ {{ taken_count }}</span>
+            <span class="progress-badge remaining">⏳ {{ remaining_count }}</span>
+        </div>
+        {% endif %}
     </div>
 
-    <!-- Main Alert Card - Changes based on state -->
+    <!-- Main Alert Card -->
     {% if dashboard_state == 'calm' %}
-    <!-- CALM STATE: No medication due -->
     <div class="alert-card alert-calm">
-        <div class="alert-icon">✅</div>
-        <div class="alert-title">You're All Caught Up!</div>
-        <div class="alert-subtitle">No medication due right now</div>
+        <div class="alert-content">
+            <span class="alert-icon">🎉</span>
+            <div class="alert-text">
+                <div class="alert-title">All Caught Up!</div>
+                <div class="alert-subtitle">No medication due right now</div>
+            </div>
+        </div>
     </div>
 
     {% if next_medication %}
-    <div class="countdown-section">
-        <div class="countdown-label">Next medication in:</div>
-        <div class="countdown-time">{{ time_until_next or 'Soon' }}</div>
-        <div class="countdown-med">
-            <i class="fas fa-pills"></i> {{ next_medication.name }} ({{ next_medication.dosage }})
-            at {{ next_medication.time_display }}
+    <div class="next-med-card">
+        <div class="next-med-info">
+            <span class="med-icon">💊</span>
+            <div class="med-details">
+                <div class="med-name">{{ next_medication.name }}</div>
+                <div class="med-time">at {{ next_medication.time_display }}</div>
+            </div>
         </div>
+        <div class="countdown-badge">{{ time_until_next or 'Soon' }}</div>
     </div>
     {% endif %}
 
     {% elif dashboard_state == 'due' %}
-    <!-- DUE STATE: Medication due now -->
     <div class="alert-card alert-due">
-        <div class="alert-icon">🔔</div>
-        <div class="alert-title">Time to Take Your Medication!</div>
-        <div class="alert-subtitle">Due at {{ current_medication.time_display }}</div>
+        <div class="alert-content">
+            <span class="alert-icon">🔔</span>
+            <div class="alert-text">
+                <div class="alert-title">Time to Take Medication!</div>
+                <div class="alert-subtitle">Due at {{ current_medication.time_display }}</div>
+            </div>
+        </div>
     </div>
 
-    <div class="med-card">
-        <div class="med-name">💊 {{ current_medication.name }}</div>
-        <div class="med-dosage">{{ current_medication.dosage }}</div>
-        {% if current_medication.instructions %}
-        <div class="med-instructions">📋 {{ current_medication.instructions }}</div>
-        {% endif %}
+    <div class="current-med-card">
+        <span class="med-icon">💊</span>
+        <div class="med-details">
+            <div class="med-name">{{ current_medication.name }}</div>
+            <div class="med-dosage">{{ current_medication.dosage }}</div>
+            {% if current_medication.instructions %}
+            <div class="med-instructions">{{ current_medication.instructions }}</div>
+            {% endif %}
+        </div>
     </div>
 
     <a href="{{ url_for('medication.medication_reminder_page', medication_id=current_medication.id) }}"
-        class="action-btn-primary btn-verify">
+        class="action-btn-primary">
         ✅ VERIFY & TAKE NOW
     </a>
 
-    <div class="text-center">
-        <a href="{{ url_for('snooze.snooze_medication', medication_id=current_medication.id) }}?duration=10"
-            class="action-btn-secondary">
-            ⏰ Snooze 10 min
-        </a>
+    <div class="secondary-actions">
+        <button type="button" class="action-btn-secondary" onclick="snoozeDose({{ current_medication.id }})">⏰
+            Snooze</button>
         <button type="button" class="action-btn-secondary" onclick="skipDose({{ current_medication.id }})">
-            ⏭️ Skip Dose
+            ⏭️ Skip
         </button>
     </div>
 
-    <script>
-        function skipDose(medId) {
-            if (!confirm('Are you sure you want to skip this dose?')) return;
-
-            fetch('/medication/skip-dose/' + medId, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({})
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Dose skipped successfully!');
-                        window.location.reload();
-                    } else {
-                        alert('Error: ' + (data.error || 'Unknown error'));
-                    }
-                })
-                .catch(err => {
-                    alert('Error skipping dose: ' + err);
-                });
-        }
-    </script>
-
-
     {% elif dashboard_state == 'overdue' %}
-    <!-- OVERDUE STATE: Medication past due -->
     <div class="alert-card alert-overdue">
-        <div class="alert-icon">⚠️</div>
-        <div class="alert-title">Medication Overdue!</div>
-        <div class="alert-subtitle">Was due at {{ current_medication.time_display }}</div>
+        <div class="alert-content">
+            <span class="alert-icon">⚠️</span>
+            <div class="alert-text">
+                <div class="alert-title">Medication Overdue!</div>
+                <div class="alert-subtitle">Was due at {{ current_medication.time_display }}</div>
+            </div>
+        </div>
     </div>
 
-    <div class="med-card">
-        <div class="med-name">💊 {{ current_medication.name }}</div>
-        <div class="med-dosage">{{ current_medication.dosage }}</div>
-        {% if current_medication.instructions %}
-        <div class="med-instructions">📋 {{ current_medication.instructions }}</div>
-        {% endif %}
+    <div class="current-med-card">
+        <span class="med-icon">💊</span>
+        <div class="med-details">
+            <div class="med-name">{{ current_medication.name }}</div>
+            <div class="med-dosage">{{ current_medication.dosage }}</div>
+        </div>
     </div>
 
     <a href="{{ url_for('medication.medication_reminder_page', medication_id=current_medication.id) }}"
-        class="action-btn-primary btn-verify">
+        class="action-btn-primary">
         ✅ TAKE NOW
     </a>
 
-    <div class="text-center">
+    <div class="secondary-actions">
         <button type="button" class="action-btn-secondary" onclick="skipDose({{ current_medication.id }})">
-            ⏭️ Skip This Dose
+            ⏭️ Skip
         </button>
     </div>
     {% endif %}
 
-    <!-- Today's Schedule -->
+    <!-- Compact Schedule (Show only next 4) -->
     {% if today_schedule %}
     <div class="schedule-section">
-        <div class="schedule-title">
-            <i class="fas fa-calendar-day me-2"></i> Today's Schedule
+        <div class="schedule-header">
+            <span class="schedule-title">📅 Today's Schedule</span>
+            <a href="{{ url_for('medication.list_medications') }}" class="view-all-link">View All →</a>
         </div>
 
-        {% for dose in today_schedule %}
+        {% for dose in today_schedule[:4] %}
         <div class="schedule-item {{ dose.status }}">
-            <div class="schedule-status-icon">
-                {% if dose.status == 'taken' %}✅
-                {% elif dose.status == 'missed' %}❌
-                {% elif dose.status == 'due' %}🔔
-                {% else %}⏰
-                {% endif %}
-            </div>
-            <div class="schedule-time">{{ dose.time_display }}</div>
-            <div class="schedule-med-name">{{ dose.name }} ({{ dose.dosage }})</div>
-            <span class="schedule-status-text status-{{ dose.status }}">
-                {% if dose.status == 'taken' %}Done
-                {% elif dose.status == 'missed' %}Missed
-                {% elif dose.status == 'due' %}Take Now
-                {% else %}Upcoming
-                {% endif %}
+            <span class="schedule-icon">
+                {% if dose.status == 'taken' %}✅{% elif dose.status == 'missed' %}❌{% elif dose.status == 'due' %}🔔{%
+                else %}⏰{% endif %}
+            </span>
+            <span class="schedule-time">{{ dose.time_display }}</span>
+            <span class="schedule-med">{{ dose.name }}</span>
+            <span class="schedule-status status-{{ dose.status }}">
+                {% if dose.status == 'taken' %}Done{% elif dose.status == 'missed' %}Missed{% elif dose.status == 'due'
+                %}Now{% else %}Later{% endif %}
             </span>
         </div>
         {% endfor %}
+
+        {% if today_schedule|length > 4 %}
+        <div style="text-align: center; padding: 0.5rem; color: #6c757d; font-size: 0.85rem;">
+            +{{ today_schedule|length - 4 }} more scheduled
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
-    <!-- Hidden compatibility data for existing JS -->
+    <!-- Compact Quick Actions -->
+    <div class="quick-actions">
+        <a href="{{ url_for('medication.list_medications') }}" class="quick-action-btn">
+            <span class="action-icon">💊</span>
+            <span class="action-label">Meds</span>
+        </a>
+        <a href="{{ url_for('emergency.sos') }}" class="quick-action-btn">
+            <span class="action-icon">🆘</span>
+            <span class="action-label">SOS</span>
+        </a>
+        <a href="{{ url_for('print_schedule.schedule_page') }}" class="quick-action-btn">
+            <span class="action-icon">📋</span>
+            <span class="action-label">Print</span>
+        </a>
+        <a href="{{ url_for('interaction.check_interactions') }}" class="quick-action-btn">
+            <span class="action-icon">⚕️</span>
+            <span class="action-label">Check</span>
+        </a>
+    </div>
+
     <script>
         window.upcomingMedications = {{ upcoming_medications | tojson | safe }};
         window.nextMedicationId = {{ current_medication.id if current_medication else 'null' }};
+
+        function skipDose(medId) {
+            if (!confirm('Skip this dose?')) return;
+            fetch('/medication/skip-dose/' + medId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                body: JSON.stringify({})
+            })
+                .then(r => r.json())
+                .then(d => { if (d.success) { alert('Skipped!'); location.reload(); } else { alert('Error: ' + d.error); } })
+                .catch(e => alert('Error: ' + e));
+        }
+
+        function snoozeDose(medId) {
+            if (!confirm('Snooze this medication for 10 minutes?')) return;
+            fetch('/snooze/create-snooze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                body: JSON.stringify({
+                    medication_id: medId,
+                    snooze_duration_minutes: 10,
+                    original_medication_time: new Date().toISOString()
+                })
+            })
+                .then(r => r.json())
+                .then(d => { if (d.success) { alert('Snoozed for 10 minutes!'); location.reload(); } else { alert('Error: ' + d.message); } })
+                .catch(e => alert('Error: ' + e));
+        }
     </script>
 </div>
 {% endblock %}

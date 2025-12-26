@@ -371,6 +371,9 @@ def dashboard():
                              next_medication=next_medication,
                              today_schedule=today_schedule,
                              time_until_next=time_until_next,
+                             # Time-based greeting data
+                             now_hour=now.hour,
+                             today_date=now.strftime('%A, %B %d, %Y'),
                              # Keep some existing data for compatibility
                              upcoming_count=upcoming_count,
                              today_count=today_count,

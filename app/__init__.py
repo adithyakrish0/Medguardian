@@ -163,6 +163,13 @@ def create_app(config_name=None):
         from app.utils.scheduler_init import init_scheduler
         init_scheduler(app)
     
+    # Start Telegram polling for local development (webhook doesn't work on localhost)
+    try:
+        from app.services.telegram_service import start_telegram_polling
+        start_telegram_polling(app)
+    except Exception as e:
+        app.logger.warning(f'Telegram polling disabled: {e}')
+    
     # CLI commands for database management
     @app.cli.command()
     def init_db():
