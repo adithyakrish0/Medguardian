@@ -15,6 +15,17 @@ class User(UserMixin, BaseModel):
     # Telegram integration
     telegram_chat_id = db.Column(db.String(50), nullable=True, unique=True)
     
+    # Password reset
+    reset_token = db.Column(db.String(100), nullable=True, unique=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
+    
+    # Email verification
+    email_verified = db.Column(db.Boolean, default=False)
+    email_verification_token = db.Column(db.String(100), nullable=True, unique=True)
+    
+    # Camera sharing preference (False = always ask, True = auto-accept)
+    camera_auto_accept = db.Column(db.Boolean, default=False)
+    
     # Add relationship to medications
     medications = db.relationship('Medication', backref='user', lazy=True, cascade='all, delete-orphan')
     

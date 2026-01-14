@@ -1,5 +1,5 @@
 import json
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.medication import Medication
@@ -16,7 +16,7 @@ def index():
     """Display interaction checker page"""
     from app.models.medication import Medication
     medications = Medication.query.filter_by(user_id=current_user.id).all()
-    return render_template('interaction/check.html', medications=medications)
+    return render_template('interactions/checker.html', medications=medications)
 
 @interaction.route('/check-interactions', methods=['POST'])
 @login_required

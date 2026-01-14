@@ -53,6 +53,9 @@
                 </div>
             </div>
             <div class="d-flex gap-2">
+                <button class="btn btn-success" id="viewCameraBtn" onclick="requestCamera()">
+                    <i class="fas fa-video me-1"></i>View Camera
+                </button>
                 <a href="{{ url_for('caregiver.dashboard') }}" class="btn btn-light">
                     <i class="fas fa-arrow-left me-1"></i>Back
                 </a>
@@ -222,4 +225,127 @@
         </div>
     </div>
 </div>
+
+<!-- Live Camera Modal -->
+<div class="modal fade" id="cameraModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px;">
+            <div class="modal-header bg-success text-white" style="border-radius: 16px 16px 0 0;">
+                <h5 class="modal-title">
+                    <i class="fas fa-video me-2"></i>Live Camera - {{ senior.username }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" onclick="stopCamera()"></button>
+            </div>
+            <div class="modal-body p-0" style="background: #1a1a2e;">
+                <div id="cameraWaiting" class="text-center py-5">
+                    <div class="spinner-border text-light mb-3" role="status"></div>
+                    <p class="text-light mb-0">Waiting for {{ senior.username }} to accept...</p>
+                    <small class="text-muted">They will receive a notification</small>
+                </div>
+                <div id="cameraFeed" style="display: none;">
+                    <img id="cameraImage" style="width: 100%; display: block;" alt="Camera Feed">
+                    <div class="p-2 bg-dark text-light d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-circle text-danger me-2"></i>LIVE</span>
+                        <span id="cameraTimestamp"></span>
+                    </div>
+                </div>
+                <div id="cameraDenied" class="text-center py-5" style="display: none;">
+                    <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
+                    <p class="text-light mb-0">Camera access was denied</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" onclick="stopCamera()">
+                    <i class="fas fa-stop me-1"></i>Stop Viewing
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+    const seniorId = {{ senior.id }};
+    let socket = null;
+    let cameraModal = null;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
+
+        // Initialize Socket.IO
+        socket = io({
+            transports: ['websocket', 'polling']
+        });
+
+        // Handle camera accepted
+        socket.on('camera_accepted', function (data) {
+            console.log('Camera accepted:', data);
+            document.getElementById('cameraWaiting').style.display = 'none';
+            document.getElementById('cameraFeed').style.display = 'block';
+        });
+
+        // Handle camera denied
+        socket.on('camera_denied', function (data) {
+            console.log('Camera denied:', data);
+            document.getElementById('cameraWaiting').style.display = 'none';
+            document.getElementById('cameraDenied').style.display = 'block';
+        });
+
+        // Handle incoming camera frame
+        socket.on('camera_frame', function (data) {
+            const img = document.getElementById('cameraImage');
+            img.src = data.frame;
+            document.getElementById('cameraTimestamp').textContent = new Date().toLocaleTimeString();
+        });
+
+        // Handle camera stopped
+        socket.on('camera_stopped', function (data) {
+            console.log('Camera stopped');
+            cameraModal.hide();
+            resetCameraUI();
+        });
+
+        // Handle errors
+        socket.on('camera_error', function (data) {
+            console.error('Camera error:', data.error);
+            alert('Camera error: ' + data.error);
+            cameraModal.hide();
+            resetCameraUI();
+        });
+
+        // Handle request sent confirmation
+        socket.on('request_sent', function (data) {
+            console.log('Camera request sent');
+        });
+    });
+
+    function requestCamera() {
+        if (!socket || !socket.connected) {
+            alert('Connection lost. Please refresh the page.');
+            return;
+        }
+
+        // Show modal
+        cameraModal.show();
+        resetCameraUI();
+        document.getElementById('cameraWaiting').style.display = 'block';
+
+        // Send request
+        socket.emit('request_camera', { senior_id: seniorId });
+    }
+
+    function stopCamera() {
+        if (socket) {
+            socket.emit('stop_camera', { senior_id: seniorId });
+        }
+        cameraModal.hide();
+        resetCameraUI();
+    }
+
+    function resetCameraUI() {
+        document.getElementById('cameraWaiting').style.display = 'none';
+        document.getElementById('cameraFeed').style.display = 'none';
+        document.getElementById('cameraDenied').style.display = 'none';
+    }
+</script>
 {% endblock %}

@@ -65,7 +65,7 @@
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item" href="{{ url_for('interactions.checker') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('interaction.index') }}">
                                     <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Drug Interactions</a>
                             </li>
                         </ul>
@@ -131,6 +131,8 @@
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.account_settings') }}">
+                                    <i class="fas fa-user-cog me-2"></i>Account Settings</a></li>
                             <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
                                     <i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                         </ul>
@@ -347,6 +349,149 @@
     <meta name="csrf-token" content="{{ csrf_token() if csrf_token else '' }}">
 
     {% block scripts %}{% endblock %}
+
+    <!-- Camera Request Modal (for Seniors) -->
+    {% if current_user.is_authenticated and current_user.role == 'senior' %}
+    <div class="modal fade" id="cameraRequestModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header bg-info text-white" style="border-radius: 16px 16px 0 0;">
+                    <h5 class="modal-title">
+                        <i class="fas fa-video me-2"></i>Camera Request
+                    </h5>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="fas fa-user-shield fa-3x text-info mb-3"></i>
+                    <h5 id="cameraRequester">A caregiver</h5>
+                    <p class="text-muted mb-0">wants to view your camera to verify your medication.</p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary btn-lg" onclick="responseCameraRequest(false)">
+                        <i class="fas fa-times me-1"></i>Deny
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg" onclick="responseCameraRequest(true)">
+                        <i class="fas fa-check me-1"></i>Accept
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Sharing Indicator -->
+    <div id="cameraSharingIndicator" class="position-fixed top-0 start-50 translate-middle-x mt-2"
+        style="display: none; z-index: 9999;">
+        <div class="alert alert-success d-flex align-items-center shadow-lg py-2 px-3 mb-0">
+            <i class="fas fa-circle text-danger me-2" style="animation: blink 1s infinite;"></i>
+            <span class="fw-bold">Camera Sharing Active</span>
+            <button class="btn btn-sm btn-danger ms-3" onclick="stopCameraSharing()">Stop</button>
+        </div>
+    </div>
+    <style>
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+    </style>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        let seniorSocket = null;
+        let cameraStream = null;
+        let cameraRequestModal = null;
+        let streamInterval = null;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            cameraRequestModal = new bootstrap.Modal(document.getElementById('cameraRequestModal'));
+
+            seniorSocket = io({ transports: ['websocket', 'polling'] });
+
+            // Handle camera request from caregiver
+            seniorSocket.on('camera_request', function (data) {
+                console.log('Camera request received:', data);
+                document.getElementById('cameraRequester').textContent = data.caregiver_name + ' (Caregiver)';
+                cameraRequestModal.show();
+            });
+
+            // Handle start streaming
+            seniorSocket.on('start_streaming', function () {
+                console.log('Starting camera stream');
+                startCameraStream();
+            });
+
+            // Handle stop streaming
+            seniorSocket.on('stop_streaming', function () {
+                console.log('Stopping camera stream');
+                stopCameraSharing();
+            });
+
+            // Handle camera stopped
+            seniorSocket.on('camera_stopped', function () {
+                stopCameraSharing();
+            });
+        });
+
+        function responseCameraRequest(accepted) {
+            cameraRequestModal.hide();
+            seniorSocket.emit('camera_response', { accepted: accepted });
+
+            if (accepted) {
+                document.getElementById('cameraSharingIndicator').style.display = 'block';
+            }
+        }
+
+        async function startCameraStream() {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'environment' }
+                });
+
+                const video = document.createElement('video');
+                video.srcObject = cameraStream;
+                video.play();
+
+                const canvas = document.createElement('canvas');
+                canvas.width = 640;
+                canvas.height = 480;
+                const ctx = canvas.getContext('2d');
+
+                // Stream frames at ~5 FPS
+                streamInterval = setInterval(() => {
+                    ctx.drawImage(video, 0, 0, 640, 480);
+                    const frame = canvas.toDataURL('image/jpeg', 0.6);
+                    seniorSocket.emit('camera_frame', {
+                        frame: frame,
+                        timestamp: Date.now()
+                    });
+                }, 200);
+
+            } catch (err) {
+                console.error('Camera access failed:', err);
+                seniorSocket.emit('stop_camera', {});
+                alert('Camera access failed. Please allow camera permissions.');
+            }
+        }
+
+        function stopCameraSharing() {
+            if (streamInterval) {
+                clearInterval(streamInterval);
+                streamInterval = null;
+            }
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            document.getElementById('cameraSharingIndicator').style.display = 'none';
+            seniorSocket.emit('stop_camera', {});
+        }
+    </script>
+    {% endif %}
 </body>
 
 </html>

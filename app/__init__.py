@@ -65,6 +65,11 @@ def create_app(config_name=None):
         from app import socket_events
         socket_events.register_handlers(socketio)
         app.logger.info('✅ SocketIO event handlers registered')
+        
+        # Register camera sharing events
+        from app.services.camera_share import register_camera_events
+        register_camera_events(socketio)
+        app.logger.info('✅ Camera sharing events registered')
     except Exception as e:
         app.logger.warning(f'SocketIO initialization failed: {e}. Real-time features disabled.')
         # SocketIO is optional - app can work without it
@@ -105,9 +110,7 @@ def create_app(config_name=None):
     from .routes.prescription import prescription
     from .routes.insights import insights
     from .routes.print_schedule import print_schedule
-    from .routes.interactions import interactions
     from .routes.api import api_v1  # REST API
-    from .routes.test import test_bp  # Test routes
     from .routes.debug import debug_bp  # Debug/forensic logging
     from .routes.health import health  # Health check
     
@@ -125,9 +128,7 @@ def create_app(config_name=None):
     app.register_blueprint(prescription, url_prefix='/prescription')
     app.register_blueprint(insights, url_prefix='/insights')
     app.register_blueprint(print_schedule, url_prefix='/print')
-    app.register_blueprint(interactions, url_prefix='/interactions')
     app.register_blueprint(api_v1)  # API already has /api/v1 prefix
-    app.register_blueprint(test_bp)  # Test routes
     app.register_blueprint(debug_bp)  # Debug routes
     app.register_blueprint(health)  # Health check endpoints
     

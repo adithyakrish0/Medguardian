@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Account Settings - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <h2 class="fw-bold mb-4"><i class="fas fa-user-cog me-2"></i>Account Settings</h2>
+
+            <!-- Account Info -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-user me-2"></i>Account Information
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-4 text-muted">Username</div>
+                        <div class="col-sm-8"><strong>{{ user.username }}</strong></div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 text-muted">Email</div>
+                        <div class="col-sm-8">
+                            <strong>{{ user.email }}</strong>
+                            {% if user.email_verified %}
+                            <span class="badge bg-success ms-2"><i class="fas fa-check me-1"></i>Verified</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark ms-2"><i class="fas fa-clock me-1"></i>Not
+                                Verified</span>
+                            <a href="{{ url_for('auth.resend_verification') }}"
+                                class="btn btn-sm btn-outline-primary ms-2">Resend</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4 text-muted">Role</div>
+                        <div class="col-sm-8"><strong class="text-capitalize">{{ user.role }}</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-key me-2"></i>Change Password
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('auth.change_password') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                        <div class="mb-3">
+                            <label class="form-label">Current Password</label>
+                            <input type="password" name="current_password" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">New Password</label>
+                            <input type="password" name="new_password" class="form-control" required minlength="6">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Confirm New Password</label>
+                            <input type="password" name="confirm_password" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save me-2"></i>Change Password
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Telegram Link -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <i class="fab fa-telegram me-2"></i>Telegram Notifications
+                </div>
+                <div class="card-body">
+                    {% if user.telegram_chat_id %}
+                    <p class="text-success mb-0"><i class="fas fa-check-circle me-2"></i>Telegram linked successfully!
+                    </p>
+                    {% else %}
+                    <p class="text-muted mb-2">Connect your Telegram to receive medication reminders.</p>
+                    <a href="{{ url_for('telegram.settings') }}" class="btn btn-info text-white">
+                        <i class="fab fa-telegram me-2"></i>Connect Telegram
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Camera Privacy (only for seniors) -->
+            {% if user.role == 'senior' %}
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-video me-2"></i>Camera Privacy
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Control how caregivers can access your camera for medication
+                        verification.</p>
+                    <form method="POST" action="{{ url_for('auth.update_camera_preference') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="camera_preference" id="cameraAsk"
+                                value="ask" {{ 'checked' if not user.camera_auto_accept else '' }}>
+                            <label class="form-check-label" for="cameraAsk">
+                                <i class="fas fa-question-circle text-warning me-2"></i>
+                                <strong>Always Ask</strong> - Show popup each time caregiver requests camera
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="camera_preference" id="cameraAuto"
+                                value="auto" {{ 'checked' if user.camera_auto_accept else '' }}>
+                            <label class="form-check-label" for="cameraAuto">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <strong>Auto-Accept</strong> - Automatically allow linked caregivers to view camera
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>Save Preference
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="text-center">
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
