@@ -1,6 +1,16 @@
-version: '3.8'
+# =============================================================================
+# MedGuardian Docker Compose - Local Development & Production
+# =============================================================================
+# Services:
+#   - db: PostgreSQL 15 for data persistence
+#   - redis: Redis 7 for Socket.IO message queue and rate limiting
+#   - app: Flask application with eventlet workers
+# =============================================================================
 
 services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
   db:
     image: postgres:15-alpine
     environment:
@@ -12,44 +22,64 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U medguard"]
+      test: [ "CMD-SHELL", "pg_isready -U medguard -d medguardian" ]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
+  # ---------------------------------------------------------------------------
+  # Redis (Message Queue for Socket.IO + Rate Limiting)
+  # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 3s
       retries: 5
 
+  # ---------------------------------------------------------------------------
+  # MedGuardian Application
+  # ---------------------------------------------------------------------------
+  # Uses boot.sh entrypoint which:
+  # 1. Waits for database to be ready
+  # 2. Runs Flask-Migrate upgrades
+  # 3. Starts Gunicorn with eventlet worker (-w 1)
+  # ---------------------------------------------------------------------------
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "5000:5000"
     environment:
+      # Database connection
       DATABASE_URL: postgresql://medguard:${DB_PASSWORD:-changeme123}@db:5432/medguardian
+      # Redis for Socket.IO message queue (enables horizontal scaling)
       REDIS_URL: redis://redis:6379/0
+      SOCKETIO_MESSAGE_QUEUE: redis://redis:6379/2
+      RATELIMIT_STORAGE_URL: redis://redis:6379/1
+      # Flask configuration
+      FLASK_ENV: ${FLASK_ENV:-production}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
-      FLASK_ENV: ${FLASK_ENV:-development}
+      # Database host for boot.sh wait script
+      DB_HOST: db
+      DB_PORT: 5432
     volumes:
+      # Persist SQLite database (if using local dev fallback)
       - ./instance:/app/instance
+      # Persist uploaded files
       - ./temp:/app/temp
+      # Persist reference images for vision system
       - ./app/static/reference_images:/app/app/static/reference_images
+      # Persist logs
+      - ./logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: >
-      sh -c "
-        flask db upgrade &&
-        gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 --reload wsgi:app
-      "
 
 volumes:
   pgdata:

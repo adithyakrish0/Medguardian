@@ -43,23 +43,25 @@ def create_app(config_name=None):
     mail.init_app(app)
     
     # Initialize SocketIO with proper configuration
-    # Use simple async mode for development (no Redis/eventlet required)
+    # Production: Uses eventlet async mode with Redis for horizontal scaling
+    # Development: Uses threading mode (no Redis required)
     try:
         socketio_config = {
             'cors_allowed_origins': "*",
             'logger': True,
-            'engineio_logger': False
-            # NOTE: Do NOT set async_mode - let it auto-detect
+            'engineio_logger': False,
+            'async_mode': 'eventlet',  # Required for Gunicorn eventlet workers
         }
         
-        # DISABLE Redis for development - causes WebSocket errors
-        # Only enable in production with proper eventlet setup
-        # message_queue = app.config.get('SOCKETIO_MESSAGE_QUEUE')
-        # if message_queue and message_queue.startswith('redis://'):
-        #     socketio_config['message_queue'] = message_queue
+        # Enable Redis message queue for production horizontal scaling
+        # This allows broadcasting events across multiple container instances
+        message_queue = app.config.get('SOCKETIO_MESSAGE_QUEUE')
+        if message_queue and message_queue.startswith('redis://'):
+            socketio_config['message_queue'] = message_queue
+            app.logger.info(f'✅ SocketIO will use Redis message queue: {message_queue}')
         
         socketio.init_app(app, **socketio_config)
-        app.logger.info('✅ SocketIO initialized successfully (threading mode)')
+        app.logger.info('✅ SocketIO initialized successfully (eventlet mode)')
         
         # Register SocketIO event handlers for real-time detection
         from app import socket_events

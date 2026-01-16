@@ -256,3 +256,135 @@ def create_quick_test():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@api_v1.route('/medication-status', methods=['GET'])
+@login_required
+def get_medication_status():
+    """Get today's medication status for voice assistant queries.
+    
+    Returns:
+        - taken: medications already taken today
+        - missed: medications past their scheduled time but not taken
+        - upcoming: medications still scheduled for today
+    """
+    from datetime import datetime, date
+    from app.models.medication import Medication
+    from app.models.medication_log import MedicationLog
+    
+    try:
+        today = date.today()
+        now = datetime.now()
+        current_time = now.strftime('%H:%M')
+        
+        # Get user's active medications (date-based filtering)
+        medications = Medication.query.filter_by(
+            user_id=current_user.id
+        ).filter(
+            (Medication.start_date == None) | (Medication.start_date <= today)
+        ).filter(
+            (Medication.end_date == None) | (Medication.end_date >= today)
+        ).all()
+        
+        taken = []
+        missed = []
+        upcoming = []
+        
+        for med in medications:
+            # Check if taken today
+            log_today = MedicationLog.query.filter_by(
+                medication_id=med.id
+            ).filter(
+                MedicationLog.timestamp >= datetime.combine(today, datetime.min.time())
+            ).first()
+            
+            # Get scheduled times for this medication
+            times = med.get_reminder_times() if hasattr(med, 'get_reminder_times') else []
+            
+            if log_today:
+                taken.append({
+                    'id': med.id,
+                    'name': med.name,
+                    'dosage': med.dosage,
+                    'taken_at': log_today.timestamp.strftime('%H:%M')
+                })
+            else:
+                # Check if any scheduled time has passed
+                has_past_time = any(t <= current_time for t in times) if times else False
+                
+                if has_past_time:
+                    missed.append({
+                        'id': med.id,
+                        'name': med.name,
+                        'dosage': med.dosage,
+                        'scheduled_time': next((t for t in times if t <= current_time), None)
+                    })
+                elif times:
+                    upcoming.append({
+                        'id': med.id,
+                        'name': med.name,
+                        'dosage': med.dosage,
+                        'time': min(t for t in times if t > current_time) if any(t > current_time for t in times) else times[0]
+                    })
+        
+        return jsonify({
+            'success': True,
+            'taken': taken,
+            'missed': missed,
+            'upcoming': upcoming,
+            'total_today': len(medications)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_v1.route('/notify-caregiver', methods=['POST'])
+@login_required
+def notify_caregiver():
+    """Notify linked caregiver via available channels.
+    
+    Used by voice command "Call caregiver".
+    """
+    from app.models.relationship import CaregiverSenior
+    from app.services import notification_service
+    
+    try:
+        # Find linked caregiver
+        relationship = CaregiverSenior.query.filter_by(
+            senior_id=current_user.id,
+            status='accepted'
+        ).first()
+        
+        if not relationship:
+            return jsonify({
+                'success': False,
+                'message': 'No linked caregiver found'
+            }), 200
+        
+        caregiver = relationship.caregiver
+        
+        # Send notification
+        notification_service.send_notification(
+            user=caregiver,
+            title='MedGuardian Alert',
+            message=f'{current_user.username} is trying to reach you via voice command.',
+            notification_type='caregiver_alert',
+            priority='high'
+        )
+        
+        return jsonify({
+            'success': True,
+            'caregiver_name': caregiver.username,
+            'message': 'Caregiver notified successfully'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+

@@ -4,6 +4,8 @@
 
 {% block head %}
 {{ super() }}
+<!-- Three.js for AR HUD -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
     .verification-page .page-header {
         background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
@@ -72,7 +74,7 @@
         <div class="col-lg-8 mb-4">
             <div class="card">
                 <div class="card-header bg-primary text-white py-3">
-                    <h5 class="mb-0"><i class="fas fa-video me-2"></i>Live Camera Feed</h5>
+                    <h5 class="mb-0"><i class="fas fa-crosshairs me-2"></i>AR Med-Scanner</h5>
                 </div>
                 <div class="card-body bg-dark p-0 position-relative" id="camera-container">
                     <!-- Loading State -->
@@ -112,8 +114,9 @@
                             <span class="badge bg-success me-2">Barcodes: <span id="barcode-count">0</span></span>
                         </div>
                         <div class="d-flex gap-2">
-                            <button id="capture-btn" class="btn btn-primary" onclick="captureAndVerify()" disabled>
-                                <i class="fas fa-camera me-1"></i>Capture & Verify
+                            <button id="capture-btn" class="btn btn-primary btn-lg" onclick="captureAndVerify()"
+                                disabled>
+                                <i class="fas fa-crosshairs me-1"></i>Scan Medication
                             </button>
                             <button id="manual-btn" class="btn btn-success" onclick="showManualConfirm()">
                                 <i class="fas fa-check me-1"></i>Mark Taken Manually
@@ -469,5 +472,83 @@
     function showAlert(message, type, targetId = 'verification-results') {
         document.getElementById(targetId).innerHTML = `<div class="alert alert-${type}">${message}</div>`;
     }
+
+    // =========================================================================
+    // AR Med-Scanner HUD Integration
+    // =========================================================================
+    let arScanner = null;
+
+    function initARScanner() {
+        const container = document.getElementById('camera-container');
+        if (container && typeof ARMedScanner !== 'undefined') {
+            arScanner = new ARMedScanner(container);
+            console.log('✅ AR Med-Scanner HUD active');
+        }
+    }
+
+    // Override captureAndVerify to use AR scanner animations
+    const originalCaptureAndVerify = captureAndVerify;
+    captureAndVerify = async function () {
+        const medicationId = document.getElementById('medication-select').value;
+
+        if (!medicationId) {
+            showAlert('Please select a medication first', 'warning');
+            return;
+        }
+
+        if (!cameraReady) {
+            showAlert('Camera is not available. Please use image upload instead.', 'warning');
+            return;
+        }
+
+        const captureBtn = document.getElementById('capture-btn');
+        captureBtn.disabled = true;
+        captureBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Scanning...';
+
+        // Trigger AR scanner animation
+        if (arScanner) {
+            arScanner.startScan();
+            setTimeout(() => arScanner.processing(), 800);
+        }
+
+        try {
+            const response = await fetch(`/medication/verify-medication/${medicationId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ capture_mode: 'single' })
+            });
+
+            const result = await response.json();
+
+            // Trigger success/error animation
+            if (arScanner) {
+                if (result.success) {
+                    arScanner.success();
+                } else {
+                    arScanner.error();
+                }
+            }
+
+            displayResults(result);
+        } catch (error) {
+            console.error('Verification error:', error);
+            if (arScanner) arScanner.error();
+            showAlert('Verification failed. Try uploading an image instead.', 'danger');
+        } finally {
+            captureBtn.disabled = false;
+            captureBtn.innerHTML = '<i class="fas fa-crosshairs me-1"></i>Scan Medication';
+        }
+    };
+
+    // Initialize AR Scanner when camera is ready
+    const originalInitCamera = initCamera;
+    initCamera = function () {
+        originalInitCamera();
+        // Delay AR scanner init until camera container is properly sized
+        setTimeout(initARScanner, 500);
+    };
 </script>
+
+<!-- AR Scanner HUD Script -->
+<script src="{{ url_for('static', filename='js/ar_scanner_hud.js') }}"></script>
 {% endblock %}

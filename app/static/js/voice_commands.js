@@ -251,6 +251,28 @@ class VoiceAssistant {
             return;
         }
 
+        // NEW: "Have I taken my meds?" query
+        if (command.includes('have i taken') || command.includes('did i take') ||
+            command.includes('taken my') || command.includes('morning pills') ||
+            command.includes('missed') || command.includes('today\'s medication')) {
+            await this.checkMedicationStatus();
+            return;
+        }
+
+        // NEW: "Scan medication" - opens AR scanner
+        if (command.includes('scan') && (command.includes('medication') || command.includes('medicine') || command.includes('pill'))) {
+            this.speak("Opening AR medication scanner now.");
+            setTimeout(() => window.location.href = '/medication/verification', 1500);
+            return;
+        }
+
+        // NEW: "Call caregiver"
+        if (command.includes('call caregiver') || command.includes('contact caregiver') ||
+            command.includes('notify caregiver')) {
+            await this.contactCaregiver();
+            return;
+        }
+
         // Action commands
         if (command.includes('mark') && command.includes('taken')) {
             this.speak("Please use the dashboard buttons to mark medications as taken.");
@@ -273,7 +295,7 @@ class VoiceAssistant {
 
         // Help
         if (command.includes('help') || command.includes('commands')) {
-            this.speak("You can say: Dashboard, Medications, Next medication, Dark mode, or Emergency SOS.");
+            this.speak("You can say: Have I taken my meds, Scan medication, Next medication, Call caregiver, Dashboard, or Emergency SOS.");
             return;
         }
 
@@ -303,6 +325,64 @@ class VoiceAssistant {
             this.speak(`You have ${data.count} medications registered.`);
         } catch (error) {
             this.speak("I couldn't count your medications.");
+        }
+    }
+
+    // NEW: Check if user has taken their medications today
+    async checkMedicationStatus() {
+        try {
+            const response = await fetch('/api/v1/medication-status');
+            const data = await response.json();
+
+            if (data.error) {
+                this.speak("I couldn't check your medication status right now.");
+                return;
+            }
+
+            const missed = data.missed || [];
+            const taken = data.taken || [];
+            const upcoming = data.upcoming || [];
+
+            if (missed.length === 0 && upcoming.length === 0) {
+                this.speak("Great job! You've taken all your medications for today.");
+            } else if (missed.length > 0) {
+                const missedNames = missed.slice(0, 3).map(m => m.name).join(', ');
+                const message = `You missed ${missed.length} medication${missed.length > 1 ? 's' : ''}: ${missedNames}.`;
+                this.speak(message + " Would you like me to open the scanner?");
+
+                // Auto-redirect after message
+                setTimeout(() => {
+                    this.speak("Opening scanner now.");
+                    setTimeout(() => window.location.href = '/medication/verification', 1500);
+                }, 4000);
+            } else if (upcoming.length > 0) {
+                const next = upcoming[0];
+                this.speak(`Your next medication is ${next.name} at ${next.time}. You've taken ${taken.length} medications so far today.`);
+            } else {
+                this.speak(`You've taken ${taken.length} medications today.`);
+            }
+        } catch (error) {
+            console.error('Medication status error:', error);
+            this.speak("I'm having trouble checking your medication status.");
+        }
+    }
+
+    // NEW: Contact linked caregiver
+    async contactCaregiver() {
+        try {
+            const response = await fetch('/api/v1/notify-caregiver', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                this.speak(`I've notified your caregiver${data.caregiver_name ? ', ' + data.caregiver_name : ''}. They'll be in touch soon.`);
+            } else {
+                this.speak("You don't have a linked caregiver yet. You can add one from the caregiver settings page.");
+            }
+        } catch (error) {
+            this.speak("I couldn't contact your caregiver right now. Please try the emergency SOS button if urgent.");
         }
     }
 

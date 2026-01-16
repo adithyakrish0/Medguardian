@@ -11,7 +11,7 @@ email-validator==2.0.0
 
 # Vision & AI
 Pillow==10.0.1
-opencv-python==4.8.1.78
+opencv-python-headless==4.8.1.78
 numpy==1.24.3
 torch==2.0.1
 torchvision==0.15.2
@@ -31,6 +31,7 @@ python-socketio==5.10.0
 
 # Production server (NEW)
 gunicorn==21.2.0
+eventlet==0.36.1
 
 # Authentication & Security (NEW)
 python-jose[cryptography]==3.3.0

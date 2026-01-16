@@ -59,3 +59,48 @@ class Medication(BaseModel):
             result['end_date'] = self.end_date.isoformat()
         
         return result
+    
+    @property
+    def is_active(self):
+        """Check if medication is currently active based on date range"""
+        from datetime import date
+        today = date.today()
+        
+        # Check start date
+        if self.start_date and self.start_date > today:
+            return False
+        
+        # Check end date
+        if self.end_date and self.end_date < today:
+            return False
+        
+        return True
+    
+    def get_reminder_times(self):
+        """Get all reminder times as list of HH:MM strings"""
+        import json
+        times = []
+        
+        # Preset times
+        if self.morning:
+            times.append('08:00')
+        if self.afternoon:
+            times.append('14:00')
+        if self.evening:
+            times.append('18:00')
+        if self.night:
+            times.append('21:00')
+        
+        # Custom times from JSON
+        if self.custom_reminder_times:
+            try:
+                custom = json.loads(self.custom_reminder_times)
+                if isinstance(custom, list):
+                    for t in custom:
+                        if t and ':' in str(t):
+                            times.append(str(t).strip())
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        return sorted(set(times))
+
