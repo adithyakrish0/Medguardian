@@ -639,10 +639,15 @@ def add_user():
     User = get_user_model()
     username = request.form.get('username')
     email = request.form.get('email')
-    password = request.form.get('password', 'defaultpassword')  # Use default password if not provided
+    password = request.form.get('password')
+    
+    # SECURITY: Require password
+    if not password or len(password) < 6:
+        flash('Password is required and must be at least 6 characters.', 'danger')
+        return redirect(url_for('main.index'))
     
     new_user = User(username=username, email=email, role='senior')
-    new_user.set_password(password)  # Set password
+    new_user.set_password(password)
     
     db.session.add(new_user)
     db.session.commit()
