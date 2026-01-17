@@ -91,10 +91,10 @@ class MedicationAlarmSystem:
             return True
             
         # Check custom time alarms
-        if hasattr(medication, 'custom_times') and medication.custom_times:
+        if hasattr(medication, 'custom_reminder_times') and medication.custom_reminder_times:
             try:
                 import json
-                custom_times = json.loads(medication.custom_times) if isinstance(medication.custom_times, str) else medication.custom_times
+                custom_times = json.loads(medication.custom_reminder_times) if isinstance(medication.custom_reminder_times, str) else medication.custom_reminder_times
                 for custom_time in custom_times:
                     try:
                         alarm_time = datetime.strptime(custom_time, "%H:%M").time()

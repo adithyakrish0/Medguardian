@@ -26,6 +26,9 @@ class User(UserMixin, BaseModel):
     # Camera sharing preference (False = always ask, True = auto-accept)
     camera_auto_accept = db.Column(db.Boolean, default=False)
     
+    # User preferences (JSON storage for safety settings, UI preferences, etc.)
+    preferences = db.Column(db.Text, nullable=True)  # JSON string
+    
     # Add relationship to medications
     medications = db.relationship('Medication', backref='user', lazy=True, cascade='all, delete-orphan')
     

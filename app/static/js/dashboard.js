@@ -19,9 +19,9 @@ function getNextMedicationTime(med, now) {
     }
 
     // Check custom times first
-    if (med.custom_times) {
+    if (med.custom_reminder_times) {
         try {
-            const customTimes = JSON.parse(med.custom_times);
+            const customTimes = JSON.parse(med.custom_reminder_times);
             customTimes.forEach(function (timeStr) {
                 const timeParts = timeStr.split(':');
                 if (timeParts.length === 2) {

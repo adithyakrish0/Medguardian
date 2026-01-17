@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Monitoring Settings{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-shield-alt text-primary me-2"></i>Safety Monitoring</h2>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back
+                </a>
+            </div>
+
+            <!-- Fall Detection Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-person-falling me-2"></i>Fall Detection</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        Automatically detects sudden falls using camera motion analysis and immediately alerts
+                        caregivers.
+                    </p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="fallDetectionToggle" {% if
+                            safety_settings.fall_detection_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="fallDetectionToggle">
+                            <strong>Enable Fall Detection</strong>
+                        </label>
+                    </div>
+
+                    <div class="alert alert-info small mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Requires camera access. Works best in well-lit environments.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inactivity Monitoring Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Inactivity Monitoring</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        Monitors for prolonged inactivity during daytime hours and sends wellness check alerts.
+                    </p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="inactivityToggle" {% if
+                            safety_settings.inactivity_monitoring_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="inactivityToggle">
+                            <strong>Enable Inactivity Monitoring</strong>
+                        </label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="inactivityThreshold" class="form-label">Alert after (minutes):</label>
+                        <select class="form-select" id="inactivityThreshold">
+                            <option value="60" {% if safety_settings.inactivity_threshold_minutes==60 %}selected{% endif
+                                %}>1 hour</option>
+                            <option value="120" {% if safety_settings.inactivity_threshold_minutes==120 %}selected{%
+                                endif %}>2 hours</option>
+                            <option value="180" {% if safety_settings.inactivity_threshold_minutes==180 %}selected{%
+                                endif %}>3 hours</option>
+                            <option value="240" {% if safety_settings.inactivity_threshold_minutes==240 %}selected{%
+                                endif %}>4 hours</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Incidents -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Incidents</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_incidents %}
+                    <div class="list-group list-group-flush">
+                        {% for incident in recent_incidents %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <span
+                                    class="badge bg-{{ 'danger' if incident.incident_type == 'fall' else 'warning' }} me-2">
+                                    {{ incident.incident_type | title }}
+                                </span>
+                                <small class="text-muted">{{ incident.detected_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                {% if incident.status == 'resolved' %}
+                                <span class="badge bg-success ms-2">Resolved</span>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-secondary">{{ (incident.confidence * 100) | round(0) }}%
+                                confidence</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">
+                        <i class="fas fa-check-circle text-success me-1"></i>No incidents recorded
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        // Fall Detection Toggle
+        document.getElementById('fallDetectionToggle').addEventListener('change', async function () {
+            try {
+                const response = await fetch('/safety/toggle-fall-detection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ enabled: this.checked })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    console.log('✅', data.message);
+                } else {
+                    alert('Error: ' + data.error);
+                    this.checked = !this.checked; // Revert
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+
+        // Inactivity Toggle
+        document.getElementById('inactivityToggle').addEventListener('change', async function () {
+            const threshold = document.getElementById('inactivityThreshold').value;
+            try {
+                const response = await fetch('/safety/toggle-inactivity-monitor', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        enabled: this.checked,
+                        threshold_minutes: parseInt(threshold)
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    console.log('✅', data.message);
+                } else {
+                    alert('Error: ' + data.error);
+                    this.checked = !this.checked;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -115,6 +115,7 @@ def create_app(config_name=None):
     from .routes.api import api_v1  # REST API
     from .routes.debug import debug_bp  # Debug/forensic logging
     from .routes.health import health  # Health check
+    from .routes.safety import safety  # Safety monitoring
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
@@ -133,6 +134,7 @@ def create_app(config_name=None):
     app.register_blueprint(api_v1)  # API already has /api/v1 prefix
     app.register_blueprint(debug_bp)  # Debug routes
     app.register_blueprint(health)  # Health check endpoints
+    app.register_blueprint(safety)  # Safety monitoring (fall detection, etc.)
     
     # Import all models to register with SQLAlchemy
     from .models.auth import User

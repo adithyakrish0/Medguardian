@@ -30,7 +30,6 @@ class Medication(BaseModel):
     start_date = db.Column(db.Date, index=True)
     end_date = db.Column(db.Date, index=True)
     priority = db.Column(db.String(20), default='normal', index=True)
-    custom_times = db.Column(db.String(200))  # JSON string for custom times
     
     # PHASE 1: Barcode verification (for medications that have barcodes)
     barcode = db.Column(db.String(100), nullable=True, index=True)  # UPC/EAN/QR code

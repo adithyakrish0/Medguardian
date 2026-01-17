@@ -11,6 +11,14 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     
+    # SECRET_KEY is validated in init_app (not on import)
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    
+    # Safety Monitoring Configuration
+    FALL_DETECTION_ENABLED = os.getenv('FALL_DETECTION_ENABLED', 'False') == 'True'
+    INACTIVITY_MONITORING_ENABLED = os.getenv('INACTIVITY_MONITORING_ENABLED', 'False') == 'True'
+    INACTIVITY_THRESHOLD_MINUTES = int(os.getenv('INACTIVITY_THRESHOLD_MINUTES', 120))
+    
     # Security
     SESSION_COOKIE_SECURE = True  # Requires HTTPS
     SESSION_COOKIE_HTTPONLY = True
@@ -68,6 +76,11 @@ class ProductionConfig(Config):
     @staticmethod
     def init_app(app):
         """Production-specific initialization"""
+        # CRITICAL: Validate SECRET_KEY is set
+        secret_key = app.config.get('SECRET_KEY')
+        if not secret_key or secret_key == 'change-this-to-a-random-secret-key-in-production':
+            raise ValueError("PRODUCTION ERROR: SECRET_KEY must be set to a secure random value!")
+        
         Config.init_app(app)
         
         # Setup logging
