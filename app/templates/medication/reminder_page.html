@@ -786,26 +786,53 @@
         // Start camera immediately
         initCamera();
 
-        // Inactivity Timeout Logic
+        // Inactivity Timeout Logic with VISIBLE COUNTDOWN
         const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes
         let inactivityTimer;
         let warningTimer;
+        let countdownInterval;
 
         function resetInactivityTimer() {
             clearTimeout(inactivityTimer);
             clearTimeout(warningTimer);
+            clearInterval(countdownInterval);
 
-            // Start warning timer (9 mins)
+            // Reset status text if it was showing countdown
+            const statusDiv = document.getElementById('cameraStatusText');
+            if (statusDiv && statusDiv.textContent.includes('Auto-skip')) {
+                statusDiv.textContent = 'Scanning...';
+                statusDiv.style.color = 'white';
+            }
+
+            // Start warning timer (9 mins) - then show 60s countdown
             warningTimer = setTimeout(() => {
-                const statusDiv = document.getElementById('cameraStatusText');
+                let secondsLeft = 60;
+
+                // Update immediately
                 if (statusDiv) {
-                    statusDiv.textContent = 'Auto-skipping in 60s...';
+                    statusDiv.textContent = `⚠️ Auto-skip in ${secondsLeft}s`;
                     statusDiv.style.color = '#ff9800';
                 }
+
+                // Countdown every second
+                countdownInterval = setInterval(() => {
+                    secondsLeft--;
+                    if (statusDiv) {
+                        statusDiv.textContent = `⚠️ Auto-skip in ${secondsLeft}s`;
+                        if (secondsLeft <= 10) {
+                            statusDiv.style.color = '#f44336'; // Red for last 10s
+                        }
+                    }
+
+                    if (secondsLeft <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
             }, INACTIVITY_LIMIT - 60000);
 
             // Start final action timer (10 mins)
             inactivityTimer = setTimeout(() => {
+                clearInterval(countdownInterval);
                 console.log("⏰ Inactivity timeout reached. Auto-skipping.");
                 skipDose(); // Auto-skip and redirect
             }, INACTIVITY_LIMIT);
