@@ -786,56 +786,61 @@
         // Start camera immediately
         initCamera();
 
-        // Inactivity Timeout Logic with VISIBLE COUNTDOWN
+        // Inactivity Timeout Logic with FULL VISIBLE COUNTDOWN from start
         const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes
         let inactivityTimer;
-        let warningTimer;
         let countdownInterval;
+        let totalSecondsLeft = 10 * 60; // 10 minutes in seconds
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateCountdownDisplay() {
+            const statusDiv = document.getElementById('cameraStatusText');
+            if (!statusDiv) return;
+
+            // Color coding based on time remaining
+            if (totalSecondsLeft > 5 * 60) {
+                // More than 5 mins: Green/normal
+                statusDiv.textContent = `⏱️ ${formatTime(totalSecondsLeft)}`;
+                statusDiv.style.color = '#00e676';
+            } else if (totalSecondsLeft > 60) {
+                // 1-5 mins: Orange warning
+                statusDiv.textContent = `⚠️ Auto-skip in ${formatTime(totalSecondsLeft)}`;
+                statusDiv.style.color = '#ff9800';
+            } else if (totalSecondsLeft > 10) {
+                // Last 60s: Orange
+                statusDiv.textContent = `⚠️ Auto-skip in ${totalSecondsLeft}s`;
+                statusDiv.style.color = '#ff9800';
+            } else {
+                // Last 10s: RED
+                statusDiv.textContent = `🚨 Auto-skip in ${totalSecondsLeft}s!`;
+                statusDiv.style.color = '#f44336';
+            }
+        }
 
         function resetInactivityTimer() {
             clearTimeout(inactivityTimer);
-            clearTimeout(warningTimer);
             clearInterval(countdownInterval);
 
-            // Reset status text if it was showing countdown
-            const statusDiv = document.getElementById('cameraStatusText');
-            if (statusDiv && statusDiv.textContent.includes('Auto-skip')) {
-                statusDiv.textContent = 'Scanning...';
-                statusDiv.style.color = 'white';
-            }
+            // Reset to full 10 minutes
+            totalSecondsLeft = 10 * 60;
+            updateCountdownDisplay();
 
-            // Start warning timer (9 mins) - then show 60s countdown
-            warningTimer = setTimeout(() => {
-                let secondsLeft = 60;
+            // Start countdown immediately
+            countdownInterval = setInterval(() => {
+                totalSecondsLeft--;
+                updateCountdownDisplay();
 
-                // Update immediately
-                if (statusDiv) {
-                    statusDiv.textContent = `⚠️ Auto-skip in ${secondsLeft}s`;
-                    statusDiv.style.color = '#ff9800';
+                if (totalSecondsLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    console.log("⏰ Inactivity timeout reached. Auto-skipping.");
+                    skipDose();
                 }
-
-                // Countdown every second
-                countdownInterval = setInterval(() => {
-                    secondsLeft--;
-                    if (statusDiv) {
-                        statusDiv.textContent = `⚠️ Auto-skip in ${secondsLeft}s`;
-                        if (secondsLeft <= 10) {
-                            statusDiv.style.color = '#f44336'; // Red for last 10s
-                        }
-                    }
-
-                    if (secondsLeft <= 0) {
-                        clearInterval(countdownInterval);
-                    }
-                }, 1000);
-            }, INACTIVITY_LIMIT - 60000);
-
-            // Start final action timer (10 mins)
-            inactivityTimer = setTimeout(() => {
-                clearInterval(countdownInterval);
-                console.log("⏰ Inactivity timeout reached. Auto-skipping.");
-                skipDose(); // Auto-skip and redirect
-            }, INACTIVITY_LIMIT);
+            }, 1000);
         }
 
         // Listen for user activity
