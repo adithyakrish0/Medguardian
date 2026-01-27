@@ -52,3 +52,6 @@ requests==2.31.0
 
 # QR Code Generation
 qrcode[pil]==7.4.2
+
+# Database (PostgreSQL)
+psycopg2-binary==2.9.9

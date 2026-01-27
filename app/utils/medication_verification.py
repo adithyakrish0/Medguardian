@@ -137,14 +137,14 @@ def verify_medication_comprehensive(
             print(f"Visual comparison error: {e}")
     
     # METHOD 4: OCR Text Matching with FUZZY support
-    extracted_text = visual_verifier.extract_text_ocr(image)
+    extracted_text = extract_text_ocr(image)
     if extracted_text:
         # Try fuzzy matching first
         from app.vision.feature_extractor import fuzzy_match
         fuzzy_matched = fuzzy_match(extracted_text, expected_med.name, tolerance=2)
         
         # Also try exact matching as fallback
-        text_match, text_confidence = visual_verifier.verify_by_text(
+        text_match, text_confidence = verify_by_text(
             expected_med.name,
             extracted_text
         )

@@ -58,54 +58,27 @@ class VerificationService:
                     'error': 'Medication not found'
                 }
             
-            # Try barcode verification first (fastest)
-            if medication.barcode:
-                barcode_result = self._verify_barcode(image_np, medication.barcode)
-                if barcode_result['found']:
-                    return {
-                        'success': True,
-                        'verified': barcode_result['match'],
-                        'correct_medication': barcode_result['match'],
-                        'method': 'barcode',
-                        'confidence': 1.0 if barcode_result['match'] else 0.0,
-                        'message': 'Barcode verified' if barcode_result['match'] else 'Wrong medication (barcode mismatch)'
-                    }
+            # Use comprehensive verification logic
+            from app.utils.medication_verification import verify_medication_comprehensive
             
-            # Try bottle detection
-            detector = self._get_bottle_detector()
-            bottles_detected, detections, _ = detector.detect_bottles(image_np)
+            # Extract barcode if present in request (optional)
+            scanned_barcode = None # Could be passed from frontend
             
-            if not bottles_detected:
-                return {
-                    'success': True,
-                    'verified': False,
-                    'correct_medication': False,
-                    'method': 'vision',
-                    'confidence': 0.0,
-                    'message': 'No medication bottle detected. Please ensure the medication is clearly visible.'
-                }
+            result = verify_medication_comprehensive(
+                image=image_np,
+                expected_medication_id=medication_id,
+                user_id=medication.user_id,
+                scanned_barcode=scanned_barcode
+            )
             
-            # If we have reference image, compare
-            if medication.reference_image_path:
-                visual_match = self._compare_with_reference(image_np, medication)
-                return {
-                    'success': True,
-                    'verified': True,
-                    'correct_medication': visual_match['match'],
-                    'method': 'visual_comparison',
-                    'confidence': visual_match['confidence'],
-                    'message': 'Correct medication!' if visual_match['match'] else 'Medication does not match reference'
-                }
-            
-            # Default: bottle detected but can't verify without reference
             return {
                 'success': True,
-                'verified': True,
-                'correct_medication': True,  # Assume correct if bottle detected
-                'method': 'detection_only',
-                'confidence': 0.7,
-                'message': f'Detected {len(detections)} medication bottle(s)',
-                'warning': 'No reference image available for verification'
+                'verified': result.get('is_correct', False),
+                'correct_medication': result.get('is_correct', False),
+                'method': result.get('method', 'unknown'),
+                'confidence': result.get('confidence', 0.0),
+                'message': result.get('message', ''),
+                'details': result
             }
             
         except Exception as e:

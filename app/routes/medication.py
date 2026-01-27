@@ -215,32 +215,26 @@ def video_feed():
         print(f"Video feed error: {e}")
         return Response("Camera unavailable", status=503)
 
-# Verify medication with image upload
 @medication.route('/verify-medication/<int:medication_id>', methods=['POST'])
 @login_required
 def verify_medication(medication_id):
     """Verify medication using uploaded image"""
     try:
+        from app.services import verification_service
+        
         if 'image' not in request.files:
+            # Handle base64 from JSON as well (common in your JS)
+            data = request.get_json()
+            if data and 'image' in data:
+                result = verification_service.verify_with_image(data['image'], medication_id)
+                return jsonify(result)
             return jsonify({'error': 'No image provided'}), 400
         
         file = request.files['image']
-        if file.filename == '':
-            return jsonify({'error': 'Empty filename'}), 400
+        # Read file to base64
+        image_data = base64.b64encode(file.read()).decode('utf-8')
         
-        # Save temporarily
-        temp_path = os.path.join('temp', f'verify_{current_user.id}.jpg')
-        os.makedirs('temp', exist_ok=True)
-        file.save(temp_path)
-        
-        # Verify
-        verifier = EnhancedMedicationVerifier()
-        result = verifier.verify_medication_with_image(temp_path, medication_id)
-        
-        # Cleanup
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        
+        result = verification_service.verify_with_image(image_data, medication_id)
         return jsonify(result)
         
     except Exception as e:

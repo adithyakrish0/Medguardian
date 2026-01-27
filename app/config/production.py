@@ -25,13 +25,10 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = 3600 * 24  # 24 hours
     
-    # Database - use PostgreSQL in production
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        'DATABASE_URL',
-        'postgresql://medguard:password@localhost:5432/medguardian'
-    )
+    # Database - use PostgreSQL in production (Supabase)
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     
-    # If using Heroku/similar, fix postgres:// to postgresql://
+    # If using Supabase/Heroku, fix postgres:// to postgresql://
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
     

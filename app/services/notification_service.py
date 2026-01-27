@@ -107,39 +107,13 @@ class NotificationService:
         """Send alert to caregivers about medication issues"""
         if not caregiver_emails:
             return False
-        
-        if alert_type == 'missed':
-            subject = f"🚨 Missed Medication Alert: {senior_name}"
-            body = f"""
-            {senior_name} has missed their scheduled medication.
             
-            Medication: {medication_name}
-            Time: Just now
-            
-            Please check on them to ensure their safety.
-            
-            - MedGuardian Alert System
-            """
-        elif alert_type == 'critical':
-            subject = f"⚠️ CRITICAL: Medication Alert for {senior_name}"
-            body = f"""
-            CRITICAL MEDICATION ALERT
-            
-            {senior_name} has missed a critical medication dose.
-            
-            Medication: {medication_name}
-            Priority: HIGH
-            
-            Immediate attention required.
-            
-            - MedGuardian Alert System
-            """
-        else:
-            subject = f"Medication Update: {senior_name}"
-            body = f"Update regarding {senior_name}'s medication: {medication_name}"
-        
-        # Send to all caregivers
-        return self.send_email(caregiver_emails, subject, body)
+        from app.utils.email_service import send_caregiver_alert_email
+        success = True
+        for email in caregiver_emails:
+            if not send_caregiver_alert_email(email, senior_name, alert_type, f"Medication: {medication_name}"):
+                success = False
+        return success
     
     def send_browser_notification(self, user_id: int, title: str, body: str, 
                                   icon: Optional[str] = None) -> bool:

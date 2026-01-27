@@ -81,8 +81,9 @@
                                     <i class="fas fa-chart-line me-2"></i>Analytics</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('insights.dashboard') }}">
                                     <i class="fas fa-brain me-2"></i>AI Insights</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('interactions.checker') }}">
-                                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Drug Interactions</a>
+                            <li><a class="dropdown-item" href="{{ url_for('interaction.index') }}">
+                                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Drug Interactions
+                                    Check</a>
                             </li>
                             <li>
                                 <hr class="dropdown-divider">
@@ -285,7 +286,8 @@
 
     <!-- CRITICAL: Set currentUserId BEFORE loading reminder_system.js -->
     <script>
-        window.currentUserId = {{ current_user.id }};
+        const currentUserId = {{ current_user.id|default (0) | tojson }};
+        window.currentUserId = currentUserId;
         console.log('✅ User ID set:', window.currentUserId);
     </script>
 
