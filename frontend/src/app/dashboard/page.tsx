@@ -33,7 +33,7 @@ export default function DashboardPage() {
     const stats = [
         {
             label: "Adherence Precision",
-            value: `${data?.stats.adherence}%`,
+            value: `${data?.stats?.adherence ?? 100}%`,
             trend: "Optimal Range",
             icon: Activity,
             color: "text-accent",
@@ -41,16 +41,16 @@ export default function DashboardPage() {
         },
         {
             label: "Sequential Dose",
-            value: data?.schedule.upcoming[0]?.time || "Verified",
-            trend: data?.schedule.upcoming[0]?.name || "Cycles Clear",
+            value: data?.schedule?.upcoming?.[0]?.time || "Verified",
+            trend: data?.schedule?.upcoming?.[0]?.name || "Cycles Clear",
             icon: Clock,
             color: "text-primary",
             bg: "bg-primary/10"
         },
         {
             label: "Total Protocols",
-            value: data?.stats.total.toString(),
-            trend: `${data?.schedule.taken.length} Logs Finalized`,
+            value: (data?.stats?.total ?? 0).toString(),
+            trend: `${data?.schedule?.taken?.length ?? 0} Logs Finalized`,
             icon: Zap,
             color: "text-secondary",
             bg: "bg-secondary/10"

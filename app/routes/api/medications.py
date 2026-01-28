@@ -281,9 +281,9 @@ def get_medication_status():
         medications = Medication.query.filter_by(
             user_id=current_user.id
         ).filter(
-            (Medication.start_date == None) | (Medication.start_date <= today)
+            (Medication.start_date.is_(None)) | (Medication.start_date <= today)
         ).filter(
-            (Medication.end_date == None) | (Medication.end_date >= today)
+            (Medication.end_date.is_(None)) | (Medication.end_date >= today)
         ).all()
         
         taken = []
@@ -295,7 +295,7 @@ def get_medication_status():
             log_today = MedicationLog.query.filter_by(
                 medication_id=med.id
             ).filter(
-                MedicationLog.timestamp >= datetime.combine(today, datetime.min.time())
+                MedicationLog.taken_at >= datetime.combine(today, datetime.min.time())
             ).first()
             
             # Get scheduled times for this medication
@@ -306,7 +306,7 @@ def get_medication_status():
                     'id': med.id,
                     'name': med.name,
                     'dosage': med.dosage,
-                    'taken_at': log_today.timestamp.strftime('%H:%M')
+                    'taken_at': log_today.taken_at.strftime('%H:%M')
                 })
             else:
                 # Check if any scheduled time has passed

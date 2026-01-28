@@ -22,8 +22,7 @@ services:
           name: medguardian-db
           property: connectionString
       # Add these manually in Render dashboard:
-      # - SUPABASE_URL
-      # - SUPABASE_KEY
+      # - CORS_ORIGINS (e.g., https://your-app.vercel.app)
       # - GEMINI_API_KEY
       # - TELEGRAM_BOT_TOKEN
 

@@ -68,7 +68,7 @@ const itemVariants = {
 
 export default function FeatureGrid() {
     return (
-        <section className="py-32 bg-secondary/5 relative">
+        <section id="features" className="py-32 bg-secondary/5 relative">
             <div className="max-w-7xl mx-auto px-6 lg:px-8">
                 <div className="max-w-2xl">
                     <h2 className="text-sm font-black text-primary uppercase tracking-[0.2em] mb-4">Core Capabilities</h2>

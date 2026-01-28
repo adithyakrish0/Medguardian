@@ -1,3 +1,9 @@
+# =============================================================================
+# CRITICAL: eventlet monkey-patching MUST be the very first import
+# =============================================================================
+import eventlet
+eventlet.monkey_patch()
+
 import os
 from app import create_app, db
 from flask_migrate import Migrate

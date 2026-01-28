@@ -50,7 +50,13 @@ def create_app(config_name=None):
     csrf.exempt(api_v1)
     
     mail.init_app(app)
-    CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
+    
+    # CORS: Allow localhost for dev, plus any origins from CORS_ORIGINS env var
+    cors_origins = ["http://localhost:3000", "http://localhost:3001"]
+    env_origins = os.getenv('CORS_ORIGINS', '')
+    if env_origins:
+        cors_origins.extend([o.strip() for o in env_origins.split(',') if o.strip()])
+    CORS(app, supports_credentials=True, origins=cors_origins)
     
     # Initialize SocketIO with proper configuration
     # Production: Uses eventlet async mode with Redis for horizontal scaling

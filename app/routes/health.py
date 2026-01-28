@@ -3,6 +3,7 @@ Health Check Endpoint for Monitoring and Load Balancers
 """
 from flask import Blueprint, jsonify
 from datetime import datetime
+from sqlalchemy import text
 from app.extensions import db
 import sys
 
@@ -22,7 +23,7 @@ def health_check():
     
     # Check database connectivity
     try:
-        db.session.execute('SELECT 1')
+        db.session.execute(text('SELECT 1'))
         checks['checks']['database'] = 'ok'
     except Exception as e:
         checks['status'] = 'unhealthy'

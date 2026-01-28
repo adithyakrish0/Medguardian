@@ -38,7 +38,10 @@ export default function Hero() {
                                 Initialize Monitor
                                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </Link>
-                            <button className="px-8 py-4 border-2 border-secondary/20 text-foreground rounded-2xl font-black hover:bg-secondary/5 transition-all">
+                            <button
+                                onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                                className="px-8 py-4 border-2 border-secondary/20 text-foreground rounded-2xl font-black hover:bg-secondary/5 transition-all"
+                            >
                                 Platform Overview
                             </button>
                         </div>

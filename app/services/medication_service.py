@@ -25,9 +25,9 @@ class MedicationService:
         
         # Filter by date range if dates are set
         query = query.filter(
-            (Medication.start_date == None) | (Medication.start_date <= current_date)
+            (Medication.start_date.is_(None)) | (Medication.start_date <= current_date)
         ).filter(
-            (Medication.end_date == None) | (Medication.end_date >= current_date)
+            (Medication.end_date.is_(None)) | (Medication.end_date >= current_date)
         )
         
         return query.all()
