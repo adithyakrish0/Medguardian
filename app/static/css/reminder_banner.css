@@ -4,7 +4,7 @@
     position: fixed;
     top: 20px;
     right: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-color);
     color: white;
     border-radius: 16px;
     padding: 20px;
@@ -16,12 +16,12 @@
 }
 
 .reminder-banner.priority-critical {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    background: var(--danger-color);
     animation: pulse 2s infinite, slideInRight 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 .reminder-banner.priority-high {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: var(--warning-color);
 }
 
 .reminder-banner.fade-out {
@@ -84,7 +84,7 @@
 
 .reminder-actions .btn-primary {
     background: white;
-    color: #667eea;
+    color: var(--primary-color);
 }
 
 .reminder-actions .btn-primary:hover {

@@ -7,7 +7,9 @@
 /* Base font size increase */
 body {
     font-size: 18px !important;
-    line-height: 1.6;
+    line-height: 1.8;
+    color: #1A1A1A;
+    /* Better contrast */
 }
 
 /* Headings */

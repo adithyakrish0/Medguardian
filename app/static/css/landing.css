@@ -1,0 +1,163 @@
+/* Landing Page Specific Styles */
+.hero-section {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0B3954 0%, #087E8B 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+    animation: pulse-bg 8s ease-in-out infinite;
+}
+
+@keyframes pulse-bg {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 0.5;
+    }
+}
+
+.hero-content {
+    position: relative;
+    z-index: 10;
+}
+
+.hero-title {
+    font-size: 4rem;
+    font-weight: 800;
+}
+
+.hero-subtitle {
+    font-size: 1.5rem;
+    font-weight: 300;
+    opacity: 0.9;
+}
+
+.hero-pills {
+    position: absolute;
+    right: 5%;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 20rem;
+    opacity: 0.08;
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(-50%) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-55%) rotate(5deg);
+    }
+}
+
+.btn-hero {
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.btn-hero-primary {
+    background: white;
+    color: #0B3954;
+}
+
+.btn-hero-outline {
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+}
+
+.btn-hero-outline:hover {
+    background: white;
+    color: #0B3954;
+}
+
+.stats-section {
+    background: white;
+    margin-top: -50px;
+    position: relative;
+    z-index: 20;
+    border-radius: 30px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+}
+
+.stat-number {
+    font-size: 3rem;
+    font-weight: 800;
+    color: #087E8B;
+}
+
+.feature-card {
+    background: white;
+    border-radius: 25px;
+    padding: 40px 30px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+    transition: all 0.4s ease;
+    height: 100%;
+    border: 1px solid rgba(8, 126, 139, 0.1);
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 50px rgba(11, 57, 84, 0.15);
+    border-color: #087E8B;
+}
+
+.feature-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 25px;
+    font-size: 2rem;
+    background: #e6f2f3;
+    color: #087E8B;
+}
+
+.step-number {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #0B3954;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+}
+
+.cta-section {
+    padding: 100px 0;
+    background: #0B3954;
+    color: white;
+    text-align: center;
+}
+
+.tech-section {
+    background: #051926;
+}

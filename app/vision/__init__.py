@@ -1,15 +1,9 @@
-"""Vision module - AI-powered medication verification"""
-from .model_manager import model_manager, ModelManager
-from .bottle_detector import MedicineBottleDetector
+"""Vision module - AI-powered medication verification (V2.0)"""
+from .vision_v2 import vision_v2, VisionEngineV2
 from .barcode_scanner import BarcodeScanner
-from .robust_verifier import robust_verify_medication, check_frame_stability, clear_stability_history
 
 __all__ = [
-    'model_manager',
-    'ModelManager',
-    'MedicineBottleDetector',
-    'BarcodeScanner',
-    'robust_verify_medication',
-    'check_frame_stability',
-    'clear_stability_history'
+    'vision_v2',
+    'VisionEngineV2',
+    'BarcodeScanner'
 ]

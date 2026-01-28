@@ -2,14 +2,18 @@ import os
 
 class Config:
     """Base configuration class"""
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-here'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///instance/medguardian.db'
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    if not SECRET_KEY and os.environ.get('FLASK_ENV') == 'production':
+        raise RuntimeError("SECRET_KEY must be set in production environment")
+    SECRET_KEY = SECRET_KEY or 'dev-key-keep-it-secret'
+    
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Vision system configuration
+    # Vision system configuration (V2.0 Zero-Trash)
     VISION_ENABLED = True
-    YOLO_MODEL_PATH = 'yolov5s.pt'
-    PILL_DETECTION_CONFIDENCE = 0.5
+    YOLO_MODEL_PATH = 'yolow-v8-s.pt' 
+    PILL_DETECTION_CONFIDENCE = 0.4
     
     # Reminder system configuration
     REMINDER_ENABLED = True
@@ -33,7 +37,7 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     """Testing configuration"""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or 'postgresql://postgres:postgres@localhost:5432/medguardian_test'
     WTF_CSRF_ENABLED = False
 
 # Configuration dictionary

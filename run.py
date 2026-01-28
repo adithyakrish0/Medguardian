@@ -1,3 +1,4 @@
+import os
 from app import create_app, db
 from flask_migrate import Migrate
 
@@ -9,11 +10,13 @@ if __name__ == "__main__":
     # Using app.run() causes all SocketIO endpoints to return 404
     from app.extensions import socketio
     
+    # Read debug mode from environment (default: False for production safety)
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    
     # Check if SocketIO initialized successfully
     if socketio.server is not None:
-        print("🚀 Starting server with SocketIO support...")
-        # debug=False, use_reloader=False to prevent auto-restarts during demo
-        socketio.run(app, debug=True, port=5001, allow_unsafe_werkzeug=True, use_reloader=False)
+        print("Starting server with SocketIO support...")
+        socketio.run(app, debug=debug_mode, port=5001, host='0.0.0.0', allow_unsafe_werkzeug=True, use_reloader=False)
     else:
         print("⚠️ SocketIO not initialized, starting without real-time features...")
-        app.run(debug=True, port=5001)
+        app.run(debug=debug_mode, port=5001)

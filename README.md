@@ -13,11 +13,11 @@
 
 ### For Senior Citizens
 - **🔔 Smart Reminders**: Real-time notifications via WebSocket with audio alerts
-- **📸 Visual Verification**: OpenCV-based medication bottle recognition
-- **👴 Senior-Friendly UI**: Large text, high contrast, accessibility-focused design
+- **📸 Vision V2.0 (Hand-Aware)**: YOLO-World + ORB fingerprinting for zero-false-positive verification
+- **👴 Senior-Friendly UI (Next.js 14)**: Modern, high-performance React frontend with Tailwind CSS
 - **⏰ Flexible Scheduling**: Custom times or preset periods (Morning/Afternoon/Evening/Night)
 - **📊 Compliance Tracking**: Visual progress charts and medication history
-- **🎤 Voice Commands**: Hands-free medication confirmation
+- **🎤 Voice Assistant**: Hands-free medication confirmation and status queries
 
 ### For Caregivers
 - **👨‍⚕️ Multi-Senior Dashboard**: Monitor multiple seniors from one interface
@@ -27,11 +27,10 @@
 - **📋 Detailed Reports**: Export medication logs and compliance data
 
 ### Technical Highlights
-- **🤖 Computer Vision**: Custom OpenCV pipeline for medication verification
-- **🔬 OCR Integration**: Tesseract-powered label text extraction
-- **⚡ Real-Time Features**: SocketIO for instant notifications
-- **🔐 Security**: CSRF protection, password hashing, role-based access
-- **📱 Responsive**: Mobile-friendly Bootstrap design
+- **🤖 Vision V2 (Zero-Trash)**: YOLO-World + ORB Precision matching + MediaPipe Hand Tracking
+- **⚡ Real-Time Features**: SocketIO for instant notifications and camera sharing
+- **🔐 Security**: CSRF protection, RBAC, and secure cross-origin authentication
+- **📱 Modern Stack**: Next.js 14, Tailwind CSS, Flask, and PostgreSQL (Supabase)
 - **🧪 Validated**: Pydantic schema validation on all inputs
 
 ---
@@ -83,14 +82,16 @@ graph TB
 - **APScheduler**: Background job scheduling
 - **Pydantic**: Request validation
 
-**Computer Vision**
-- **OpenCV 4.8+**: Image processing and feature extraction
-- **Tesseract OCR**: Label text recognition
-- **NumPy**: Numerical computations
+**Computer Vision (V2.0)**
+- **YOLO-World**: Open-vocabulary shape detection (RTX 3050 Optimized)
+- **ORB Features**: High-precision visual fingerprinting
+- **MediaPipe**: Client-side hand presence filtering
+- **OpenCV**: Image preprocessing and utilities
 
 **Frontend**
-- **Bootstrap 5**: Responsive UI framework
-- **JavaScript (ES6+)**: Client-side logic
+- **Next.js 14**: App Router and Server Components
+- **Tailwind CSS**: Modern design system
+- **Lucide React**: Iconography
 - **Chart.js**: Data visualization
 
 **Security**

@@ -51,6 +51,33 @@ def dashboard():
                          senior_stats=senior_stats,
                          total_seniors=len(seniors))
 
+@caregiver.route('/api/seniors')
+@login_required
+def api_seniors():
+    """API endpoint to get caregiver seniors for Next.js"""
+    if current_user.role != 'caregiver':
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    relationships = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
+    seniors_data = []
+    
+    for rel in relationships:
+        senior = rel.senior
+        # Basic stats
+        meds = Medication.query.filter_by(user_id=senior.id).all()
+        seniors_data.append({
+            'id': senior.id,
+            'name': senior.username,
+            'medication_count': len(meds),
+            'role': senior.role,
+            'status': 'Stable' # Placeholder logic
+        })
+        
+    return jsonify({
+        'success': True,
+        'data': seniors_data
+    }), 200
+
 @caregiver.route('/senior/<int:senior_id>')
 @login_required
 def senior_detail(senior_id):

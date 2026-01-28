@@ -86,7 +86,7 @@ def generate_pdf():
         
         table = Table(data, colWidths=[2*inch, 2*inch, 1.2*inch, 2*inch])
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0B3954')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),

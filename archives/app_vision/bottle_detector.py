@@ -1,4 +1,7 @@
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 import cv2
 import numpy as np
 from PIL import Image

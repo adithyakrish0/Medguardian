@@ -4,566 +4,439 @@
 
 {% block head %}
 {{ super() }}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* Compact Senior-Friendly Dashboard - Minimal Scrolling */
+    :root {
+        --premium-primary: #0f172a;
+        --premium-accent: #38bdf8;
+        --premium-gradient: linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%);
+        --premium-glass: rgba(255, 255, 255, 0.7);
+        --premium-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+
+    body {
+        font-family: 'Outfit', sans-serif;
+        background-color: #f8fafc;
+        color: #1e293b;
+    }
+
     .senior-dashboard {
-        font-size: 1.1rem;
-        max-width: 700px;
+        max-width: 900px;
         margin: 0 auto;
-        padding: 1rem;
+        padding: 2rem 1rem;
     }
 
-    /* Compact Welcome Header */
+    /* Premium Header */
     .welcome-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 16px;
-        padding: 1rem 1.25rem;
+        background: var(--premium-primary);
+        background-image: radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+            radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%);
+        border-radius: 24px;
+        padding: 2.5rem;
         color: white;
-        margin-bottom: 1rem;
-    }
-
-    .welcome-left {
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--premium-shadow);
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 0.75rem;
     }
 
-    .greeting-icon {
-        font-size: 2rem;
+    .welcome-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: url('https://www.transparenttextures.com/patterns/cubes.png');
+        opacity: 0.05;
     }
 
     .greeting-text h1 {
-        font-size: 1.3rem;
-        font-weight: 600;
-        margin: 0;
-        color: white;
+        font-size: 2.2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.5rem;
     }
 
     .greeting-text .date {
-        font-size: 0.85rem;
-        opacity: 0.9;
+        font-size: 1.1rem;
+        opacity: 0.8;
+        font-weight: 400;
     }
 
-    /* Compact Progress Summary - Inline */
+    /* Progress Stats */
     .progress-summary {
         display: flex;
-        gap: 0.5rem;
+        gap: 1rem;
     }
 
     .progress-badge {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        padding: 0.35rem 0.6rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        background: rgba(255, 255, 255, 0.2);
-    }
-
-    .progress-badge.taken {
-        background: rgba(40, 167, 69, 0.3);
-    }
-
-    .progress-badge.remaining {
-        background: rgba(255, 193, 7, 0.3);
-    }
-
-    .progress-badge.missed {
-        background: rgba(220, 53, 69, 0.3);
-    }
-
-    /* Compact Alert Card */
-    .alert-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 0.75rem 1.25rem;
         border-radius: 16px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        text-align: center;
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 100px;
+    }
+
+    .progress-badge span:first-child {
+        font-size: 0.8rem;
+        opacity: 0.7;
+        text-transform: uppercase;
+    }
+
+    .progress-badge span:last-child {
+        font-size: 1.5rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Alert Cards */
+    .alert-card {
+        border-radius: 24px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        box-shadow: var(--premium-shadow);
+        transition: transform 0.3s ease;
+    }
+
+    .alert-card:hover {
+        transform: translateY(-5px);
     }
 
     .alert-calm {
-        background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
-        color: white;
+        background: white;
+        border: 1px solid #e2e8f0;
     }
 
     .alert-due {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: var(--premium-gradient);
         color: white;
-        animation: pulse 2s infinite;
+        border: none;
     }
 
-    .alert-overdue {
-        background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
-        color: white;
-        animation: pulse 1s infinite;
+    .alert-title {
+        font-size: 1.8rem;
+        font-weight: 800;
     }
 
-    @keyframes pulse {
-
-        0%,
-        100% {
-            transform: scale(1);
-        }
-
-        50% {
-            transform: scale(1.01);
-        }
+    .alert-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
     }
 
-    .alert-content {
+    /* Medication Cards */
+    .current-med-card,
+    .next-med-card {
+        background: var(--premium-glass);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .med-icon {
+        width: 64px;
+        height: 64px;
+        background: white;
+        border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 1rem;
+        font-size: 2rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
 
-    .alert-icon {
-        font-size: 2.5rem;
-    }
-
-    .alert-text .alert-title {
+    .med-name {
         font-size: 1.4rem;
         font-weight: 700;
-        margin: 0;
+        color: var(--premium-primary);
     }
 
-    .alert-text .alert-subtitle {
-        font-size: 1rem;
-        opacity: 0.95;
-    }
-
-    /* Next Medication (Compact) */
-    .next-med-card {
-        background: #f8f9fa;
-        border-radius: 12px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        border: 2px solid #e9ecef;
-    }
-
-    .next-med-info {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .next-med-info .med-icon {
-        font-size: 1.8rem;
-    }
-
-    .next-med-info .med-details .med-name {
+    .med-dosage {
+        color: #3b82f6;
+        font-weight: 600;
         font-size: 1.1rem;
-        font-weight: 600;
     }
 
-    .next-med-info .med-details .med-time {
-        font-size: 0.9rem;
-        color: #6c757d;
-    }
-
-    .countdown-badge {
-        font-size: 1.5rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-
-    /* Current Medication Card (When Due) */
-    .current-med-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1rem;
-        margin-bottom: 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        border-left: 5px solid #667eea;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    }
-
-    .current-med-card .med-icon {
-        font-size: 2rem;
-    }
-
-    .current-med-card .med-details {
-        flex: 1;
-    }
-
-    .current-med-card .med-name {
-        font-size: 1.2rem;
-        font-weight: 700;
-    }
-
-    .current-med-card .med-dosage {
-        font-size: 1rem;
-        color: #667eea;
-        font-weight: 600;
-    }
-
-    .current-med-card .med-instructions {
-        font-size: 0.9rem;
-        color: #6c757d;
-    }
-
-    /* Action Buttons */
+    /* Actions */
     .action-btn-primary {
-        display: block;
-        width: 100%;
-        padding: 1rem;
-        font-size: 1.2rem;
-        font-weight: 700;
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        margin-bottom: 0.75rem;
-        text-decoration: none;
-        text-align: center;
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        background: var(--premium-primary);
         color: white;
-        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+        padding: 1.25rem;
+        border-radius: 16px;
+        font-weight: 700;
+        font-size: 1.2rem;
+        text-align: center;
+        text-decoration: none;
+        display: block;
+        box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.3);
+        transition: all 0.3s ease;
+        border: none;
+        width: 100%;
+        margin-bottom: 1rem;
     }
 
     .action-btn-primary:hover {
+        background: #1e293b;
         transform: translateY(-2px);
-        color: white;
+        box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.4);
     }
 
     .secondary-actions {
         display: flex;
-        justify-content: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
+        gap: 1rem;
     }
 
     .action-btn-secondary {
-        padding: 0.6rem 1rem;
-        font-size: 0.95rem;
-        font-weight: 600;
-        border: 2px solid #6c757d;
-        border-radius: 10px;
-        cursor: pointer;
-        text-decoration: none;
+        flex: 1;
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid #cbd5e1;
         background: white;
-        color: #6c757d;
+        font-weight: 600;
+        color: #64748b;
+        transition: all 0.2s;
     }
 
     .action-btn-secondary:hover {
-        background: #6c757d;
-        color: white;
+        background: #f1f5f9;
+        color: #1e293b;
     }
 
-    /* Compact Schedule Section */
-    .schedule-section {
-        margin-top: 0.75rem;
+    /* Grid Layout for Desktop */
+    @media (min-width: 768px) {
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: 2rem;
+        }
     }
 
+    /* Schedule Section Tabs */
     .schedule-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e9ecef;
-    }
-
-    .schedule-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #333;
-    }
-
-    .view-all-link {
-        font-size: 0.85rem;
-        color: #667eea;
-        text-decoration: none;
+        margin-bottom: 1.5rem;
     }
 
     .schedule-item {
+        background: white;
+        border-radius: 16px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 0.75rem;
         display: flex;
         align-items: center;
-        padding: 0.6rem 0.75rem;
-        border-radius: 10px;
-        margin-bottom: 0.5rem;
-        background: white;
-        border: 1px solid #e9ecef;
+        justify-content: space-between;
+        border: 1px solid #f1f5f9;
+        transition: all 0.2s;
     }
 
-    .schedule-item.taken {
-        background: #d4edda;
-        border-color: #28a745;
-    }
-
-    .schedule-item.missed {
-        background: #f8d7da;
-        border-color: #dc3545;
-    }
-
-    .schedule-item.due {
-        background: #fff3cd;
-        border-color: #ffc107;
-    }
-
-    .schedule-item.upcoming {
-        background: #f8f9fa;
-    }
-
-    .schedule-icon {
-        font-size: 1.2rem;
-        width: 30px;
-        text-align: center;
+    .schedule-item:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
 
     .schedule-time {
-        font-size: 0.95rem;
-        font-weight: 600;
-        min-width: 75px;
+        font-weight: 700;
+        color: #64748b;
+        width: 80px;
     }
 
     .schedule-med {
         flex: 1;
-        font-size: 0.95rem;
+        font-weight: 500;
+        font-size: 1.1rem;
     }
 
     .schedule-status {
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 0.2rem 0.5rem;
-        border-radius: 12px;
+        padding: 0.25rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 700;
         text-transform: uppercase;
     }
 
-    .status-taken {
-        background: #28a745;
-        color: white;
+    /* Quick Actions Float */
+    .quick-actions-bar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-top: 2rem;
     }
 
-    .status-missed {
-        background: #dc3545;
-        color: white;
-    }
-
-    .status-due {
-        background: #ffc107;
-        color: #333;
-    }
-
-    .status-upcoming {
-        background: #6c757d;
-        color: white;
-    }
-
-    /* Compact Quick Actions */
-    .quick-actions {
-        display: flex;
-        justify-content: center;
-        gap: 0.75rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid #e9ecef;
-        margin-top: 0.75rem;
-    }
-
-    .quick-action-btn {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 0.5rem 0.75rem;
+    .quick-card {
         background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 10px;
+        padding: 1.5rem 1rem;
+        border-radius: 20px;
+        text-align: center;
         text-decoration: none;
-        color: #495057;
-        font-size: 0.8rem;
-        min-width: 70px;
+        color: var(--premium-primary);
+        border: 1px solid #f1f5f9;
+        transition: all 0.3s ease;
     }
 
-    .quick-action-btn:hover {
-        border-color: #667eea;
-        color: #667eea;
+    .quick-card:hover {
+        transform: translateY(-5px);
+        background: var(--premium-primary);
+        color: white;
+        border-color: var(--premium-primary);
     }
 
-    .quick-action-btn .action-icon {
-        font-size: 1.3rem;
+    .quick-card i {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+        display: block;
     }
 
-    .quick-action-btn .action-label {
-        font-size: 0.75rem;
+    .quick-card span {
         font-weight: 600;
+        font-size: 0.9rem;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="senior-dashboard">
-    <!-- Compact Welcome Header with Progress -->
+    <!-- Premium Welcome Header -->
     <div class="welcome-header">
-        <div class="welcome-left">
-            <span class="greeting-icon">
+        <div class="greeting-text">
+            <div class="date">{{ today_date }}</div>
+            <h1>
                 {% set hour = now_hour|default(12) %}
-                {% if hour < 12 %}☀️{% elif hour < 17 %}🌤️{% elif hour < 20 %}🌅{% else %}🌙{% endif %} </span>
-                    <div class="greeting-text">
-                        <h1>{% if hour < 12 %}Good Morning{% elif hour < 17 %}Good Afternoon{% elif hour < 20 %}Good
-                                Evening{% else %}Good Night{% endif %}, {{ current_user.username }}!</h1>
-                                <div class="date">{{ today_date }}</div>
-                    </div>
+                {% if hour < 12 %}Good Morning{% elif hour < 17 %}Good Afternoon{% elif hour < 20 %}Good Evening{% else
+                    %}Good Night{% endif %}, {{ current_user.username }} </h1>
         </div>
+
         {% if today_schedule %}
         {% set taken_count = today_schedule|selectattr('status', 'equalto', 'taken')|list|length %}
-        {% set remaining_count = today_schedule|selectattr('status', 'in', ['upcoming', 'due'])|list|length %}
+        {% set total_count = today_schedule|list|length %}
         <div class="progress-summary">
-            <span class="progress-badge taken">✅ {{ taken_count }}</span>
-            <span class="progress-badge remaining">⏳ {{ remaining_count }}</span>
+            <div class="progress-badge">
+                <span>Taken</span>
+                <span>{{ taken_count }}</span>
+            </div>
+            <div class="progress-badge">
+                <span>Total</span>
+                <span>{{ total_count }}</span>
+            </div>
         </div>
         {% endif %}
     </div>
 
-    <!-- Main Alert Card -->
-    {% if dashboard_state == 'calm' %}
-    <div class="alert-card alert-calm">
-        <div class="alert-content">
-            <span class="alert-icon">🎉</span>
-            <div class="alert-text">
-                <div class="alert-title">All Caught Up!</div>
-                <div class="alert-subtitle">No medication due right now</div>
+    <div class="dashboard-grid">
+        <!-- Main Alerts (Left Column) -->
+        <div class="main-alerts">
+            {% if dashboard_state == 'calm' %}
+            <div class="alert-card alert-calm">
+                <div class="alert-content">
+                    <div class="alert-title">🎉 All Clear!</div>
+                    <div class="alert-subtitle">You have no medications due right now. Rest easy.</div>
+                </div>
             </div>
-        </div>
-    </div>
 
-    {% if next_medication %}
-    <div class="next-med-card">
-        <div class="next-med-info">
-            <span class="med-icon">💊</span>
-            <div class="med-details">
-                <div class="med-name">{{ next_medication.name }}</div>
-                <div class="med-time">at {{ next_medication.time_display }}</div>
+            {% if next_medication %}
+            <h3 class="med-section-title" style="font-weight: 700; margin-bottom: 1rem; color: #64748b;">UPCOMING SOON
+            </h3>
+            <div class="next-med-card">
+                <div class="med-icon">⏰</div>
+                <div class="med-info">
+                    <div class="med-name">{{ next_medication.name }}</div>
+                    <div class="med-dosage">Scheduled for {{ next_medication.time_display }}</div>
+                </div>
             </div>
-        </div>
-        <div class="countdown-badge">{{ time_until_next or 'Soon' }}</div>
-    </div>
-    {% endif %}
+            {% endif %}
 
-    {% elif dashboard_state == 'due' %}
-    <div class="alert-card alert-due">
-        <div class="alert-content">
-            <span class="alert-icon">🔔</span>
-            <div class="alert-text">
-                <div class="alert-title">Time to Take Medication!</div>
-                <div class="alert-subtitle">Due at {{ current_medication.time_display }}</div>
+            {% elif dashboard_state in ['due', 'overdue'] %}
+            <div class="alert-card alert-due">
+                <div class="alert-title">
+                    {% if dashboard_state == 'overdue' %}⚠️ OVERDUE!{% else %}🔔 ACTION REQUIRED{% endif %}
+                </div>
+                <div class="alert-subtitle">
+                    Time to take your <strong>{{ current_medication.name }}</strong>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div class="current-med-card">
-        <span class="med-icon">💊</span>
-        <div class="med-details">
-            <div class="med-name">{{ current_medication.name }}</div>
-            <div class="med-dosage">{{ current_medication.dosage }}</div>
-            {% if current_medication.instructions %}
-            <div class="med-instructions">{{ current_medication.instructions }}</div>
+            <div class="current-med-card">
+                <div class="med-icon">💊</div>
+                <div class="med-info" style="flex: 1;">
+                    <div class="med-name">{{ current_medication.name }}</div>
+                    <div class="med-dosage">{{ current_medication.dosage }}</div>
+                    {% if current_medication.instructions %}
+                    <p style="margin: 0.5rem 0 0; font-size: 0.95rem; opacity: 0.8;">{{ current_medication.instructions
+                        }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <a href="{{ url_for('medication.medication_reminder_page', medication_id=current_medication.id) }}"
+                class="action-btn-primary">
+                START VERIFICATION
+            </a>
+
+            <div class="secondary-actions">
+                <button type="button" class="action-btn-secondary"
+                    onclick="snoozeDose({{ current_medication.id }})">Snooze (10m)</button>
+                <button type="button" class="action-btn-secondary" onclick="skipDose({{ current_medication.id }})">Skip
+                    Today</button>
+            </div>
             {% endif %}
         </div>
-    </div>
 
-    <a href="{{ url_for('medication.medication_reminder_page', medication_id=current_medication.id) }}"
-        class="action-btn-primary">
-        ✅ VERIFY & TAKE NOW
-    </a>
+        <!-- Schedule & Quick Links (Right Column) -->
+        <div class="sidebar-content">
+            {% if today_schedule %}
+            <div class="schedule-header">
+                <h3 style="font-weight: 700; color: #1e293b; margin: 0;">Today</h3>
+                <a href="{{ url_for('medication.list_medications') }}"
+                    style="color: #3b82f6; font-weight: 600; text-decoration: none;">View All</a>
+            </div>
 
-    <div class="secondary-actions">
-        <button type="button" class="action-btn-secondary" onclick="snoozeDose({{ current_medication.id }})">⏰
-            Snooze</button>
-        <button type="button" class="action-btn-secondary" onclick="skipDose({{ current_medication.id }})">
-            ⏭️ Skip
-        </button>
-    </div>
+            <div class="schedule-list">
+                {% for dose in today_schedule[:4] %}
+                <div class="schedule-item">
+                    <div class="schedule-time">{{ dose.time_display }}</div>
+                    <div class="schedule-med">{{ dose.name }}</div>
+                    <div class="schedule-status status-{{ dose.status }}" style="background: 
+                        {% if dose.status == 'taken' %}#dcfce7; color: #166534;
+                        {% elif dose.status == 'missed' %}#fee2e2; color: #991b1b;
+                        {% elif dose.status == 'due' %}#fef9c3; color: #854d0e;
+                        {% else %}#f1f5f9; color: #475569;{% endif %}">
+                        {{ dose.status }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
 
-    {% elif dashboard_state == 'overdue' %}
-    <div class="alert-card alert-overdue">
-        <div class="alert-content">
-            <span class="alert-icon">⚠️</span>
-            <div class="alert-text">
-                <div class="alert-title">Medication Overdue!</div>
-                <div class="alert-subtitle">Was due at {{ current_medication.time_display }}</div>
+            <div class="quick-actions-bar">
+                <a href="{{ url_for('medication.list_medications') }}" class="quick-card">
+                    <i class="fas fa-pills"></i><span>Meds</span>
+                </a>
+                <a href="{{ url_for('emergency.sos') }}" class="quick-card" style="border-color: #fee2e2;">
+                    <i class="fas fa-ambulance" style="color: #ef4444;"></i><span>SOS</span>
+                </a>
+                <a href="{{ url_for('print_schedule.schedule_page') }}" class="quick-card">
+                    <i class="fas fa-print"></i><span>Print</span>
+                </a>
+                <a href="{{ url_for('interaction.check_interactions') }}" class="quick-card">
+                    <i class="fas fa-shield-virus"></i><span>Check</span>
+                </a>
             </div>
         </div>
-    </div>
-
-    <div class="current-med-card">
-        <span class="med-icon">💊</span>
-        <div class="med-details">
-            <div class="med-name">{{ current_medication.name }}</div>
-            <div class="med-dosage">{{ current_medication.dosage }}</div>
-        </div>
-    </div>
-
-    <a href="{{ url_for('medication.medication_reminder_page', medication_id=current_medication.id) }}"
-        class="action-btn-primary">
-        ✅ TAKE NOW
-    </a>
-
-    <div class="secondary-actions">
-        <button type="button" class="action-btn-secondary" onclick="skipDose({{ current_medication.id }})">
-            ⏭️ Skip
-        </button>
-    </div>
-    {% endif %}
-
-    <!-- Compact Schedule (Show only next 4) -->
-    {% if today_schedule %}
-    <div class="schedule-section">
-        <div class="schedule-header">
-            <span class="schedule-title">📅 Today's Schedule</span>
-            <a href="{{ url_for('medication.list_medications') }}" class="view-all-link">View All →</a>
-        </div>
-
-        {% for dose in today_schedule[:4] %}
-        <div class="schedule-item {{ dose.status }}">
-            <span class="schedule-icon">
-                {% if dose.status == 'taken' %}✅{% elif dose.status == 'missed' %}❌{% elif dose.status == 'due' %}🔔{%
-                else %}⏰{% endif %}
-            </span>
-            <span class="schedule-time">{{ dose.time_display }}</span>
-            <span class="schedule-med">{{ dose.name }}</span>
-            <span class="schedule-status status-{{ dose.status }}">
-                {% if dose.status == 'taken' %}Done{% elif dose.status == 'missed' %}Missed{% elif dose.status == 'due'
-                %}Now{% else %}Later{% endif %}
-            </span>
-        </div>
-        {% endfor %}
-
-        {% if today_schedule|length > 4 %}
-        <div style="text-align: center; padding: 0.5rem; color: #6c757d; font-size: 0.85rem;">
-            +{{ today_schedule|length - 4 }} more scheduled
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    <!-- Compact Quick Actions -->
-    <div class="quick-actions">
-        <a href="{{ url_for('medication.list_medications') }}" class="quick-action-btn">
-            <span class="action-icon">💊</span>
-            <span class="action-label">Meds</span>
-        </a>
-        <a href="{{ url_for('emergency.sos') }}" class="quick-action-btn">
-            <span class="action-icon">🆘</span>
-            <span class="action-label">SOS</span>
-        </a>
-        <a href="{{ url_for('print_schedule.schedule_page') }}" class="quick-action-btn">
-            <span class="action-icon">📋</span>
-            <span class="action-label">Print</span>
-        </a>
-        <a href="{{ url_for('interaction.check_interactions') }}" class="quick-action-btn">
-            <span class="action-icon">⚕️</span>
-            <span class="action-label">Check</span>
-        </a>
     </div>
 
     <script>

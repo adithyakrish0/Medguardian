@@ -2,7 +2,12 @@
 Model Manager - Singleton pattern for AI model loading
 Ensures YOLO and other heavy models are loaded only once
 """
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
+    print("⚠️ PyTorch not available - Vision features will be disabled")
+
 import logging
 from typing import Optional
 from threading import Lock
@@ -62,6 +67,9 @@ class ModelManager:
         
         # Load model
         try:
+            if torch is None:
+                raise ImportError("PyTorch not available")
+                
             logger.info(f"Loading YOLO model from {model_path}...")
             self._yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
             self._yolo_model_path = model_path

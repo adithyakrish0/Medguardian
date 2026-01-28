@@ -1,0 +1,69 @@
+# MedGuardian Requirements (Render Free Tier - No Vision)
+# =========================================================
+# This is a lightweight version without PyTorch/YOLO/MediaPipe
+# Use for Render.com free tier deployment
+# Vision features will be disabled, all other features work
+
+# Core Flask
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.2
+Flask-Migrate==4.0.5
+Flask-WTF==1.1.1
+Flask-Limiter==3.5.0
+Werkzeug==2.3.7
+python-dotenv==1.0.0
+WTForms==3.0.1
+email-validator==2.0.0
+flask-cors==4.0.0
+
+# Image Processing (lightweight - no PyTorch)
+Pillow==10.2.0
+opencv-python-headless==4.9.0.80
+numpy==1.26.4
+pyzbar==0.1.9
+pytesseract==0.3.10
+
+# NOTE: Removed for free tier (add back for paid tier)
+# ultralytics==8.1.0      # YOLO - needs PyTorch (~1GB RAM)
+# mediapipe==0.10.11      # Google MediaPipe
+
+# Scheduler
+APScheduler==3.10.4
+
+# Email
+Flask-Mail==0.9.1
+
+# Real-time notifications
+flask-socketio==5.3.5
+python-socketio==5.10.0
+
+# Production server
+gunicorn==21.2.0
+eventlet==0.36.1
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+PyJWT==2.8.0
+
+# Validation
+pydantic==2.5.0
+pydantic[email]==2.5.0
+
+# Caching
+redis==5.0.1
+
+# PDF Export
+reportlab==4.0.7
+
+# Telegram Bot
+requests==2.31.0
+
+# QR Code Generation
+qrcode[pil]==7.4.2
+
+# Database (PostgreSQL)
+psycopg2-binary==2.9.9
+
+# AI (Gemini API - lightweight, no local models)
+google-generativeai==0.3.2

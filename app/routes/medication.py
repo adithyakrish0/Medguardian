@@ -11,8 +11,8 @@ from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.medication import Medication
 from app.models.medication_log import MedicationLog
-from app.vision.pill_detection import PillDetector
-from app.vision.enhanced_verifier import EnhancedMedicationVerifier
+# Vision V2.0 Integration
+from app.vision.vision_v2 import vision_v2
 from flask import Response
 from app import csrf, limiter  # For CSRF and rate limit exemption on API endpoints
 
@@ -368,9 +368,7 @@ def verify_realtime():
     Real-time verification endpoint
     Receives image frame + expected medication, returns CORRECT/WRONG + detection overlay data
     """
-    from app.utils.medication_verification import verify_medication_comprehensive
     from app.vision.barcode_scanner import BarcodeScanner
-    from app.vision.bottle_detector import MedicineBottleDetector
     
     try:
         # Force JSON parsing even if content-type is wrong
@@ -422,64 +420,48 @@ def verify_realtime():
         # Get image dimensions for overlay scaling
         img_height, img_width = image.shape[:2]
         
-        # Detection data (for legacy compatibility)
-        detection_data = []
-        bottles_detected = False
-        
-        # If NOT zone_only mode, run YOLO detection (optional enhancement)
-        if not zone_only:
-            detector = MedicineBottleDetector()
-            bottles_detected, detections, _ = detector.detect_bottles(image, return_image=False)
-            
-            for det in detections:
-                x1, y1, x2, y2, confidence, class_id = det
-                if detector.model:
-                    try:
-                        label = detector.model.names[int(class_id)]
-                    except:
-                        label = 'object'
-                else:
-                    label = 'bottle'
-                
-                detection_data.append({
-                    'bbox': [float(x1), float(y1), float(x2), float(y2)],
-                    'confidence': float(confidence),
-                    'label': label
-                })
-        
         # Scan for barcode (always useful)
         barcodes = BarcodeScanner.scan_barcodes(zone_image if zone_image is not None else image)
         scanned_barcode = barcodes[0]['data'] if barcodes else None
         
-        # COMPREHENSIVE VERIFICATION
-        # Use ZONE image for AI matching if available (shape-agnostic!)
-        verification_image = zone_image if zone_image is not None else image
+        # ===== TRIPLE-LAYER VERIFICATION V2.0 =====
+        from app.vision.vision_v2 import vision_v2
         
-        result = verify_medication_comprehensive(
-            image=verification_image,
-            expected_medication_id=expected_med_id,
-            user_id=current_user.id,
-            scanned_barcode=scanned_barcode
+        # Get expected fingerprints from DB
+        medication = Medication.query.get(expected_med_id)
+        
+        # Layer 2: ORB Features
+        expected_des = None
+        if medication and medication.visual_fingerprint:
+            try:
+                des_bytes = base64.b64decode(medication.visual_fingerprint)
+                expected_des = np.frombuffer(des_bytes, np.uint8).reshape(-1, 32)
+            except Exception as e:
+                logger.error(f"Failed to decode ORB fingerprint: {e}")
+        
+        # Layer 3: Color Histogram
+        reference_histogram = None
+        if medication and medication.histogram_fingerprint:
+            try:
+                reference_histogram = vision_v2.decode_histogram_fingerprint(
+                    medication.histogram_fingerprint
+                )
+            except Exception as e:
+                logger.error(f"Failed to decode histogram fingerprint: {e}")
+
+        # Process frame via Triple-Layer Engine
+        result = vision_v2.process_frame(
+            image_data, 
+            expected_features=expected_des,
+            reference_histogram=reference_histogram
         )
         
-        # Add detection overlay data to result
-        result['detections'] = detection_data
-        result['detection_count'] = len(detection_data)
-        result['bottles_detected'] = bottles_detected
+        # Add metadata for frontend
         result['image_width'] = img_width
         result['image_height'] = img_height
-        result['zone_used'] = zone_image is not None  # NEW: indicate zone was used
-        
-        # Map verification result fields for frontend compatibility
-        # IMPORTANT: In zone_only mode, don't require YOLO detection!
-        if zone_only:
-            # Zone-based: success depends solely on AI match
-            result['verified'] = result.get('success', False) and result.get('is_correct', False)
-        else:
-            # Legacy: require both detection and verification
-            result['verified'] = result.get('success', False) and len(detection_data) > 0
-        
-        result['correct_medication'] = result.get('is_correct', False)
+        result['verified'] = result.get('is_verified', False)
+        result['correct_medication'] = result.get('is_verified', False)
+        result['detection_count'] = len(result.get('detections', []))
         
         return jsonify(result)
         
@@ -497,7 +479,7 @@ def detect_objects():
     Simple object detection endpoint for training capture overlay.
     Returns bounding boxes without full medication verification.
     """
-    from app.vision.bottle_detector import MedicineBottleDetector
+    from app.vision.vision_v2 import vision_v2
     
     try:
         data = request.get_json()
@@ -506,38 +488,17 @@ def detect_objects():
         if not image_data:
             return jsonify({'detections': [], 'error': 'No image provided'}), 400
         
-        # Decode image
-        image_bytes = base64.b64decode(image_data.split(',')[1])
-        nparr = np.frombuffer(image_bytes, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
-        # Run detection
-        detector = MedicineBottleDetector()
-        bottles_detected, detections, _ = detector.detect_bottles(image, return_image=False)
-        
-        # Format detections
-        detection_data = []
-        for det in detections:
-            x1, y1, x2, y2, confidence, class_id = det
-            label = 'bottle'
-            if detector.model:
-                try:
-                    label = detector.model.names[int(class_id)]
-                except:
-                    pass
-            
-            detection_data.append({
-                'bbox': [float(x1), float(y1), float(x2), float(y2)],
-                'confidence': float(confidence),
-                'label': label
-            })
+        # Process via Vision Engine V2 (detection only)
+        result = vision_v2.process_frame(image_data, expected_features=None)
         
         return jsonify({
-            'detections': detection_data,
-            'count': len(detection_data)
+            'success': True,
+            'detections': result.get('detections', []),
+            'count': len(result.get('detections', []))
         })
         
     except Exception as e:
+        logger.error(f"detect-objects error: {e}")
         return jsonify({'detections': [], 'error': str(e)}), 500
 
 
@@ -610,7 +571,22 @@ def save_reference_image(medication_id):
         if len(existing_images) > MAX_ANGLES:
             existing_images = existing_images[-MAX_ANGLES:]  # Keep latest 5
         
-        # 5. Update ALL fields
+        # 5. Extract Visual Fingerprints for Triple-Layer Verification
+        from app.vision.vision_v2 import vision_v2
+        
+        # Layer 2: ORB Feature Fingerprint
+        orb_fingerprint = vision_v2.get_fingerprint(image_data)
+        if orb_fingerprint:
+            medication.visual_fingerprint = orb_fingerprint
+            logger.info(f"Saved Layer 2 (ORB) fingerprint for medication {medication_id}")
+        
+        # Layer 3: Color Histogram Fingerprint
+        histogram_fingerprint = vision_v2.get_histogram_fingerprint(image_data)
+        if histogram_fingerprint:
+            medication.histogram_fingerprint = histogram_fingerprint
+            logger.info(f"Saved Layer 3 (Histogram) fingerprint for medication {medication_id}")
+
+        # 6. Update ALL fields
         medication.reference_image_path = image_path
         medication.image_features = json.dumps(features)
         medication.label_text = label_text
@@ -647,6 +623,8 @@ def clear_training(medication_id):
         medication.background_image = None
         medication.image_features = None
         medication.label_text = None
+        medication.visual_fingerprint = None  # Clear Layer 2
+        medication.histogram_fingerprint = None  # Clear Layer 3
         medication.ai_trained = False
         
         db.session.commit()

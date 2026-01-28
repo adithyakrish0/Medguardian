@@ -1,4 +1,7 @@
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 import cv2
 import numpy as np
 from PIL import Image
@@ -13,6 +16,8 @@ class PillDetector:
     def _load_model(self):
         """Attempt to load YOLOv5 model, fallback to None if unavailable"""
         try:
+            if torch is None:
+                raise ImportError("PyTorch not available")
             # Try loading YOLOv5 model with error handling
             self.model = torch.hub.load('ultralytics/yolov5', 'custom', path='yolov5s.pt')
             return self.model

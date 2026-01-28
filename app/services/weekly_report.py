@@ -71,17 +71,17 @@ class WeeklyReportService:
             <style>
                 body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; }
-                .header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 30px; text-align: center; }
+                .header { background: #0B3954; color: white; padding: 30px; text-align: center; }
                 .content { padding: 30px; }
                 .stat-box { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px; text-align: center; }
-                .stat-value { font-size: 32px; font-weight: bold; color: #667eea; }
+                .stat-value { font-size: 32px; font-weight: bold; color: #0B3954; }
                 .stat-label { color: #666; font-size: 14px; }
                 .progress-bar { height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden; margin: 15px 0; }
                 .progress-fill { height: 100%; background: linear-gradient(90deg, #28a745, #20c997); }
                 .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666; }
                 table { width: 100%; border-collapse: collapse; margin: 15px 0; }
                 th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
-                th { background: #667eea; color: white; }
+                th { background: #0B3954; color: white; }
             </style>
         </head>
         <body>

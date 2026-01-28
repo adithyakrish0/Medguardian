@@ -7,9 +7,9 @@ import numpy as np
 from PIL import Image
 import logging
 
-from app.vision.model_manager import model_manager
-from app.vision.bottle_detector import MedicineBottleDetector
+from app.vision.vision_v2 import vision_v2
 from app.vision.barcode_scanner import BarcodeScanner
+from app.extensions import db
 from app.models.medication import Medication
 
 logger = logging.getLogger(__name__)
@@ -19,14 +19,8 @@ class VerificationService:
     """Service for medication verification using vision AI"""
     
     def __init__(self):
-        self.bottle_detector = None
+        self.vision_engine = vision_v2
         self.barcode_scanner = BarcodeScanner()
-    
-    def _get_bottle_detector(self) -> MedicineBottleDetector:
-        """Lazy load bottle detector with shared model manager"""
-        if self.bottle_detector is None:
-            self.bottle_detector = MedicineBottleDetector()
-        return self.bottle_detector
     
     def verify_with_image(self, image_data: str, medication_id: int) -> Dict:
         """
@@ -58,26 +52,60 @@ class VerificationService:
                     'error': 'Medication not found'
                 }
             
-            # Use comprehensive verification logic
-            from app.utils.medication_verification import verify_medication_comprehensive
-            
-            # Extract barcode if present in request (optional)
-            scanned_barcode = None # Could be passed from frontend
-            
-            result = verify_medication_comprehensive(
-                image=image_np,
-                expected_medication_id=medication_id,
-                user_id=medication.user_id,
-                scanned_barcode=scanned_barcode
+            # ===== TRIPLE-LAYER VERIFICATION ENGINE =====
+            # Layer 2: ORB Feature Matching
+            expected_des = None
+            if medication.visual_fingerprint:
+                try:
+                    des_bytes = base64.b64decode(medication.visual_fingerprint)
+                    expected_des = np.frombuffer(des_bytes, np.uint8).reshape(-1, 32)
+                except Exception as e:
+                    logger.error(f"Failed to decode ORB fingerprint: {e}")
+
+            # Layer 3: Color Histogram
+            reference_histogram = None
+            if medication.histogram_fingerprint:
+                try:
+                    reference_histogram = self.vision_engine.decode_histogram_fingerprint(
+                        medication.histogram_fingerprint
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to decode histogram fingerprint: {e}")
+
+            # Process via Triple-Layer Vision Engine V2
+            result = self.vision_engine.process_frame(
+                image_data, 
+                expected_features=expected_des,
+                reference_histogram=reference_histogram
             )
+            
+            # Check barcodes as fallback/supplement
+            barcodes = self.barcode_scanner.scan_barcodes(image_np)
+            has_barcode_match = False
+            if barcodes and medication.barcode:
+                has_barcode_match = any(b['data'] == medication.barcode for b in barcodes)
+            
+            is_verified = result.get('is_verified', False) or has_barcode_match
+            
+            # Calculate overall confidence from layers
+            confidence = 0.0
+            layers_passed = result.get('layers_passed', [])
+            layers_checked = result.get('layers_checked', [])
+            if layers_checked:
+                confidence = len(layers_passed) / len(layers_checked)
             
             return {
                 'success': True,
-                'verified': result.get('is_correct', False),
-                'correct_medication': result.get('is_correct', False),
-                'method': result.get('method', 'unknown'),
-                'confidence': result.get('confidence', 0.0),
+                'verified': is_verified,
+                'correct_medication': is_verified,
+                'method': 'triple_layer' if result.get('is_verified') else 'barcode' if has_barcode_match else 'none',
+                'confidence': confidence,
                 'message': result.get('message', ''),
+                'layers': {
+                    'detection': result.get('layer1_detection', False),
+                    'features': result.get('layer2_features', False),
+                    'histogram': result.get('layer3_histogram', False)
+                },
                 'details': result
             }
             
@@ -167,18 +195,32 @@ class VerificationService:
             return {'match': False, 'confidence': 0.0, 'error': str(e)}
     
     def save_reference_image(self, image_data: str, medication_id: int, save_path: str) -> bool:
-        """Save reference image for medication"""
+        """Save reference image and extract Layer 2 + Layer 3 fingerprints"""
         try:
             # Decode image
             image_np = self._decode_image(image_data)
             if image_np is None:
                 return False
             
-            # Save image
+            # Save image file
             cv2.imwrite(save_path, image_np)
             
-            # Extract features (optional, for future enhancement)
-            # Could store color histograms, edge features, etc.
+            # Extract and store fingerprints for Triple-Layer verification
+            medication = Medication.query.get(medication_id)
+            if medication:
+                # Layer 2: ORB Feature Fingerprint
+                orb_fingerprint = self.vision_engine.get_fingerprint(image_data)
+                if orb_fingerprint:
+                    medication.visual_fingerprint = orb_fingerprint
+                    logger.info(f"Saved Layer 2 (ORB) fingerprint for medication {medication_id}")
+                
+                # Layer 3: Color Histogram Fingerprint
+                histogram_fingerprint = self.vision_engine.get_histogram_fingerprint(image_data)
+                if histogram_fingerprint:
+                    medication.histogram_fingerprint = histogram_fingerprint
+                    logger.info(f"Saved Layer 3 (Histogram) fingerprint for medication {medication_id}")
+                
+                db.session.commit()
             
             return True
             

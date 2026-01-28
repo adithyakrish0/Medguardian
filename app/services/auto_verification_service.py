@@ -22,7 +22,7 @@ from flask import current_app
 from app.extensions import db, socketio
 from app.models.medication import Medication
 from app.models.medication_log import MedicationLog
-from app.vision.bottle_detector import MedicineBottleDetector
+from app.vision.vision_v2 import vision_v2
 from app.services.notification_service import NotificationService
 import logging
 
@@ -35,7 +35,7 @@ class AutoVerificationService:
     """
     
     def __init__(self):
-        self.detector = MedicineBottleDetector()
+        self.vision_engine = vision_v2
         self.notification_service = NotificationService()
         self.active_sessions = {}  # Track active verification sessions
         

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedGuardian Vision POC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .medical-gradient {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+
+        .ar-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 4px solid #10b981;
+            box-shadow: 0 0 20px #10b981, inset 0 0 20px #10b981;
+            border-radius: 20px;
+            animation: pulse 2s infinite;
+            display: none;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+                transform: scale(0.98);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.02);
+            }
+
+            100% {
+                opacity: 0.5;
+                transform: scale(0.98);
+            }
+        }
+
+        .scanning-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #3b82f6;
+            box-shadow: 0 0 10px #3b82f6;
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% {
+                top: 0;
+            }
+
+            100% {
+                top: 100%;
+            }
+        }
+
+        .capture-guide {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 2px dashed rgba(255, 255, 255, 0.4);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 10px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen flex flex-col font-sans">
+
+    <nav class="bg-slate-900 text-white p-4 shadow-xl">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <span class="bg-blue-500 p-1 rounded">🛡️</span> MedGuardian Vision POC
+            </h1>
+            <div id="status" class="text-xs bg-slate-800 px-3 py-1 rounded-full text-slate-400">
+                Backend Connecting...
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-6 flex-1 flex flex-col items-center justify-center max-w-2xl">
+
+        <div class="w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 relative mb-8">
+            <!-- Camera Section -->
+            <div class="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+                <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+                <div id="arOverlay" class="ar-overlay">
+                    <div
+                        class="absolute -top-12 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-4 py-1 rounded-full font-bold shadow-lg">
+                        MATCHED: <span id="matchName">MEDICINE</span>
+                    </div>
+                </div>
+                <div class="capture-guide">
+                    PLACE MEDICINE HERE
+                </div>
+                <div id="scanningLine" class="scanning-line"></div>
+            </div>
+
+            <!-- Controls -->
+            <div class="p-6 bg-white flex flex-col gap-4">
+                <div id="message" class="text-center text-sm font-medium text-slate-500 h-6">
+                    Ready to scan or register...
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="btnRegister"
+                        class="bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all flex flex-col items-center justify-center gap-2">
+                        <span class="text-2xl">📸</span>
+                        <span>Register New</span>
+                    </button>
+                    <button id="btnScan"
+                        class="bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all flex flex-col items-center justify-center gap-2">
+                        <span class="text-2xl">🔍</span>
+                        <span>Start Scanning</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full text-xs text-slate-500">
+            <div class="bg-white p-4 rounded-xl border border-slate-100 italic">
+                1. Click "Register New" to save a medicine strip/bottle to the database.
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-100 italic">
+                2. Click "Start Scanning" to see the AR overlay track the medicine in real-time.
+            </div>
+        </div>
+    </main>
+
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const arOverlay = document.getElementById('arOverlay');
+        const matchName = document.getElementById('matchName');
+        const btnRegister = document.getElementById('btnRegister');
+        const btnScan = document.getElementById('btnScan');
+        const msg = document.getElementById('message');
+        const status = document.getElementById('status');
+
+        let isScanning = false;
+        const BACKEND_URL = 'http://localhost:5005';
+
+        // Check backend health
+        async function checkHealth() {
+            try {
+                const res = await fetch(`${BACKEND_URL}/health`);
+                const data = await res.json();
+                status.textContent = 'Backend Active';
+                status.className = 'text-xs bg-emerald-100 px-3 py-1 rounded-full text-emerald-700 font-bold';
+            } catch (e) {
+                status.textContent = 'Backend Offline';
+                status.className = 'text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-bold';
+            }
+        }
+        setInterval(checkHealth, 5000);
+        checkHealth();
+
+        // Start Camera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                msg.textContent = "Camera error. Check permissions.";
+            }
+        }
+        startCamera();
+
+        function captureFrame() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            return canvas.toDataURL('image/jpeg', 0.8);
+        }
+
+        btnRegister.onclick = async () => {
+            const name = prompt("Enter Medicine Name:", "My Pills");
+            if (!name) return;
+
+            msg.textContent = "Capturing...";
+            const image = captureFrame();
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, image })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    msg.textContent = `Successfully registered: ${name}`;
+                }
+            } catch (e) {
+                msg.textContent = "Registration failed. Is backend running?";
+            }
+        };
+
+        btnScan.onclick = () => {
+            isScanning = !isScanning;
+            btnScan.textContent = isScanning ? "🛑 Stop Scanning" : "🔍 Start Scanning";
+            btnScan.className = isScanning ? "bg-red-600 text-white py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2" : "bg-blue-600 text-white py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2";
+            msg.textContent = isScanning ? "Scanning for medicines..." : "Scanning stopped.";
+            if (isScanning) performScan();
+            else arOverlay.style.display = 'none';
+        };
+
+        async function performScan() {
+            if (!isScanning) return;
+
+            const image = captureFrame();
+            try {
+                const res = await fetch(`${BACKEND_URL}/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image })
+                });
+                const data = await res.json();
+
+                if (data.success && data.match) {
+                    arOverlay.style.display = 'block';
+                    matchName.textContent = data.match.name;
+                    msg.textContent = `Identified: ${data.match.name}`;
+                } else {
+                    arOverlay.style.display = 'none';
+                }
+            } catch (e) {
+                console.error("Scan error", e);
+            }
+
+            // Loop
+            setTimeout(performScan, 500); // 2 FPS is plenty for POC
+        }
+    </script>
+</body>
+
+</html>

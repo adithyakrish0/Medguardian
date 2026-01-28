@@ -8,14 +8,14 @@ Werkzeug==2.3.7
 python-dotenv==1.0.0
 WTForms==3.0.1
 email-validator==2.0.0
+flask-cors==4.0.0
 
 # Vision & AI
-Pillow==10.0.1
-opencv-python-headless==4.8.1.78
-numpy==1.24.3
-torch==2.0.1
-torchvision==0.15.2
-ultralytics==8.0.196
+Pillow==10.2.0
+opencv-python==4.9.0.80
+numpy==1.26.4
+ultralytics==8.1.0
+mediapipe==0.10.11
 pyzbar==0.1.9
 pytesseract==0.3.10
 

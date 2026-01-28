@@ -1,13 +1,22 @@
 /* Professional MedGuardian Styles - Senior-Friendly Enhanced */
 :root {
-    --primary-color: #667eea;
-    --secondary-color: #764ba2;
-    --success-color: #28a745;
-    --warning-color: #ffc107;
-    --danger-color: #dc3545;
-    --info-color: #17a2b8;
-    --light-color: #f8f9fa;
-    --dark-color: #343a40;
+    /* Professional Medical Palette - Calm & Trust */
+    --primary-color: #0B3954;
+    /* Deep Navy */
+    --secondary-color: #087E8B;
+    /* Teal */
+    --accent-color: #70C1B3;
+    /* Mint */
+    --success-color: #2D6A4F;
+    /* Forest Green (Elder friendly) */
+    --warning-color: #FF9F1C;
+    /* Bright Orange (Visible) */
+    --danger-color: #D62828;
+    /* Strong Red */
+    --info-color: #4361EE;
+    /* Clear Blue */
+    --light-color: #F8F9FA;
+    --dark-color: #1A1A1A;
     --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
     /* Senior-friendly additions */
@@ -598,7 +607,7 @@ body.dark-mode {
 }
 
 .dark-mode .navbar {
-    background: linear-gradient(135deg, #4c1d95 0%, #312e81 100%) !important;
+    background: var(--primary-color) !important;
 }
 
 .dark-mode .card {
@@ -608,7 +617,7 @@ body.dark-mode {
 }
 
 .dark-mode .card-header {
-    background: linear-gradient(135deg, #4c1d95 0%, #312e81 100%);
+    background: var(--primary-color);
     border-color: #3d3d4d;
 }
 
@@ -717,7 +726,7 @@ body.dark-mode {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-color);
     border: none;
     color: white;
     font-size: 1.5rem;
@@ -734,7 +743,7 @@ body.dark-mode {
 
 .voice-assistant-btn.listening {
     animation: pulse 1s ease-in-out infinite;
-    background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+    background: var(--danger-color);
 }
 
 .voice-feedback {
@@ -770,7 +779,7 @@ body.dark-mode {
     display: inline-block;
     width: 6px;
     height: 30px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--secondary-color);
     border-radius: 3px;
     animation: wave 1s ease-in-out infinite;
 }
@@ -820,7 +829,7 @@ body.dark-mode {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    background: var(--danger-color);
     border: 3px solid white;
     color: white;
     font-size: 1.2rem;
@@ -983,7 +992,7 @@ body.dark-mode .form-select {
 body.dark-mode .form-control:focus,
 body.dark-mode .form-select:focus {
     background-color: #4b5563;
-    border-color: #667eea;
+    border-color: var(--primary-color);
     color: #f3f4f6;
     box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
@@ -1204,7 +1213,7 @@ body.dark-mode .voice-chat-container {
 
 .voice-chat-header {
     padding: 15px 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-color);
     color: white;
     display: flex;
     justify-content: space-between;
@@ -1284,7 +1293,7 @@ body.dark-mode .chat-message.system {
 
 .chat-message.user {
     align-self: flex-end;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-color);
     color: white;
     border-bottom-right-radius: 5px;
     box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
@@ -1319,7 +1328,7 @@ body.dark-mode .chat-message.system {
 .voice-chat-menu {
     background: none;
     border: none;
-    color: #667eea;
+    color: var(--primary-color);
     /* Primary color for menu to make it inviting */
     cursor: pointer;
     font-size: 1.2rem;
@@ -1416,7 +1425,7 @@ body.dark-mode .inner-mic-btn.listening {
 .status-dot {
     width: 8px;
     height: 8px;
-    background: #667eea;
+    background: var(--primary-color);
     border-radius: 50%;
     animation: bounce 1.4s infinite ease-in-out both;
 }
@@ -1479,20 +1488,20 @@ body.dark-mode .action-card {
 
 .action-card:hover {
     background: #eff6ff;
-    border-color: #667eea;
+    border-color: var(--primary-color);
     transform: translateY(-2px);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 body.dark-mode .action-card:hover {
     background: #4b5563;
-    border-color: #667eea;
+    border-color: var(--primary-color);
 }
 
 .action-icon {
     font-size: 1.2rem;
     margin-bottom: 6px;
-    color: #667eea;
+    color: var(--primary-color);
 }
 
 body.dark-mode .action-icon {

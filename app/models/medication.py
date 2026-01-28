@@ -42,6 +42,8 @@ class Medication(BaseModel):
     # ENHANCED: Multi-angle reference images for AI training (JSON array of base64 images)
     reference_images = db.Column(db.Text, nullable=True)  # JSON: ["base64img1", "base64img2", ...]
     background_image = db.Column(db.Text, nullable=True)  # Background-only capture for subtraction
+    visual_fingerprint = db.Column(db.Text, nullable=True) # Layer 2: ORB descriptors (Base64)
+    histogram_fingerprint = db.Column(db.Text, nullable=True)  # Layer 3: Color histogram (Base64)
     ai_trained = db.Column(db.Boolean, default=False)  # True if user completed AI training
 
     def __repr__(self):

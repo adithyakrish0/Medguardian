@@ -7,7 +7,7 @@
     <title>{% block title %}MedGuardian{% endblock %}</title>
 
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#0B3954">
     <meta name="description" content="Smart Medication Management System with AI Verification">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -27,8 +27,7 @@
 
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm"
-        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm" style="background: var(--primary-color);">
         <div class="container">
             <!-- Logo - goes to dashboard if logged in, home if not -->
             <a class="navbar-brand fw-bold"
@@ -209,7 +208,7 @@
         }
 
         .navbar .dropdown-item:hover {
-            background: linear-gradient(135deg, #667eea15, #764ba215);
+            background: linear-gradient(135deg, rgba(11, 57, 84, 0.05), rgba(8, 126, 139, 0.05));
         }
 
         .navbar .dropdown-item i {

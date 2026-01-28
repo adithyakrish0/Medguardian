@@ -32,6 +32,7 @@
         transform: translateY(-50px);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -194,7 +195,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .loading-section p {
@@ -218,9 +221,11 @@
     0% {
         transform: scale(0);
     }
+
     50% {
         transform: scale(1.2);
     }
+
     100% {
         transform: scale(1);
     }
@@ -270,12 +275,12 @@
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: var(--primary-color);
     color: white;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: var(--secondary-color);
     transform: translateY(-2px);
     box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
 }
@@ -311,11 +316,11 @@
         width: 95%;
         max-height: 95vh;
     }
-    
+
     .modal-header h2 {
         font-size: 20px;
     }
-    
+
     .capture-controls,
     .preview-controls {
         flex-direction: column;
