@@ -53,7 +53,7 @@ class VisionEngineV2:
     
     # Layer thresholds (tunable)
     YOLO_CONFIDENCE_THRESHOLD = 0.60  # Lowered to 0.60 to handle "generic bottle" shapes better
-    ORB_MATCH_THRESHOLD = 25          # Raised from 10 to prevent false positives (need more keypoints)
+    ORB_MATCH_THRESHOLD = 15          # Balanced: 15 matches (was 25, too strict)
     HISTOGRAM_CORRELATION_THRESHOLD = 0.65 # Reduced from 0.8 to handle lighting changes
     
     def __init__(self):
@@ -69,9 +69,10 @@ class VisionEngineV2:
                 self.detector.set_classes(["medicine package", "medicine bottle", "pill strip", "inhaler"])
                 
                 # Hand detector (separate instance for robust hand detection)
+                # Using broader terms that YOLO-World's vocabulary definitely includes
                 self.hand_detector = YOLO('yolov8s-worldv2.pt')
                 self.hand_detector.to(device)
-                self.hand_detector.set_classes(["hand", "human hand", "fist", "palm"])
+                self.hand_detector.set_classes(["person", "hand", "arm", "finger", "bottle", "human"])
                 
                 logger.info(f"YOLO-World initialized on {device} (medicine + hand detectors)")
             except Exception as e:
@@ -179,7 +180,7 @@ class VisionEngineV2:
                 return {'success': False, 'hand_detected': False, 'error': 'Decode failed'}
             
             # Run YOLO hand detection
-            results = self.hand_detector.predict(img, conf=0.3, verbose=False)
+            results = self.hand_detector.predict(img, conf=0.15, verbose=False)
             
             if len(results[0].boxes) > 0:
                 # Hand detected - return first detection bbox
@@ -276,7 +277,7 @@ class VisionEngineV2:
                 try:
                     matches = self.bf.match(expected_features, des_live)
                     matches = sorted(matches, key=lambda x: x.distance)
-                    good_matches = [m for m in matches if m.distance < 35]  # Stricter (was 45)
+                    good_matches = [m for m in matches if m.distance < 40]  # Balanced (was 35, too strict)
                     match_count = len(good_matches)
                     
                     # Layer 2 passes if matches >= threshold

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/api';
-import { useMediaPipe } from '@/hooks/useMediaPipe';
 import { Camera, Scan, Brain, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
 
 interface AIFeedModalProps {
@@ -17,11 +16,11 @@ export default function AIFeedModal({ medicationId, medicationName, onClose, onC
     const [handDetected, setHandDetected] = useState(false);
     const [scanProgress, setScanProgress] = useState(0);
     const [statusMsg, setStatusMsg] = useState('Position bottle in your palm');
+    const [isLoadingML, setIsLoadingML] = useState(false); // YOLO is always ready (server-side)
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
-    const { detectHand, isLoading: isLoadingML } = useMediaPipe();
     const scanIntervalRef = useRef<any>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -60,34 +59,61 @@ export default function AIFeedModal({ medicationId, medicationName, onClose, onC
         };
     }, []);
 
-    // Hand-Gated Capture Logic
+    // YOLO-based Hand Detection (backend API)
     useEffect(() => {
-        if (step !== 'scanning' || isLoadingML) return;
+        if (step !== 'scanning') return;
 
-        scanIntervalRef.current = setInterval(() => {
-            if (videoRef.current) {
-                const handInfo = detectHand(videoRef.current);
-                setHandDetected(!!handInfo?.isPresent);
+        const detectWithYOLO = async () => {
+            if (!videoRef.current || !canvasRef.current) return;
 
-                if (handInfo?.isPresent) {
+            const video = videoRef.current;
+            if (video.readyState < 2 || video.videoWidth === 0) return;
+
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            // Capture frame for detection
+            canvas.width = 320;
+            canvas.height = 240;
+            ctx.drawImage(video, 0, 0, 320, 240);
+            const base64 = canvas.toDataURL('image/jpeg', 0.6);
+
+            try {
+                const data = await apiFetch('/detect-hand', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64 })
+                });
+
+                const detected = data.hand_detected === true;
+                setHandDetected(detected);
+
+                if (detected) {
                     setStatusMsg("Hold steady... extracting DNA");
                     setScanProgress(prev => {
                         if (prev >= 100) {
                             clearInterval(scanIntervalRef.current);
-                            handleFeed(handInfo.bbox);
+                            handleFeed(data.bbox);
                             return 100;
                         }
-                        return prev + 4;
+                        return prev + 8; // ~1.5 seconds to fill when hand detected
                     });
                 } else {
                     setStatusMsg("Hand not detected—Zero-Trash Active");
-                    setScanProgress(0);
+                    setScanProgress(prev => Math.max(0, prev - 10));
                 }
+            } catch (err) {
+                console.debug("YOLO detection error:", err);
+                // Continue trying
             }
-        }, 100);
+        };
+
+        // Poll every 300ms for YOLO detection
+        scanIntervalRef.current = setInterval(detectWithYOLO, 300);
 
         return () => clearInterval(scanIntervalRef.current);
-    }, [step, isLoadingML]);
+    }, [step]);
 
     const handleFeed = async (bbox?: any) => {
         if (!videoRef.current || !canvasRef.current) return;

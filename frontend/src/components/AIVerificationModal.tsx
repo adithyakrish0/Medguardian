@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/api';
-import { useMediaPipe } from '@/hooks/useMediaPipe';
 import { Camera, RefreshCcw, Scan as ScanIcon, Brain, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface VerificationResult {
@@ -29,24 +28,34 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
-    const { detectHand, isLoading: isLoadingML } = useMediaPipe();
     const scanIntervalRef = useRef<any>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     // Start Camera
     useEffect(() => {
-        if (step === 'scanning' && !streamRef.current) {
+        if (step === 'scanning') {
             const startCamera = async () => {
                 try {
+                    // Always stop any existing stream first to get a fresh one
+                    if (streamRef.current) {
+                        streamRef.current.getTracks().forEach(track => track.stop());
+                        streamRef.current = null;
+                    }
+
+                    // Get fresh camera stream
                     const stream = await navigator.mediaDevices.getUserMedia({
                         video: { facingMode: "environment" }
                     });
                     streamRef.current = stream;
+
                     if (videoRef.current) {
                         videoRef.current.srcObject = stream;
+                        // Force play to ensure video displays
+                        await videoRef.current.play().catch(e => console.warn("Video play error:", e));
                     }
                 } catch (err) {
                     console.error("Camera failed:", err);
+                    setErrorMsg("Camera access failed. Please allow camera permission.");
                 }
             };
             startCamera();
@@ -66,33 +75,60 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
         };
     }, []);
 
-    // Stage 1 & 2: Real-time Hand Gatekeeping
+    // Stage 1 & 2: YOLO-based Hand/Object Detection (backend API)
     useEffect(() => {
         if (step !== 'scanning') return;
 
-        scanIntervalRef.current = setInterval(() => {
-            if (videoRef.current && !isLoadingML) {
-                const handInfo = detectHand(videoRef.current);
-                setHandDetected(!!handInfo?.isPresent);
+        const detectWithYOLO = async () => {
+            if (!videoRef.current || !canvasRef.current) return;
 
-                // If hand is steady, increase progress
-                if (handInfo?.isPresent) {
+            const video = videoRef.current;
+            if (video.readyState < 2 || video.videoWidth === 0) return;
+
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            // Capture frame for detection
+            canvas.width = 320;
+            canvas.height = 240;
+            ctx.drawImage(video, 0, 0, 320, 240);
+            const base64 = canvas.toDataURL('image/jpeg', 0.6);
+
+            try {
+                const data = await apiFetch('/detect-hand', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64 })
+                });
+
+                const detected = data.hand_detected === true;
+                setHandDetected(detected);
+
+                if (detected) {
                     setScanProgress(prev => {
                         if (prev >= 100) {
                             clearInterval(scanIntervalRef.current);
-                            handleAutoCapture(handInfo.bbox);
+                            handleAutoCapture(data.bbox);
                             return 100;
                         }
-                        return prev + 5;
+                        return prev + 8; // ~1.5 seconds to fill when hand is detected
                     });
                 } else {
-                    setScanProgress(0);
+                    // Reset progress if hand leaves frame
+                    setScanProgress(prev => Math.max(0, prev - 10));
                 }
+            } catch (err) {
+                console.debug("Detection API error:", err);
+                // Don't reset on error - keep trying
             }
-        }, 100);
+        };
+
+        // Poll every 300ms - rate limiter is exempt so this is fine
+        scanIntervalRef.current = setInterval(detectWithYOLO, 300);
 
         return () => clearInterval(scanIntervalRef.current);
-    }, [step, isLoadingML]);
+    }, [step]);
 
     const handleAutoCapture = async (bbox?: any) => {
         if (!videoRef.current || !canvasRef.current) return;

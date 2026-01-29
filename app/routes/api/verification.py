@@ -3,6 +3,7 @@ from flask import jsonify, request
 from flask_login import login_required, current_user
 from . import api_v1
 from app.services import verification_service
+from app import limiter  # For rate limit exemption on rapid-call endpoints
 
 
 @api_v1.route('/verify', methods=['POST'])
@@ -86,15 +87,27 @@ def save_reference_image(medication_id):
         }), 500
 
 
-@api_v1.route('/detect-hand', methods=['POST'])
-@login_required
+@api_v1.route('/detect-hand', methods=['POST', 'OPTIONS'])
+@limiter.exempt  # Exempt from rate limiting - needs rapid calls
+# Note: No @login_required - this endpoint only detects hands, doesn't access user data
 def detect_hand():
+
     """
     Detect if a human hand is present in the camera frame.
     
     Uses YOLO for robust detection of hands in any position (open, closed, holding objects).
     This replaces client-side MediaPipe which requires open palms.
     """
+    # Handle CORS preflight immediately
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3001')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response, 200
+    
+    import traceback
     try:
         data = request.json
         
@@ -106,11 +119,15 @@ def detect_hand():
             }), 400
         
         from app.vision.vision_v2 import vision_v2
+        print(f"[DEBUG] Calling detect_hand, vision_available={vision_v2.vision_available}, hand_detector={'yes' if vision_v2.hand_detector else 'no'}")
         result = vision_v2.detect_hand(data['image'])
+        print(f"[DEBUG] detect_hand result: {result}")
         
         return jsonify(result), 200
         
     except Exception as e:
+        print(f"[ERROR] detect_hand failed: {e}")
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'hand_detected': False,

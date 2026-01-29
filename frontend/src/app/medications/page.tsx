@@ -16,6 +16,7 @@ import {
     CheckCircle2,
     Calendar,
     ArrowRight,
+    ArrowLeft,
     Users,
     Brain
 } from 'lucide-react';
@@ -122,6 +123,15 @@ export default function MedicationsPage() {
 function SeniorMedicationsView({ medications, onAdd, onVerify, onFeed }: any) {
     return (
         <div className="space-y-12 py-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            {/* Back Button */}
+            <a
+                href="/dashboard"
+                className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors font-bold"
+            >
+                <ArrowLeft className="w-5 h-5" />
+                <span>Back to Dashboard</span>
+            </a>
+
             {/* Header */}
             <div className="text-center space-y-4 mb-16">
                 <h1 className="text-6xl md:text-7xl font-black text-foreground tracking-tight leading-tight">
