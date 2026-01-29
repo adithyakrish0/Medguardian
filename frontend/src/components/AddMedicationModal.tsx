@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pill, Clock, AlertCircle, Save } from 'lucide-react';
+import { X, Save, Loader2, Bell, Clock, Plus } from 'lucide-react';
 
 interface AddMedicationModalProps {
     isOpen: boolean;
@@ -10,39 +10,98 @@ interface AddMedicationModalProps {
     onAdd: (data: any) => Promise<void>;
 }
 
+const TIME_SLOTS = [
+    { key: 'morning', label: 'Morning', time: '8:00 AM', icon: '🌅' },
+    { key: 'afternoon', label: 'Afternoon', time: '2:00 PM', icon: '☀️' },
+    { key: 'evening', label: 'Evening', time: '6:00 PM', icon: '🌆' },
+    { key: 'night', label: 'Night', time: '9:00 PM', icon: '🌙' },
+];
+
 export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedicationModalProps) {
-    const [name, setName] = useState('');
-    const [dosage, setDosage] = useState('');
-    const [frequency, setFrequency] = useState('daily');
-    const [priority, setPriority] = useState('normal');
-    const [times, setTimes] = useState({
+    const [formData, setFormData] = useState({
+        name: '',
+        dosage: '',
+        instructions: '',
+        priority: 'normal',
         morning: false,
         afternoon: false,
         evening: false,
-        night: false
+        night: false,
+        custom_reminder_times: [] as string[],
+        reminder_enabled: true,
+        start_date: '',
+        end_date: ''
     });
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [newCustomTime, setNewCustomTime] = useState('');
+
+    const toggleTimeSlot = (slot: string) => {
+        setFormData(prev => ({ ...prev, [slot]: !prev[slot as keyof typeof prev] }));
+    };
+
+    const addCustomTime = () => {
+        if (newCustomTime && !formData.custom_reminder_times.includes(newCustomTime)) {
+            setFormData(prev => ({
+                ...prev,
+                custom_reminder_times: [...prev.custom_reminder_times, newCustomTime].sort()
+            }));
+            setNewCustomTime('');
+        }
+    };
+
+    const removeCustomTime = (time: string) => {
+        setFormData(prev => ({
+            ...prev,
+            custom_reminder_times: prev.custom_reminder_times.filter(t => t !== time)
+        }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError(null);
+
         try {
-            await onAdd({
-                name,
-                dosage,
-                frequency,
-                priority,
-                ...times,
-                reminder_enabled: true
-            });
+            // Auto-calculate frequency from selected time slots
+            const slotCount = [formData.morning, formData.afternoon, formData.evening, formData.night].filter(Boolean).length
+                + formData.custom_reminder_times.length;
+
+            let calculatedFrequency = 'daily';
+            if (slotCount === 0) calculatedFrequency = 'as needed';
+            else if (slotCount === 1) calculatedFrequency = 'daily';
+            else if (slotCount === 2) calculatedFrequency = 'twice daily';
+            else if (slotCount === 3) calculatedFrequency = 'three times daily';
+            else if (slotCount >= 4) calculatedFrequency = `${slotCount} times daily`;
+
+            const payload = {
+                name: formData.name,
+                dosage: formData.dosage,
+                frequency: calculatedFrequency,
+                instructions: formData.instructions || null,
+                priority: formData.priority,
+                morning: formData.morning,
+                afternoon: formData.afternoon,
+                evening: formData.evening,
+                night: formData.night,
+                reminder_enabled: formData.reminder_enabled,
+                custom_reminder_times: formData.custom_reminder_times.length > 0
+                    ? JSON.stringify(formData.custom_reminder_times)
+                    : null,
+                start_date: formData.start_date || null,
+                end_date: formData.end_date || null
+            };
+
+            await onAdd(payload);
             onClose();
             // Reset form
-            setName('');
-            setDosage('');
-            setFrequency('daily');
-            setTimes({ morning: false, afternoon: false, evening: false, night: false });
-        } catch (error) {
-            console.error('Failed to add medication:', error);
+            setFormData({
+                name: '', dosage: '', instructions: '', priority: 'normal',
+                morning: false, afternoon: false, evening: false, night: false,
+                custom_reminder_times: [], reminder_enabled: true, start_date: '', end_date: ''
+            });
+        } catch (err: any) {
+            setError(err.message || 'Failed to add medication');
         } finally {
             setLoading(false);
         }
@@ -57,122 +116,250 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedica
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+                        className="absolute inset-0 bg-black/70 backdrop-blur-md"
                     />
 
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="relative w-full max-w-lg bg-card border border-card-border rounded-[32px] shadow-2xl overflow-hidden"
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="relative bg-[#0d1117] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/50"
                     >
-                        <div className="p-8 border-b border-card-border flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                                    <Pill className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-black text-foreground">Register Medication</h2>
-                                    <p className="text-xs font-bold opacity-40 uppercase tracking-widest mt-0.5">Add to digital cabinet</p>
-                                </div>
+                        {/* Header */}
+                        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5 bg-[#0d1117] border-b border-white/5">
+                            <div>
+                                <h2 className="text-xl font-bold text-white">Add New Medication</h2>
+                                <p className="text-sm text-white/40 mt-0.5">Register a medication and set reminders</p>
                             </div>
-                            <button onClick={onClose} className="p-2 hover:bg-secondary/10 rounded-full transition-colors">
-                                <X className="w-5 h-5 text-foreground/40" />
+                            <button
+                                onClick={onClose}
+                                className="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/40 hover:text-white"
+                            >
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-2">Medication Name</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="e.g. Atorvastatin"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        className="w-full bg-background border border-card-border rounded-2xl px-5 py-4 text-foreground font-bold focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-                                    />
+                        {/* Form */}
+                        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+                            {error && (
+                                <div className="bg-red-500/10 text-red-400 px-4 py-3 rounded-lg text-sm font-medium">
+                                    {error}
                                 </div>
+                            )}
 
-                                <div className="grid grid-cols-2 gap-4">
+                            {/* SECTION 1: Basic Info */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">1</span>
+                                    <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wide">Basic Info</h3>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Name */}
                                     <div>
-                                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-2">Dosage</label>
+                                        <label className="block text-xs font-medium text-white/50 mb-2">Medication Name</label>
                                         <input
                                             type="text"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm placeholder-white/30"
+                                            placeholder="e.g., Aspirin"
                                             required
-                                            placeholder="e.g. 20mg"
-                                            value={dosage}
-                                            onChange={(e) => setDosage(e.target.value)}
-                                            className="w-full bg-background border border-card-border rounded-2xl px-5 py-4 text-foreground font-bold focus:ring-2 focus:ring-primary/20 transition-all outline-none"
                                         />
                                     </div>
+
+                                    {/* Dosage */}
                                     <div>
-                                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-2">Frequency</label>
-                                        <select
-                                            value={frequency}
-                                            onChange={(e) => setFrequency(e.target.value)}
-                                            className="w-full bg-background border border-card-border rounded-2xl px-5 py-4 text-foreground font-bold focus:ring-2 focus:ring-primary/20 transition-all outline-none appearance-none"
-                                        >
-                                            <option value="daily">Daily</option>
-                                            <option value="weekly">Weekly</option>
-                                            <option value="as_needed">As Needed</option>
-                                        </select>
+                                        <label className="block text-xs font-medium text-white/50 mb-2">Dosage</label>
+                                        <input
+                                            type="text"
+                                            value={formData.dosage}
+                                            onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm placeholder-white/30"
+                                            placeholder="e.g., 500mg"
+                                            required
+                                        />
                                     </div>
-                                </div>
 
-                                <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-3">Schedule Routine</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {(['morning', 'afternoon', 'evening', 'night'] as const).map((t) => (
+                                    {/* Priority */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-white/50 mb-2">Priority</label>
+                                        <div className="flex gap-2">
                                             <button
-                                                key={t}
                                                 type="button"
-                                                onClick={() => setTimes(prev => ({ ...prev, [t]: !prev[t] }))}
-                                                className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all font-bold capitalize ${times[t]
-                                                    ? 'bg-primary/10 border-primary text-primary shadow-sm'
-                                                    : 'bg-background border-card-border text-foreground/40 hover:bg-secondary/5'
+                                                onClick={() => setFormData({ ...formData, priority: 'normal' })}
+                                                className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${formData.priority === 'normal'
+                                                        ? 'bg-primary text-white'
+                                                        : 'bg-white/5 text-white/50 hover:bg-white/10'
                                                     }`}
                                             >
-                                                <div className={`w-2 h-2 rounded-full ${times[t] ? 'bg-primary' : 'bg-foreground/20'}`} />
-                                                {t}
+                                                Normal
                                             </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-2">Priority Level</label>
-                                    <div className="flex gap-4">
-                                        {['low', 'normal', 'high'].map((p) => (
                                             <button
-                                                key={p}
                                                 type="button"
-                                                onClick={() => setPriority(p)}
-                                                className={`flex-1 py-3 rounded-2xl border font-black text-xs uppercase tracking-widest transition-all ${priority === p
-                                                    ? p === 'high' ? 'bg-red-500/10 border-red-500 text-red-500' : 'bg-primary/10 border-primary text-primary'
-                                                    : 'bg-background border-card-border text-foreground/20'
+                                                onClick={() => setFormData({ ...formData, priority: 'high' })}
+                                                className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${formData.priority === 'high'
+                                                        ? 'bg-red-500 text-white'
+                                                        : 'bg-white/5 text-white/50 hover:bg-white/10'
                                                     }`}
                                             >
-                                                {p}
+                                                High
                                             </button>
-                                        ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-primary text-white py-5 rounded-[24px] font-black text-lg shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                            >
-                                {loading ? 'Initializing...' : (
-                                    <>
-                                        <Save className="w-5 h-5" />
-                                        Complete Registration
-                                    </>
-                                )}
-                            </button>
+                            {/* SECTION 2: Schedule */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold">2</span>
+                                    <Clock className="w-4 h-4 text-white/40" />
+                                    <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wide">Reminder Schedule</h3>
+                                </div>
+
+                                {/* Time Slots */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                                    {TIME_SLOTS.map(slot => (
+                                        <button
+                                            key={slot.key}
+                                            type="button"
+                                            onClick={() => toggleTimeSlot(slot.key)}
+                                            className={`p-4 rounded-xl transition-all text-center ${formData[slot.key as keyof typeof formData]
+                                                    ? 'bg-primary/20 ring-1 ring-primary/50'
+                                                    : 'bg-white/5 hover:bg-white/10'
+                                                }`}
+                                        >
+                                            <div className="text-2xl mb-1">{slot.icon}</div>
+                                            <div className={`font-medium text-sm ${formData[slot.key as keyof typeof formData] ? 'text-primary' : 'text-white/70'}`}>
+                                                {slot.label}
+                                            </div>
+                                            <div className="text-xs text-white/40">{slot.time}</div>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Custom Times */}
+                                <div className="flex flex-wrap items-center gap-3 mb-5">
+                                    <span className="text-xs text-white/40">Custom:</span>
+                                    <input
+                                        type="time"
+                                        value={newCustomTime}
+                                        onChange={(e) => setNewCustomTime(e.target.value)}
+                                        className="px-3 py-2 bg-white/5 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary/50"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={addCustomTime}
+                                        disabled={!newCustomTime}
+                                        className="px-3 py-2 bg-primary/20 text-primary rounded-lg font-medium text-sm hover:bg-primary/30 transition-all disabled:opacity-30 flex items-center gap-1"
+                                    >
+                                        <Plus className="w-4 h-4" /> Add
+                                    </button>
+                                    {formData.custom_reminder_times.map(time => (
+                                        <span
+                                            key={time}
+                                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full text-sm text-white/70"
+                                        >
+                                            {time}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeCustomTime(time)}
+                                                className="text-white/30 hover:text-red-400 transition-colors"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+
+                                {/* Reminder Toggle */}
+                                <div className="flex items-center justify-between py-3 px-4 bg-white/5 rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        <Bell className="w-4 h-4 text-white/40" />
+                                        <span className="text-sm text-white/70">Enable Reminders</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, reminder_enabled: !formData.reminder_enabled })}
+                                        className={`w-11 h-6 rounded-full transition-all relative ${formData.reminder_enabled ? 'bg-primary' : 'bg-white/20'
+                                            }`}
+                                    >
+                                        <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${formData.reminder_enabled ? 'translate-x-5' : ''
+                                            }`} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* SECTION 3: Additional */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">3</span>
+                                    <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wide">Additional Details</h3>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Start Date */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-white/50 mb-2">Start Date</label>
+                                        <input
+                                            type="date"
+                                            value={formData.start_date}
+                                            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm"
+                                        />
+                                    </div>
+
+                                    {/* End Date */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-white/50 mb-2">End Date</label>
+                                        <input
+                                            type="date"
+                                            value={formData.end_date}
+                                            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Instructions */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-white/50 mb-2">Instructions</label>
+                                        <input
+                                            type="text"
+                                            value={formData.instructions}
+                                            onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm placeholder-white/30"
+                                            placeholder="Take with food"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-5 py-2.5 bg-white/5 text-white/70 rounded-lg font-medium hover:bg-white/10 transition-all text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-all flex items-center gap-2 disabled:opacity-50 text-sm"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Adding...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="w-4 h-4" />
+                                            Add Medication
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </form>
                     </motion.div>
                 </div>

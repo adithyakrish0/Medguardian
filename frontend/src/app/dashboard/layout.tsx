@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import VoiceAssistant from '@/components/VoiceAssistant';
+import { useUser } from '@/hooks/useUser';
 import {
     LayoutDashboard,
     Pill,
@@ -20,13 +21,21 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
+    const { user } = useUser();
+
 
     const navItems = [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Medications", href: "/medications", icon: Pill },
-        { label: "Caregivers", href: "/caregiver", icon: Users },
-        { label: "Analytics", href: "/analytics", icon: LineChart },
     ];
+
+    // Administrative pages only for caregivers
+    if (user?.role === 'caregiver') {
+        navItems.push(
+            { label: "Caregivers", href: "/caregiver", icon: Users },
+            { label: "Analytics", href: "/analytics", icon: LineChart }
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background flex">
@@ -50,8 +59,8 @@ export default function DashboardLayout({
                                 key={item.href}
                                 href={item.href}
                                 className={`flex items-center justify-between px-5 py-4 rounded-[20px] font-black transition-all group ${isActive
-                                        ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
-                                        : 'text-foreground/50 hover:bg-secondary/5 hover:text-foreground'
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
+                                    : 'text-foreground/50 hover:bg-secondary/5 hover:text-foreground'
                                     }`}
                             >
                                 <div className="flex items-center gap-4">
@@ -68,15 +77,16 @@ export default function DashboardLayout({
                     <div className="p-6 rounded-[28px] bg-background border border-card-border shadow-sm flex items-center gap-4 relative overflow-hidden group cursor-pointer hover:border-primary/20 transition-all">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 blur-2xl" />
                         <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center font-black text-secondary shrink-0 overflow-hidden relative border border-card-border">
-                            TS
+                            {user?.username?.slice(0, 2).toUpperCase() || 'U'}
                         </div>
                         <div className="overflow-hidden">
-                            <p className="text-sm font-black text-foreground truncate">Test Senior</p>
-                            <p className="text-[10px] uppercase tracking-widest font-bold opacity-30 mt-0.5">Primary ID: #0821</p>
+                            <p className="text-sm font-black text-foreground truncate">{user?.username || 'User'}</p>
+                            <p className="text-[10px] uppercase tracking-widest font-bold opacity-30 mt-0.5">ID: #{user?.id || '---'}</p>
                         </div>
                     </div>
                 </div>
             </aside>
+
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-h-screen">

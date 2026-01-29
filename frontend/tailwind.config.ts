@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-outfit)", "ui-sans-serif", "system-ui"],
+        sans: ["var(--font-jakarta)", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
         background: "var(--background)",
@@ -20,6 +20,7 @@ const config: Config = {
         card: {
           DEFAULT: "var(--card-bg)",
           foreground: "var(--card-foreground)",
+          border: "var(--card-border)",
         }
       },
     },

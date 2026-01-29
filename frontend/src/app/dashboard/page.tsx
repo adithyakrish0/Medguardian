@@ -5,6 +5,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { motion } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import { apiFetch } from '@/lib/api';
+import AIVerificationModal from '@/components/AIVerificationModal';
 import {
     Activity,
     Clock,
@@ -23,7 +24,7 @@ import {
 
 export default function DashboardPage() {
     const [selectedSeniorId, setSelectedSeniorId] = useState<number | undefined>(undefined);
-    const { data, loading: dataLoading, error } = useDashboardData(selectedSeniorId);
+    const { data, loading: dataLoading, error, refresh } = useDashboardData(selectedSeniorId);
     const { user, loading: userLoading } = useUser();
 
     if (dataLoading || userLoading) {
@@ -58,15 +59,25 @@ export default function DashboardPage() {
                     selectedSeniorId={selectedSeniorId}
                 />
             ) : (
-                <SeniorDashboardView data={data} />
+                <SeniorDashboardView data={data} onRefresh={refresh} />
             )}
         </div>
     );
 }
 
-function SeniorDashboardView({ data }: { data: any }) {
+function SeniorDashboardView({ data, onRefresh }: { data: any; onRefresh: () => void }) {
     const nextMed = data?.schedule?.upcoming?.[0];
     const takenToday = data?.schedule?.taken?.length ?? 0;
+    const [verifyingMed, setVerifyingMed] = useState<{ id: number; name: string } | null>(null);
+
+    const markAsTaken = async (medicationId: number, verified: boolean, method: string) => {
+        const endpoint = `/medications/${medicationId}/mark-taken`;
+        console.log('[Dashboard] markAsTaken calling:', endpoint);
+        await apiFetch(endpoint, {
+            method: 'POST',
+            body: JSON.stringify({ verified, verification_method: method })
+        });
+    };
 
     return (
         <div className="space-y-12 py-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
@@ -81,6 +92,59 @@ function SeniorDashboardView({ data }: { data: any }) {
             </header>
 
             <div className="grid gap-10">
+                {/* Missed Medications Alert - Show FIRST if overdue */}
+                {data?.schedule?.missed?.length > 0 && (
+                    <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="medical-card p-10 bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-3xl shadow-red-500/40 rounded-[48px] relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
+
+                        <div className="flex flex-col gap-6 relative z-10">
+                            <div className="flex items-center justify-between">
+                                <div className="inline-flex items-center gap-3 px-5 py-2 bg-white/20 rounded-full text-sm font-black uppercase tracking-widest">
+                                    <AlertCircle className="w-5 h-5 animate-pulse" />
+                                    Overdue Medication
+                                </div>
+                                <span className="text-white/70 font-bold">
+                                    {data.schedule.missed.length} medication{data.schedule.missed.length > 1 ? 's' : ''} late
+                                </span>
+                            </div>
+
+                            {data.schedule.missed.map((med: any) => (
+                                <div key={med.id} className="flex flex-col md:flex-row justify-between items-center gap-6 bg-white/10 rounded-3xl p-6">
+                                    <div className="text-center md:text-left">
+                                        <h3 className="text-4xl md:text-5xl font-black tracking-tight">{med.name}</h3>
+                                        <p className="text-lg font-bold opacity-80">
+                                            Was due at {med.scheduled_time || 'earlier today'} • {med.dosage}
+                                        </p>
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <button
+                                            onClick={() => setVerifyingMed({ id: med.id, name: med.name })}
+                                            className="px-8 py-4 bg-white text-red-600 rounded-2xl text-lg font-black shadow-xl hover:scale-105 transition-all flex items-center gap-2"
+                                        >
+                                            <Play className="w-5 h-5 fill-current" />
+                                            Take Now
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                await apiFetch(`/medications/${med.id}/skip`, { method: 'POST' });
+                                                onRefresh();
+                                            }}
+                                            className="px-6 py-4 bg-white/20 text-white rounded-2xl text-lg font-bold hover:bg-white/30 transition-all"
+                                        >
+                                            Skip Today
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* Big Next Dose Card */}
                 {nextMed ? (
                     <motion.div
@@ -104,19 +168,25 @@ function SeniorDashboardView({ data }: { data: any }) {
                                 </p>
                             </div>
 
-                            <button className="px-16 py-8 bg-white text-primary rounded-[40px] text-3xl font-black shadow-2xl hover:scale-105 transition-all flex items-center gap-4 group-hover:rotate-1">
+                            <button
+                                onClick={() => setVerifyingMed({ id: nextMed.id, name: nextMed.name })}
+                                className="px-16 py-8 bg-white text-primary rounded-[40px] text-3xl font-black shadow-2xl hover:scale-105 transition-all flex items-center gap-4 group-hover:rotate-1"
+                            >
                                 <Play className="w-10 h-10 fill-current" />
                                 Start Now
                             </button>
+
+
                         </div>
                     </motion.div>
-                ) : (
+                ) : data?.schedule?.missed?.length === 0 && (
                     <div className="medical-card p-16 bg-accent/20 text-accent text-center rounded-[60px] border-4 border-accent/10">
                         <Smile className="w-20 h-10 mx-auto mb-6 scale-[2]" />
                         <h2 className="text-4xl font-black mb-4">You are all caught up!</h2>
                         <p className="text-xl font-bold opacity-70 italic">No more medicines scheduled for right now.</p>
                     </div>
                 )}
+
 
                 {/* Progress Card */}
                 <div className="grid md:grid-cols-2 gap-10">
@@ -153,6 +223,27 @@ function SeniorDashboardView({ data }: { data: any }) {
                     </p>
                 </motion.div>
             </div>
+
+            {/* Verification Modal */}
+            {verifyingMed && (
+                <AIVerificationModal
+                    medicationId={verifyingMed.id}
+                    medicationName={verifyingMed.name}
+                    onClose={() => setVerifyingMed(null)}
+                    onVerified={async () => {
+                        console.log('[Dashboard] onVerified called, marking as taken:', verifyingMed.id);
+                        try {
+                            await markAsTaken(verifyingMed.id, true, 'vision_v2');
+                            console.log('[Dashboard] markAsTaken success');
+                        } catch (error) {
+                            console.error('[Dashboard] markAsTaken error:', error);
+                        }
+                        setVerifyingMed(null);
+                        onRefresh();
+                    }}
+                />
+            )}
+
         </div>
     );
 }

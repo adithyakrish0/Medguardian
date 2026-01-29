@@ -14,6 +14,7 @@ export function useDashboardData(seniorId?: number) {
             // Using the medication-status endpoint with optional senior_id
             const url = seniorId ? `/medication-status?senior_id=${seniorId}` : '/medication-status';
             const statusData = await apiFetch(url);
+            console.log('[Dashboard] medication-status response:', statusData);
 
             // Also get profile info (if seniorId, get that senior's info, else get self)
             const userUrl = seniorId ? `/users/${seniorId}` : '/users/me';
@@ -34,6 +35,7 @@ export function useDashboardData(seniorId?: number) {
                 }
             });
         } catch (err: any) {
+
             setError(err.message || 'Failed to fetch dashboard data');
         } finally {
             setLoading(false);

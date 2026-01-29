@@ -343,11 +343,12 @@ def get_medication_status():
         ).all()
         
         taken = []
+        skipped = []
         missed = []
         upcoming = []
         
         for med in medications:
-            # Check if taken today
+            # Check if handled today (taken or skipped)
             log_today = MedicationLog.query.filter_by(
                 medication_id=med.id
             ).filter(
@@ -358,34 +359,56 @@ def get_medication_status():
             times = med.get_reminder_times() if hasattr(med, 'get_reminder_times') else []
             
             if log_today:
-                taken.append({
-                    'id': med.id,
-                    'name': med.name,
-                    'dosage': med.dosage,
-                    'taken_at': log_today.taken_at.strftime('%H:%M')
-                })
-            else:
-                # Check if any scheduled time has passed
-                has_past_time = any(t <= current_time for t in times) if times else False
-                
-                if has_past_time:
-                    missed.append({
+                if log_today.taken_correctly:
+                    taken.append({
                         'id': med.id,
                         'name': med.name,
                         'dosage': med.dosage,
-                        'scheduled_time': next((t for t in times if t <= current_time), None)
+                        'taken_at': log_today.taken_at.strftime('%H:%M')
                     })
-                elif times:
+                else:
+                    skipped.append({
+                        'id': med.id,
+                        'name': med.name,
+                        'dosage': med.dosage,
+                        'skipped_at': log_today.taken_at.strftime('%H:%M')
+                    })
+            else:
+                # Split times into past and future
+                past_times = [t for t in times if t <= current_time] if times else []
+                future_times = [t for t in times if t > current_time] if times else []
+                
+                # If there are future times, show as upcoming (priority)
+                if future_times:
                     upcoming.append({
                         'id': med.id,
                         'name': med.name,
                         'dosage': med.dosage,
-                        'time': min(t for t in times if t > current_time) if any(t > current_time for t in times) else times[0]
+                        'time': min(future_times)
                     })
+                elif past_times:
+                    # All scheduled times have passed - it's missed
+                    missed.append({
+                        'id': med.id,
+                        'name': med.name,
+                        'dosage': med.dosage,
+                        'scheduled_time': max(past_times)  # Show the most recent missed time
+                    })
+                else:
+                    # No specific times set - treat as "anytime today" medication
+                    upcoming.append({
+                        'id': med.id,
+                        'name': med.name,
+                        'dosage': med.dosage,
+                        'time': 'Anytime'
+                    })
+
+
         
         return jsonify({
             'success': True,
             'taken': taken,
+            'skipped': skipped,
             'missed': missed,
             'upcoming': upcoming,
             'total_today': len(medications)
@@ -443,4 +466,29 @@ def notify_caregiver():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@api_v1.route('/medications/<int:medication_id>/skip', methods=['POST'])
+@login_required
+def skip_medication(medication_id):
+    """Skip a medication for today"""
+    try:
+        log = MedicationService.skip(
+            medication_id=medication_id,
+            user_id=current_user.id
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Medication marked as skipped for today',
+            'data': log.to_dict()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 

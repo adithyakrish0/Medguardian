@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 
 export default function LoginPage() {
-    const [email, setEmail] = useState('');
+    const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -22,7 +22,7 @@ export default function LoginPage() {
             const data = await apiFetch('/auth/login', {
                 method: 'POST',
                 body: JSON.stringify({
-                    username: email, // The backend login handles both username and email
+                    username: identifier, // The backend login handles both username and email
                     password: password,
                     remember: true
                 }),
@@ -68,18 +68,18 @@ export default function LoginPage() {
                             </div>
                         )}
                         <div>
-                            <label htmlFor="email" className="block text-sm font-semibold text-foreground">
-                                Email address
+                            <label htmlFor="identifier" className="block text-sm font-semibold text-foreground">
+                                Username or Email address
                             </label>
                             <div className="mt-1">
                                 <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
+                                    id="identifier"
+                                    name="identifier"
+                                    type="text"
+                                    autoComplete="username"
                                     required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    value={identifier}
+                                    onChange={(e) => setIdentifier(e.target.value)}
                                     className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-medical-secondary focus:border-medical-secondary transition-all"
                                 />
                             </div>

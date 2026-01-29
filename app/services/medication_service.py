@@ -194,6 +194,22 @@ class MedicationService:
         return query.order_by(MedicationLog.taken_at.desc()).limit(limit).all()
     
     @staticmethod
+    def skip(medication_id: int, user_id: int, notes: Optional[str] = None) -> MedicationLog:
+        """Skip a medication for today and create log entry"""
+        log = MedicationLog(
+            medication_id=medication_id,
+            user_id=user_id,
+            taken_at=datetime.now(),
+            taken_correctly=False,  # False indicates skipped
+            notes=notes or "Skipped by user"
+        )
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        return log
+
+    @staticmethod
     def save_reference_image(medication_id: int, image_path: str, 
                             image_features: Optional[str] = None,
                             label_text: Optional[str] = None) -> bool:

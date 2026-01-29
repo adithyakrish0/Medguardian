@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMedications } from '@/hooks/useMedications';
 import AIVerificationModal from '@/components/AIVerificationModal';
 import AddMedicationModal from '@/components/AddMedicationModal';
+import EditMedicationModal from '@/components/EditMedicationModal';
 import { apiFetch } from '@/lib/api';
 import { useUser } from '@/hooks/useUser';
 import {
@@ -18,7 +19,11 @@ import {
     ArrowRight,
     ArrowLeft,
     Users,
-    Brain
+    Brain,
+    MoreVertical,
+    Pencil,
+    Trash2,
+    RefreshCw
 } from 'lucide-react';
 import AIFeedModal from '@/components/AIFeedModal';
 
@@ -29,6 +34,8 @@ export default function MedicationsPage() {
     const [verifyingMed, setVerifyingMed] = useState<{ id: number, name: string } | null>(null);
     const [feedingMed, setFeedingMed] = useState<any | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [editingMed, setEditingMed] = useState<any | null>(null);
+    const [deletingMed, setDeletingMed] = useState<any | null>(null);
 
     const handleAddMedication = async (data: any) => {
         try {
@@ -41,6 +48,20 @@ export default function MedicationsPage() {
             }
         } catch (err) {
             console.error('Error adding medication:', err);
+        }
+    };
+
+    const handleDeleteMedication = async (medId: number) => {
+        try {
+            const response = await apiFetch(`/medications/${medId}`, {
+                method: 'DELETE'
+            });
+            if (response.success) {
+                refresh();
+                setDeletingMed(null);
+            }
+        } catch (err) {
+            console.error('Error deleting medication:', err);
         }
     };
 
@@ -75,6 +96,8 @@ export default function MedicationsPage() {
                     onSeniorChange={(id: number | undefined) => setSelectedSeniorId(id)}
                     selectedSeniorId={selectedSeniorId}
                     onFeed={setFeedingMed}
+                    onEdit={setEditingMed}
+                    onDelete={setDeletingMed}
                 />
             ) : (
                 <SeniorMedicationsView
@@ -82,6 +105,8 @@ export default function MedicationsPage() {
                     onAdd={() => setIsAddModalOpen(true)}
                     onVerify={(med: { id: number; name: string }) => setVerifyingMed(med)}
                     onFeed={setFeedingMed}
+                    onEdit={setEditingMed}
+                    onDelete={setDeletingMed}
                 />
             )}
 
@@ -91,6 +116,49 @@ export default function MedicationsPage() {
                 onClose={() => setIsAddModalOpen(false)}
                 onAdd={handleAddMedication}
             />
+
+            {editingMed && (
+                <EditMedicationModal
+                    medication={editingMed}
+                    isOpen={!!editingMed}
+                    onClose={() => setEditingMed(null)}
+                    onSaved={() => {
+                        setEditingMed(null);
+                        refresh();
+                    }}
+                />
+            )}
+
+            {deletingMed && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeletingMed(null)} />
+                    <div className="relative bg-card border border-card-border rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 fade-in duration-200">
+                        <div className="text-center">
+                            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                                <Trash2 className="w-8 h-8 text-red-500" />
+                            </div>
+                            <h2 className="text-2xl font-black text-foreground mb-2">Delete Medication?</h2>
+                            <p className="text-foreground/60 mb-6">
+                                Are you sure you want to delete <strong>{deletingMed.name}</strong>? This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setDeletingMed(null)}
+                                    className="flex-1 py-3 px-4 bg-foreground/10 text-foreground rounded-xl font-bold hover:bg-foreground/20 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteMedication(deletingMed.id)}
+                                    className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {verifyingMed && (
                 <AIVerificationModal
@@ -120,111 +188,185 @@ export default function MedicationsPage() {
     );
 }
 
-function SeniorMedicationsView({ medications, onAdd, onVerify, onFeed }: any) {
-    return (
-        <div className="space-y-12 py-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            {/* Back Button */}
-            <a
-                href="/dashboard"
-                className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors font-bold"
-            >
-                <ArrowLeft className="w-5 h-5" />
-                <span>Back to Dashboard</span>
-            </a>
+function SeniorMedicationsView({ medications, onAdd, onVerify, onFeed, onEdit, onDelete }: any) {
+    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+    const [menuPosition, setMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-            {/* Header */}
-            <div className="text-center space-y-4 mb-16">
-                <h1 className="text-6xl md:text-7xl font-black text-foreground tracking-tight leading-tight">
+    const handleOpenMenu = (medId: number, event: React.MouseEvent) => {
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        setMenuPosition({ x: rect.right - 180, y: rect.bottom + 8 });
+        setOpenMenuId(openMenuId === medId ? null : medId);
+    };
+
+    return (
+        <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Header with Back Button */}
+            <div className="flex flex-col items-center">
+                {/* Back Button - styled pill */}
+                <a
+                    href="/dashboard"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full text-white/60 hover:text-primary hover:bg-primary/10 transition-all text-sm font-medium mb-8"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Dashboard</span>
+                </a>
+
+                {/* Title */}
+                <h1 className="text-5xl md:text-6xl font-black text-foreground tracking-tight text-center">
                     My Medicines
                 </h1>
-                <p className="text-xl font-medium opacity-60 max-w-2xl mx-auto italic">
-                    Things I need to take today to stay healthy and strong.
+                <p className="text-lg font-medium opacity-60 max-w-xl mx-auto text-center mt-3">
+                    Your daily medications to stay healthy and strong.
                 </p>
             </div>
 
             {/* List */}
-            <div className="grid gap-8">
+            <div className="grid gap-4 overflow-visible">
                 {medications.length === 0 ? (
-                    <div className="medical-card p-24 text-center border-dashed border-4 border-primary/20 bg-primary/5 rounded-[48px]">
-                        <div className="w-32 h-32 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-10">
-                            <Pill className="w-16 h-16 text-primary" />
+                    <div className="bg-card/50 border-2 border-dashed border-primary/20 p-16 text-center rounded-3xl">
+                        <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                            <Pill className="w-10 h-10 text-primary" />
                         </div>
-                        <p className="text-4xl font-black text-foreground mb-4">No medicines yet</p>
-                        <p className="text-lg opacity-60 mb-10">Tap the big blue button below to add your first pill.</p>
+                        <p className="text-2xl font-black text-foreground mb-2">No medicines yet</p>
+                        <p className="text-foreground/60 mb-8">Add your first medication to get started.</p>
                         <button
                             onClick={onAdd}
-                            className="px-12 py-6 bg-primary text-white rounded-[32px] text-2xl font-black shadow-2xl shadow-primary/40 hover:scale-105 transition-all flex items-center gap-4 mx-auto"
+                            className="px-8 py-4 bg-primary text-white rounded-2xl text-lg font-bold shadow-xl shadow-primary/30 hover:scale-105 transition-all flex items-center gap-3 mx-auto"
                         >
-                            <Plus className="w-8 h-8" />
-                            Add My First Pill
+                            <Plus className="w-5 h-5" />
+                            Add Medicine
                         </button>
                     </div>
                 ) : (
                     medications.map((med: any) => (
-                        <div key={med.id} className="medical-card p-10 rounded-[48px] border-2 border-primary/10 bg-white dark:bg-card/50 flex flex-col md:flex-row justify-between items-center gap-10 hover:border-primary/40 hover:shadow-3xl transition-all group relative">
-                            <div className="flex gap-10 items-center w-full md:w-auto">
-                                <div className={`w-28 h-28 rounded-[36px] flex items-center justify-center shadow-xl relative ${med.priority === 'high' ? 'bg-red-500 text-white' : 'bg-primary/10 text-primary border-4 border-primary/5'
+                        <div
+                            key={med.id}
+                            className="bg-white/[0.03] p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:bg-white/[0.06] transition-all group relative overflow-visible"
+                        >
+                            {/* Left: Icon + Info */}
+                            <div className="flex gap-5 items-center flex-1">
+                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg relative shrink-0 ${med.priority === 'high'
+                                    ? 'bg-gradient-to-br from-red-500 to-red-600 text-white'
+                                    : 'bg-gradient-to-br from-primary/20 to-primary/10 text-primary border border-primary/20'
                                     }`}>
-                                    <Pill className="w-14 h-14" />
+                                    <Pill className="w-7 h-7" />
                                     {med.priority === 'high' && (
-                                        <span className="absolute -top-3 -right-3 flex h-8 w-8">
+                                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-8 w-8 bg-red-600 border-4 border-white"></span>
+                                            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white"></span>
                                         </span>
                                     )}
                                 </div>
-                                <div className="space-y-2">
-                                    <h3 className="text-4xl md:text-5xl font-black text-foreground tracking-tighter leading-none">{med.name}</h3>
-                                    <div className="flex items-center gap-4 text-xl font-bold opacity-60">
-                                        <span className="flex items-center gap-2">
-                                            <Activity className="w-6 h-6 text-primary" />
+                                <div className="min-w-0">
+                                    <h3 className="text-2xl font-black text-foreground truncate">{med.name}</h3>
+                                    <div className="flex items-center gap-3 text-sm font-medium text-foreground/60 mt-1 flex-wrap">
+                                        <span className="flex items-center gap-1.5">
+                                            <Activity className="w-4 h-4 text-primary" />
                                             {med.dosage}
                                         </span>
-                                        <span className="w-2 h-2 bg-foreground/20 rounded-full" />
+                                        <span className="w-1 h-1 bg-foreground/30 rounded-full hidden md:block" />
                                         <span>{med.frequency}</span>
+                                        {!med.ai_trained && (
+                                            <>
+                                                <span className="w-1 h-1 bg-foreground/30 rounded-full hidden md:block" />
+                                                <span className="text-amber-500 flex items-center gap-1">
+                                                    <AlertTriangle className="w-3 h-3" />
+                                                    Needs Training
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => onVerify({ id: med.id, name: med.name })}
-                                className="w-full md:w-auto px-16 py-8 bg-secondary text-white rounded-[40px] text-3xl font-black shadow-3xl shadow-secondary/30 hover:bg-primary hover:scale-[1.03] active:scale-95 transition-all flex items-center justify-center gap-6 group/cam"
-                            >
-                                <Camera className="w-12 h-12 group-hover/cam:rotate-12 transition-transform" />
-                                <span>Check with Camera</span>
-                            </button>
+                            {/* Right: Actions */}
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                {/* Check with Camera - Primary Action */}
+                                <button
+                                    onClick={() => onVerify({ id: med.id, name: med.name })}
+                                    className="flex-1 md:flex-none px-6 py-3 bg-secondary text-white rounded-xl font-bold shadow-lg shadow-secondary/20 hover:bg-primary hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Camera className="w-5 h-5" />
+                                    <span>Check with Camera</span>
+                                </button>
 
-                            {!med.ai_trained ? (
-                                <button
-                                    onClick={() => onFeed(med)}
-                                    className="w-full md:w-auto px-16 py-8 bg-primary/20 text-primary rounded-[40px] text-3xl font-black border-4 border-dashed border-primary/40 hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-6"
-                                >
-                                    <Brain className="w-12 h-12" />
-                                    <span>Neural Train</span>
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => onFeed(med)}
-                                    className="absolute top-4 right-4 p-4 opacity-50 hover:opacity-100 hover:bg-primary/10 rounded-full transition-all group-hover:opacity-100 flex items-center gap-2 text-sm font-bold text-primary"
-                                    title="Retrain AI Model"
-                                >
-                                    <Brain className="w-5 h-5" />
-                                    <span className="sr-only md:not-sr-only">Retrain</span>
-                                </button>
-                            )}
+                                {/* Neural Train (if not trained) */}
+                                {!med.ai_trained && (
+                                    <button
+                                        onClick={() => onFeed(med)}
+                                        className="px-4 py-3 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl font-bold border border-amber-500/30 hover:bg-amber-500 hover:text-white transition-all flex items-center gap-2"
+                                    >
+                                        <Brain className="w-5 h-5" />
+                                        <span className="hidden md:inline">Train AI</span>
+                                    </button>
+                                )}
+
+                                {/* Action Menu (3-dot) */}
+                                <div className="relative">
+                                    <button
+                                        onClick={(e) => handleOpenMenu(med.id, e)}
+                                        className="p-3 hover:bg-foreground/10 rounded-xl transition-all"
+                                    >
+                                        <MoreVertical className="w-5 h-5 text-foreground/60" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     ))
                 )}
+
+                {/* Fixed Position Dropdown Menu - rendered outside the card */}
+                {openMenuId && (
+                    <>
+                        <div
+                            className="fixed inset-0 z-[100]"
+                            onClick={() => setOpenMenuId(null)}
+                        />
+                        <div
+                            className="fixed z-[101] bg-card border border-card-border rounded-xl shadow-2xl py-2 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
+                            style={{ top: menuPosition.y, left: menuPosition.x }}
+                        >
+                            {medications.filter((m: any) => m.id === openMenuId).map((med: any) => (
+                                <div key={med.id}>
+                                    <button
+                                        onClick={() => { onEdit(med); setOpenMenuId(null); }}
+                                        className="w-full px-4 py-2.5 text-left hover:bg-foreground/5 transition-colors flex items-center gap-3 text-foreground"
+                                    >
+                                        <Pencil className="w-4 h-4 text-primary" />
+                                        <span className="font-medium">Edit Details</span>
+                                    </button>
+                                    {med.ai_trained && (
+                                        <button
+                                            onClick={() => { onFeed(med); setOpenMenuId(null); }}
+                                            className="w-full px-4 py-2.5 text-left hover:bg-foreground/5 transition-colors flex items-center gap-3 text-foreground"
+                                        >
+                                            <RefreshCw className="w-4 h-4 text-amber-500" />
+                                            <span className="font-medium">Retrain AI</span>
+                                        </button>
+                                    )}
+                                    <hr className="my-2 border-card-border" />
+                                    <button
+                                        onClick={() => { onDelete(med); setOpenMenuId(null); }}
+                                        className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 transition-colors flex items-center gap-3 text-red-500"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        <span className="font-medium">Delete</span>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
 
-            {/* Bottom Add Button for Elders */}
+            {/* Bottom Add Button */}
             {medications.length > 0 && (
-                <div className="flex justify-center pt-8">
+                <div className="flex justify-center pt-4">
                     <button
                         onClick={onAdd}
-                        className="px-10 py-6 bg-primary/10 text-primary border-2 border-primary/20 rounded-[32px] text-xl font-black hover:bg-primary hover:text-white transition-all flex items-center gap-3"
+                        className="px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-xl font-bold hover:bg-primary hover:text-white transition-all flex items-center gap-2"
                     >
-                        <Plus className="w-6 h-6" />
+                        <Plus className="w-5 h-5" />
                         Add Another Medicine
                     </button>
                 </div>
@@ -233,8 +375,16 @@ function SeniorMedicationsView({ medications, onAdd, onVerify, onFeed }: any) {
     );
 }
 
-function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange, selectedSeniorId, onFeed }: any) {
+function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange, selectedSeniorId, onFeed, onEdit, onDelete }: any) {
     const [seniors, setSeniors] = useState<any[]>([]);
+    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+    const [menuPosition, setMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+    const handleOpenMenu = (medId: number, event: React.MouseEvent) => {
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        setMenuPosition({ x: rect.right - 180, y: rect.bottom + 8 });
+        setOpenMenuId(openMenuId === medId ? null : medId);
+    };
 
     useEffect(() => {
         const fetchSeniors = async () => {
@@ -300,7 +450,7 @@ function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange
             </div>
 
             {/* List Section */}
-            <div className="grid gap-6">
+            <div className="grid gap-6 overflow-visible">
                 {medications.length === 0 ? (
                     <div className="medical-card p-20 text-center group border-dashed border-[3px] border-card-border/50 bg-card/10">
                         <div className="w-20 h-20 rounded-3xl bg-secondary/10 flex items-center justify-center mx-auto mb-8 group-hover:scale-110 transition-transform duration-500">
@@ -311,7 +461,7 @@ function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange
                     </div>
                 ) : (
                     medications.map((med: any) => (
-                        <div key={med.id} className="medical-card p-8 flex flex-col md:flex-row justify-between items-start md:items-center group hover:border-primary/40 transition-all bg-card/60 backdrop-blur-xl border-l-[10px] border-l-primary/20">
+                        <div key={med.id} className="medical-card p-8 flex flex-col md:flex-row justify-between items-start md:items-center group hover:border-primary/40 transition-all bg-card/60 backdrop-blur-xl border-l-[10px] border-l-primary/20 overflow-visible">
                             <div className="flex gap-6 items-center">
                                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner relative ${med.priority === 'high' ? 'bg-red-500/10 text-red-500' : 'bg-primary/5 text-primary'
                                     }`}>
@@ -358,12 +508,60 @@ function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange
                                         <span>Feed AI</span>
                                     </button>
                                 )}
-                                <button className="p-4 bg-background border border-card-border text-foreground/40 hover:text-primary rounded-2xl transition-all hover:bg-primary/5 shadow-sm">
-                                    <Settings className="w-5 h-5" />
-                                </button>
+                                <div className="relative">
+                                    <button
+                                        onClick={(e) => handleOpenMenu(med.id, e)}
+                                        className="p-4 bg-background border border-card-border text-foreground/40 hover:text-primary rounded-2xl transition-all hover:bg-primary/5 shadow-sm"
+                                    >
+                                        <MoreVertical className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))
+                )}
+
+                {/* Fixed Position Dropdown Menu - rendered outside the card */}
+                {openMenuId && (
+                    <>
+                        <div
+                            className="fixed inset-0 z-[100]"
+                            onClick={() => setOpenMenuId(null)}
+                        />
+                        <div
+                            className="fixed z-[101] bg-card border border-card-border rounded-xl shadow-2xl py-2 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
+                            style={{ top: menuPosition.y, left: menuPosition.x }}
+                        >
+                            {medications.filter((m: any) => m.id === openMenuId).map((med: any) => (
+                                <div key={med.id}>
+                                    <button
+                                        onClick={() => { onEdit(med); setOpenMenuId(null); }}
+                                        className="w-full px-4 py-2.5 text-left hover:bg-foreground/5 transition-colors flex items-center gap-3 text-foreground"
+                                    >
+                                        <Pencil className="w-4 h-4 text-primary" />
+                                        <span className="font-medium">Edit Details</span>
+                                    </button>
+                                    {med.ai_trained && (
+                                        <button
+                                            onClick={() => { onFeed(med); setOpenMenuId(null); }}
+                                            className="w-full px-4 py-2.5 text-left hover:bg-foreground/5 transition-colors flex items-center gap-3 text-foreground"
+                                        >
+                                            <RefreshCw className="w-4 h-4 text-amber-500" />
+                                            <span className="font-medium">Retrain AI</span>
+                                        </button>
+                                    )}
+                                    <hr className="my-2 border-card-border" />
+                                    <button
+                                        onClick={() => { onDelete(med); setOpenMenuId(null); }}
+                                        className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 transition-colors flex items-center gap-3 text-red-500"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        <span className="font-medium">Delete</span>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 )}
             </div>
         </div>

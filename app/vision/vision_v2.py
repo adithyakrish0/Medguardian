@@ -57,6 +57,7 @@ class VisionEngineV2:
     HISTOGRAM_CORRELATION_THRESHOLD = 0.65 # Reduced from 0.8 to handle lighting changes
     
     def __init__(self):
+        print(f"DEBUG: VisionEngineV2.__init__ called. VISION_DISABLED={VISION_DISABLED}, YOLO={'available' if YOLO else 'None'}")
         self.vision_available = not VISION_DISABLED and YOLO is not None
         
         # Initialize YOLO-World (only if available)
@@ -69,14 +70,17 @@ class VisionEngineV2:
                 self.detector.set_classes(["medicine package", "medicine bottle", "pill strip", "inhaler"])
                 
                 # Hand detector (separate instance for robust hand detection)
-                # Using broader terms that YOLO-World's vocabulary definitely includes
                 self.hand_detector = YOLO('yolov8s-worldv2.pt')
                 self.hand_detector.to(device)
-                self.hand_detector.set_classes(["person", "hand", "arm", "finger", "bottle", "human"])
+                self.hand_detector.set_classes(["human hand", "hand", "pill bottle", "medicine bottle", "bottle"])
                 
                 logger.info(f"YOLO-World initialized on {device} (medicine + hand detectors)")
+                print(f"DEBUG: YOLO-World initialized on {device}")
             except Exception as e:
                 logger.error(f"Failed to load YOLO-World: {e}")
+                print(f"DEBUG: Failed to load YOLO-World: {e}")
+                import traceback
+                traceback.print_exc()
                 self.detector = None
                 self.hand_detector = None
                 self.vision_available = False
@@ -177,16 +181,40 @@ class VisionEngineV2:
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             
             if img is None:
+                print("[DEBUG] Image decoding failed!")
                 return {'success': False, 'hand_detected': False, 'error': 'Decode failed'}
             
-            # Run YOLO hand detection
-            results = self.hand_detector.predict(img, conf=0.15, verbose=False)
+            # Diagnostic: Save one frame to see what the backend sees
+            if not os.path.exists('debug_frames'):
+                os.makedirs('debug_frames')
+            cv2.imwrite('debug_frames/last_detect_attempt.jpg', img)
+            print(f"[DEBUG] Image decoded. Shape: {img.shape}")
             
-            if len(results[0].boxes) > 0:
-                # Hand detected - return first detection bbox
-                box = results[0].boxes[0]
-                coords = box.xyxy[0].tolist()
+            # Run YOLO hand detection (conf=0.35)
+            results = self.hand_detector.predict(img, conf=0.35, verbose=False)
+            
+            all_detections = []
+            best_hand_conf = 0.0
+            best_hand_box = None
+            
+            for box in results[0].boxes:
+                cls = int(box.cls[0])
+                label = self.hand_detector.names[cls]
                 conf = float(box.conf[0])
+                all_detections.append(f"{label} ({conf:.2%})")
+                
+                # Check if this is a valid "hand" or "bottle" trigger
+                is_valid_trigger = any(term in label.lower() for term in ["hand", "bottle"])
+                if is_valid_trigger and conf > best_hand_conf:
+                    best_hand_conf = conf
+                    best_hand_box = box
+            
+            if all_detections:
+                print(f"[DEBUG] YOLO Detections: {', '.join(all_detections)}")
+
+            if best_hand_box is not None:
+                # Valid trigger detected
+                coords = best_hand_box.xyxy[0].tolist()
                 
                 # Normalize bbox to 0-1 range
                 h, w = img.shape[:2]
@@ -197,15 +225,16 @@ class VisionEngineV2:
                     'height': (coords[3] - coords[1]) / h
                 }
                 
-                logger.debug(f"Hand detected with confidence {conf:.2%}")
+                logger.debug(f"Target detected with confidence {best_hand_conf:.2%}")
                 return {
                     'success': True,
                     'hand_detected': True,
-                    'confidence': conf,
-                    'bbox': bbox
+                    'confidence': best_hand_conf,
+                    'bbox': bbox,
+                    'debug_detections': all_detections
                 }
             else:
-                return {'success': True, 'hand_detected': False}
+                return {'success': True, 'hand_detected': False, 'debug_detections': all_detections}
                 
         except Exception as e:
             logger.error(f"Hand detection error: {e}")

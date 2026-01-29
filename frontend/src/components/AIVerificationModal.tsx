@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { apiFetch } from '@/lib/api';
 import { Camera, RefreshCcw, Scan as ScanIcon, Brain, CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -24,6 +25,7 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
     const [result, setResult] = useState<VerificationResult | null>(null);
     const [handDetected, setHandDetected] = useState(false);
     const [scanProgress, setScanProgress] = useState(0);
+    const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,6 +76,37 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
             }
         };
     }, []);
+
+    // Auto-close countdown when verification succeeds
+    useEffect(() => {
+        if (step === 'result' && result?.verified) {
+            setAutoCloseCountdown(5);
+        }
+    }, [step, result?.verified]);
+
+    // Separate effect to handle the actual countdown and auto-close
+    useEffect(() => {
+        if (autoCloseCountdown === null || autoCloseCountdown <= 0) return;
+
+        const timer = setTimeout(() => {
+            setAutoCloseCountdown(prev => {
+                if (prev === null) return null;
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [autoCloseCountdown]);
+
+    // Trigger onVerified when countdown reaches 0
+    useEffect(() => {
+        if (autoCloseCountdown === 0) {
+            onVerified();
+        }
+    }, [autoCloseCountdown, onVerified]);
+
+
+
 
     // Stage 1 & 2: YOLO-based Hand/Object Detection (backend API)
     useEffect(() => {
@@ -188,9 +221,15 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="medical-card w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+    // Use portal to escape dashboard layout stacking context
+    if (typeof document === 'undefined') return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            {/* Glassmorphism backdrop */}
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-xl" />
+
+            <div className="relative bg-card w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] rounded-3xl shadow-2xl border border-white/10">
                 {/* Header */}
                 <div className="p-6 border-b border-card-border flex justify-between items-center bg-secondary/5">
                     <div>
@@ -318,17 +357,27 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                         result.message?.includes('PLEASE SHOW LABEL') ? 'Visual Match Only' : 'Mismatch Detected!'}
                                 </h3>
                                 <p className="opacity-70 font-medium">{result.message}</p>
+
+                                {/* Auto-close countdown for verified medications */}
+                                {result.verified && autoCloseCountdown !== null && (
+                                    <div className="mt-4 p-4 bg-primary/10 rounded-2xl border border-primary/30 animate-pulse">
+                                        <p className="text-lg font-black text-primary">
+                                            ✓ Auto-closing in {autoCloseCountdown}...
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
+
                             <div className="grid grid-cols-2 gap-4 w-full pt-4">
-                                <div className={`p-4 rounded-2xl border transition-all ${result.verified ? 'bg-primary/5 border-primary/20' : 'bg-red-500/5 border-red-500/20'
+                                <div className={`p-4 rounded-2xl border transition-all ${result.verified ? 'bg-primary/5 border-white/5' : 'bg-red-500/5 border-white/5'
                                     }`}>
                                     <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">DNA Match</p>
                                     <p className={`text-2xl font-black ${result.verified ? 'text-primary' : 'text-red-500'}`}>
                                         {Math.round(result.confidence * 100)}%
                                     </p>
                                 </div>
-                                <div className="p-4 bg-background rounded-2xl border border-card-border">
+                                <div className="p-4 bg-card/50 rounded-2xl border border-white/5">
                                     <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">Stage 4 Lock</p>
                                     <div className="flex flex-col gap-1 mt-1">
                                         <div className="flex items-center gap-2 text-xs font-bold">
@@ -358,7 +407,7 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                         setResult(null);
                                         setHandDetected(false); // Reset hand detection state
                                     }}
-                                    className="flex-1 py-4 border-2 border-primary/20 rounded-2xl font-bold hover:bg-black/5 transition-all"
+                                    className="flex-1 py-4 border border-white/10 bg-white/5 rounded-2xl font-bold hover:bg-white/10 transition-all"
                                 >
                                     Retry Radar
                                 </button>
@@ -376,6 +425,8 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                 </div>
             </div>
             <canvas ref={canvasRef} className="hidden" />
-        </div>
+        </div>,
+        document.body
     );
 }
+
