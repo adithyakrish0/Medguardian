@@ -151,7 +151,7 @@ function SeniorMedicationsView({ medications, onAdd, onVerify, onFeed }: any) {
                     </div>
                 ) : (
                     medications.map((med: any) => (
-                        <div key={med.id} className="medical-card p-10 rounded-[48px] border-2 border-primary/10 bg-white dark:bg-card/50 flex flex-col md:flex-row justify-between items-center gap-10 hover:border-primary/40 hover:shadow-3xl transition-all group">
+                        <div key={med.id} className="medical-card p-10 rounded-[48px] border-2 border-primary/10 bg-white dark:bg-card/50 flex flex-col md:flex-row justify-between items-center gap-10 hover:border-primary/40 hover:shadow-3xl transition-all group relative">
                             <div className="flex gap-10 items-center w-full md:w-auto">
                                 <div className={`w-28 h-28 rounded-[36px] flex items-center justify-center shadow-xl relative ${med.priority === 'high' ? 'bg-red-500 text-white' : 'bg-primary/10 text-primary border-4 border-primary/5'
                                     }`}>
@@ -184,13 +184,22 @@ function SeniorMedicationsView({ medications, onAdd, onVerify, onFeed }: any) {
                                 <span>Check with Camera</span>
                             </button>
 
-                            {!med.ai_trained && (
+                            {!med.ai_trained ? (
                                 <button
                                     onClick={() => onFeed(med)}
                                     className="w-full md:w-auto px-16 py-8 bg-primary/20 text-primary rounded-[40px] text-3xl font-black border-4 border-dashed border-primary/40 hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-6"
                                 >
                                     <Brain className="w-12 h-12" />
                                     <span>Neural Train</span>
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => onFeed(med)}
+                                    className="absolute top-4 right-4 p-4 opacity-50 hover:opacity-100 hover:bg-primary/10 rounded-full transition-all group-hover:opacity-100 flex items-center gap-2 text-sm font-bold text-primary"
+                                    title="Retrain AI Model"
+                                >
+                                    <Brain className="w-5 h-5" />
+                                    <span className="sr-only md:not-sr-only">Retrain</span>
                                 </button>
                             )}
                         </div>

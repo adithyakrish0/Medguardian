@@ -106,12 +106,20 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
         if (bbox) {
             canvas.width = 448; // YOLO optimal size
             canvas.height = 448;
+
+            // Add padding to capture the object HELD by the hand, not just the hand
+            const padding = 0.5; // 50% padding
+            const x = Math.max(0, bbox.x - (bbox.width * padding) / 2);
+            const y = Math.max(0, bbox.y - (bbox.height * padding) / 2);
+            const w = Math.min(1, bbox.width * (1 + padding));
+            const h = Math.min(1, bbox.height * (1 + padding));
+
             ctx.drawImage(
                 video,
-                bbox.x * video.videoWidth,
-                bbox.y * video.videoHeight,
-                bbox.width * video.videoWidth,
-                bbox.height * video.videoHeight,
+                x * video.videoWidth,
+                y * video.videoHeight,
+                w * video.videoWidth,
+                h * video.videoHeight,
                 0, 0, 448, 448
             );
         } else {
@@ -260,14 +268,18 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
 
                     {step === 'result' && result && (
                         <div className="text-center space-y-6 w-full animate-in fade-in zoom-in duration-300">
-                            <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto shadow-2xl ${result.verified ? 'bg-primary text-white' : 'bg-red-500 text-white'
+                            <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto shadow-2xl ${result.verified ? 'bg-primary text-white' :
+                                result.message?.includes('PLEASE SHOW LABEL') ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
                                 }`}>
-                                {result.verified ? <CheckCircle2 className="w-12 h-12" /> : <AlertCircle className="w-12 h-12" />}
+                                {result.verified ? <CheckCircle2 className="w-12 h-12" /> :
+                                    result.message?.includes('PLEASE SHOW LABEL') ? <AlertCircle className="w-12 h-12 animate-pulse" /> : <AlertCircle className="w-12 h-12" />}
                             </div>
 
                             <div className="space-y-1">
-                                <h3 className={`text-2xl font-black ${result.verified ? 'text-primary' : 'text-red-500'}`}>
-                                    {result.verified ? 'Verification Confirmed' : 'Mismatch Detected!'}
+                                <h3 className={`text-2xl font-black ${result.verified ? 'text-primary' :
+                                    result.message?.includes('PLEASE SHOW LABEL') ? 'text-yellow-500' : 'text-red-500'}`}>
+                                    {result.verified ? 'Verification Confirmed' :
+                                        result.message?.includes('PLEASE SHOW LABEL') ? 'Visual Match Only' : 'Mismatch Detected!'}
                                 </h3>
                                 <p className="opacity-70 font-medium">{result.message}</p>
                             </div>
@@ -282,7 +294,23 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                 </div>
                                 <div className="p-4 bg-background rounded-2xl border border-card-border">
                                     <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">Stage 4 Lock</p>
-                                    <p className="text-sm font-black opacity-80 mt-1">SUCCESS</p>
+                                    <div className="flex flex-col gap-1 mt-1">
+                                        <div className="flex items-center gap-2 text-xs font-bold">
+                                            <span className={result.details?.layer1_detection ? "text-green-500" : "text-red-500"}>
+                                                {result.details?.layer1_detection ? "✅" : "❌"} Shape
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs font-bold">
+                                            <span className={result.details?.layer2_features ? "text-green-500" : "text-red-500"}>
+                                                {result.details?.layer2_features ? "✅" : "❌"} Texture
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs font-bold">
+                                            <span className={result.details?.layer3_histogram ? "text-green-500" : "text-red-500"}>
+                                                {result.details?.layer3_histogram ? "✅" : "❌"} Color
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -292,6 +320,7 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                         setStep('scanning');
                                         setScanProgress(0);
                                         setResult(null);
+                                        setHandDetected(false); // Reset hand detection state
                                     }}
                                     className="flex-1 py-4 border-2 border-primary/20 rounded-2xl font-bold hover:bg-black/5 transition-all"
                                 >

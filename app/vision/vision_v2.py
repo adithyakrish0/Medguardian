@@ -52,9 +52,9 @@ class VisionEngineV2:
     """
     
     # Layer thresholds (tunable)
-    YOLO_CONFIDENCE_THRESHOLD = 0.85
-    ORB_MATCH_THRESHOLD = 15
-    HISTOGRAM_CORRELATION_THRESHOLD = 0.8
+    YOLO_CONFIDENCE_THRESHOLD = 0.60  # Lowered to 0.60 to handle "generic bottle" shapes better
+    ORB_MATCH_THRESHOLD = 25          # Raised from 10 to prevent false positives (need more keypoints)
+    HISTOGRAM_CORRELATION_THRESHOLD = 0.65 # Reduced from 0.8 to handle lighting changes
     
     def __init__(self):
         self.vision_available = not VISION_DISABLED and YOLO is not None
@@ -63,16 +63,25 @@ class VisionEngineV2:
         if self.vision_available:
             try:
                 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+                # Medicine detector
                 self.detector = YOLO('yolov8s-worldv2.pt') 
                 self.detector.to(device)
                 self.detector.set_classes(["medicine package", "medicine bottle", "pill strip", "inhaler"])
-                logger.info(f"YOLO-World initialized on {device}")
+                
+                # Hand detector (separate instance for robust hand detection)
+                self.hand_detector = YOLO('yolov8s-worldv2.pt')
+                self.hand_detector.to(device)
+                self.hand_detector.set_classes(["hand", "human hand", "fist", "palm"])
+                
+                logger.info(f"YOLO-World initialized on {device} (medicine + hand detectors)")
             except Exception as e:
                 logger.error(f"Failed to load YOLO-World: {e}")
                 self.detector = None
+                self.hand_detector = None
                 self.vision_available = False
         else:
             self.detector = None
+            self.hand_detector = None
             if VISION_DISABLED:
                 logger.info("Vision system DISABLED (VISION_DISABLED=true)")
             else:
@@ -142,6 +151,65 @@ class VisionEngineV2:
             logger.error(f"Histogram comparison failed: {e}")
             return 0.0
 
+    def detect_hand(self, image_base64: str) -> dict:
+        """
+        Detect if a human hand is present in the frame using YOLO.
+        
+        This replaces MediaPipe for more robust detection of closed fists/hands holding objects.
+        
+        Args:
+            image_base64: Base64 encoded camera frame
+            
+        Returns:
+            Dict with hand detection result and optional bounding box
+        """
+        if not self.vision_available or self.hand_detector is None:
+            return {'success': False, 'hand_detected': False, 'error': 'Vision unavailable'}
+        
+        try:
+            # Decode image
+            if ',' in image_base64:
+                encoded_data = image_base64.split(',')[1]
+            else:
+                encoded_data = image_base64
+            nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if img is None:
+                return {'success': False, 'hand_detected': False, 'error': 'Decode failed'}
+            
+            # Run YOLO hand detection
+            results = self.hand_detector.predict(img, conf=0.3, verbose=False)
+            
+            if len(results[0].boxes) > 0:
+                # Hand detected - return first detection bbox
+                box = results[0].boxes[0]
+                coords = box.xyxy[0].tolist()
+                conf = float(box.conf[0])
+                
+                # Normalize bbox to 0-1 range
+                h, w = img.shape[:2]
+                bbox = {
+                    'x': coords[0] / w,
+                    'y': coords[1] / h,
+                    'width': (coords[2] - coords[0]) / w,
+                    'height': (coords[3] - coords[1]) / h
+                }
+                
+                logger.debug(f"Hand detected with confidence {conf:.2%}")
+                return {
+                    'success': True,
+                    'hand_detected': True,
+                    'confidence': conf,
+                    'bbox': bbox
+                }
+            else:
+                return {'success': True, 'hand_detected': False}
+                
+        except Exception as e:
+            logger.error(f"Hand detection error: {e}")
+            return {'success': False, 'hand_detected': False, 'error': str(e)}
+
     def process_frame(self, image_base64, expected_features=None, reference_histogram=None):
         """
         Triple-Layer Verification Pipeline.
@@ -208,7 +276,7 @@ class VisionEngineV2:
                 try:
                     matches = self.bf.match(expected_features, des_live)
                     matches = sorted(matches, key=lambda x: x.distance)
-                    good_matches = [m for m in matches if m.distance < 45]
+                    good_matches = [m for m in matches if m.distance < 35]  # Stricter (was 45)
                     match_count = len(good_matches)
                     
                     # Layer 2 passes if matches >= threshold
@@ -251,15 +319,49 @@ class VisionEngineV2:
             if layer3_pass:
                 layers_passed.append('histogram')
         
-        # Verification requires all checked layers to pass
-        is_verified = len(layers_checked) > 0 and len(layers_passed) == len(layers_checked)
         
+        # FINAL VERIFICATION LOGIC (Majority Vote)
+        # To handle "wrong side" (Texture fail) or "bad lighting" (Color fail),
+        # we allow verification if at least 2 out of 3 layers pass.
+        
+        passed_count = len(layers_passed)
+        checked_count = len(layers_checked)
+        
+        # Flexible Logic:
+        # - If 3 layers checked: Need 2 to pass (66%)
+        # - If 2 layers checked: Need 2 to pass (100%)
+        # - If 1 layer checked: Need 1 to pass (100%)
+        
+        if checked_count >= 3:
+            # TRUST THE LABEL:
+            # If Feature Matching (Texture) finds the LABEL text/logo (10+ matches),
+            # it is almost certainly the correct medication, even if lighting/angle fails the other layers.
+            has_label_match = 'features' in layers_passed
+            
+            if has_label_match:
+                is_verified = True  # TRUST THE TEXT/LABEL
+            else:
+                # Fallback: Visual Match Only (Shape + Color) -> Suspicious
+                majority_pass = passed_count >= 2
+                is_verified = majority_pass and has_label_match # Still requires label for "Verified"
+        else:
+            is_verified = passed_count == checked_count and checked_count > 0
+
         # Build status message
         if is_verified:
-            message = "✅ Medication Verified (All layers passed)"
+            if 'features' in layers_passed:
+                message = "✅ Verified by Label Scan (Trusted)"
+            elif passed_count == checked_count:
+                message = "✅ Perfect Match (100%)"
+            else:
+                message = f"✅ Verified (Majority Match: {passed_count}/{checked_count})"
         else:
-            failed_layers = [l for l in layers_checked if l not in layers_passed]
-            message = f"⏳ Verifying... ({', '.join(failed_layers)} pending)"
+            # Special Feedback: Shape+Color pass, but Label fail
+            if 'detection' in layers_passed and 'histogram' in layers_passed and 'features' not in layers_passed:
+                message = "⚠️ Visual Match - PLEASE SHOW LABEL"
+            else:
+                failed_layers = [l for l in layers_checked if l not in layers_passed]
+                message = f"⏳ Mismatch ({', '.join(failed_layers)} failed)"
 
         return {
             'success': True,

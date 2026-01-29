@@ -84,3 +84,35 @@ def save_reference_image(medication_id):
             'success': False,
             'error': str(e)
         }), 500
+
+
+@api_v1.route('/detect-hand', methods=['POST'])
+@login_required
+def detect_hand():
+    """
+    Detect if a human hand is present in the camera frame.
+    
+    Uses YOLO for robust detection of hands in any position (open, closed, holding objects).
+    This replaces client-side MediaPipe which requires open palms.
+    """
+    try:
+        data = request.json
+        
+        if not data or 'image' not in data:
+            return jsonify({
+                'success': False,
+                'hand_detected': False,
+                'error': 'Missing required field: image'
+            }), 400
+        
+        from app.vision.vision_v2 import vision_v2
+        result = vision_v2.detect_hand(data['image'])
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'hand_detected': False,
+            'error': str(e)
+        }), 500

@@ -10,6 +10,12 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    # Database connection stability settings
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+    }
+    
     # Vision system configuration (V2.0 Zero-Trash)
     VISION_ENABLED = True
     YOLO_MODEL_PATH = 'yolow-v8-s.pt' 
