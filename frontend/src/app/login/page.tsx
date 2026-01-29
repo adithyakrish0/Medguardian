@@ -18,6 +18,7 @@ export default function LoginPage() {
         setError('');
 
         try {
+            console.log("LOGIN_DEBUG: Starting fetch...");
             const data = await apiFetch('/auth/login', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -26,11 +27,13 @@ export default function LoginPage() {
                     remember: true
                 }),
             });
+            console.log("LOGIN_DEBUG: Response data:", data);
 
             if (data.success) {
                 router.push('/dashboard');
             }
         } catch (err: any) {
+            console.error("LOGIN_DEBUG: Caught error:", err);
             setError(err.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
@@ -48,9 +51,9 @@ export default function LoginPage() {
                 <h2 className="text-center text-3xl font-extrabold text-foreground">
                     Welcome back
                 </h2>
-                <p className="mt-2 text-center text-sm text-foreground opacity-70">
+                <p className="mt-2 text-center text-sm text-foreground/70">
                     Or{' '}
-                    <Link href="/signup" className="font-medium text-secondary hover:underline">
+                    <Link href="/signup" className="font-medium text-primary hover:underline">
                         create a new account
                     </Link>
                 </p>
@@ -65,7 +68,7 @@ export default function LoginPage() {
                             </div>
                         )}
                         <div>
-                            <label htmlFor="email" className="block text-sm font-semibold text-medical-primary">
+                            <label htmlFor="email" className="block text-sm font-semibold text-foreground">
                                 Email address
                             </label>
                             <div className="mt-1">
@@ -83,7 +86,7 @@ export default function LoginPage() {
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="block text-sm font-semibold text-medical-primary">
+                            <label htmlFor="password" className="block text-sm font-semibold text-foreground">
                                 Password
                             </label>
                             <div className="mt-1">
@@ -108,13 +111,13 @@ export default function LoginPage() {
                                     type="checkbox"
                                     className="h-4 w-4 text-medical-secondary focus:ring-medical-secondary border-gray-300 rounded"
                                 />
-                                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                                <label htmlFor="remember-me" className="ml-2 block text-sm text-foreground/80">
                                     Remember me
                                 </label>
                             </div>
 
                             <div className="text-sm">
-                                <a href="#" className="font-medium text-secondary hover:underline">
+                                <a href="#" className="font-medium text-primary hover:underline">
                                     Forgot your password?
                                 </a>
                             </div>

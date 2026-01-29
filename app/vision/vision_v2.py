@@ -1,9 +1,23 @@
+import logging
+import os
+
+# CRITICAL: Fix for PyTorch 2.6+ security restriction ("Weights only load failed")
+# This MUST happen before ultralytics or torch are used for loading models.
+try:
+    import torch
+    original_load = torch.load
+    def patched_torch_load(*args, **kwargs):
+        if 'weights_only' not in kwargs:
+            kwargs['weights_only'] = False
+        return original_load(*args, **kwargs)
+    torch.load = patched_torch_load
+except ImportError:
+    pass
+
 import cv2
 import numpy as np
 import base64
-import os
 import json
-import logging
 
 # Conditional import for YOLO (may not be installed on Render free tier)
 YOLO = None
@@ -48,7 +62,6 @@ class VisionEngineV2:
         # Initialize YOLO-World (only if available)
         if self.vision_available:
             try:
-                import torch
                 device = 'cuda' if torch.cuda.is_available() else 'cpu'
                 self.detector = YOLO('yolov8s-worldv2.pt') 
                 self.detector.to(device)

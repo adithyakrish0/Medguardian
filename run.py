@@ -21,8 +21,8 @@ if __name__ == "__main__":
     
     # Check if SocketIO initialized successfully
     if socketio.server is not None:
-        print("Starting server with SocketIO support...")
-        socketio.run(app, debug=debug_mode, port=5001, host='0.0.0.0', allow_unsafe_werkzeug=True, use_reloader=False)
+        print("Starting server with SocketIO support on 127.0.0.1...")
+        socketio.run(app, debug=debug_mode, port=5001, host='127.0.0.1', allow_unsafe_werkzeug=True, use_reloader=False)
     else:
-        print("⚠️ SocketIO not initialized, starting without real-time features...")
-        app.run(debug=debug_mode, port=5001)
+        print("⚠️ SocketIO not initialized, starting on 127.0.0.1 without real-time features...")
+        app.run(debug=debug_mode, port=5001, host='127.0.0.1')

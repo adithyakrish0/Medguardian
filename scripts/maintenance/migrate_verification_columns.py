@@ -16,7 +16,12 @@ def upgrade_database():
             ('barcode', 'VARCHAR(100)'),
             ('reference_image_path', 'VARCHAR(500)'),
             ('image_features', 'TEXT'),
-            ('label_text', 'TEXT')
+            ('label_text', 'TEXT'),
+            ('reference_images', 'TEXT'),
+            ('background_image', 'TEXT'),
+            ('visual_fingerprint', 'TEXT'),
+            ('histogram_fingerprint', 'TEXT'),
+            ('ai_trained', 'BOOLEAN DEFAULT FALSE')
         ]
         
         for column_name, column_type in columns_to_add:

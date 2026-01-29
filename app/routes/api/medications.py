@@ -10,9 +10,23 @@ from app.utils.validators import MedicationCreateSchema, MedicationUpdateSchema
 @api_v1.route('/medications', methods=['GET'])
 @login_required
 def get_medications():
-    """Get all medications for current user"""
+    """Get all medications for current user or linked senior"""
     try:
-        medications = MedicationService.get_all_for_user(current_user.id)
+        senior_id = request.args.get('senior_id', type=int)
+        
+        # Security: If senior_id is provided, verify current user is a linked caregiver
+        user_id = current_user.id
+        if senior_id and senior_id != current_user.id:
+            from app.models.relationship import CaregiverSenior
+            relationship = CaregiverSenior.query.filter_by(
+                caregiver_id=current_user.id,
+                senior_id=senior_id
+            ).first()
+            if not relationship:
+                return jsonify({'success': False, 'error': 'Access denied to this senior\'s data'}), 403
+            user_id = senior_id
+            
+        medications = MedicationService.get_all_for_user(user_id)
         
         return jsonify({
             'success': True,
@@ -149,6 +163,34 @@ def delete_medication(medication_id):
         }), 500
 
 
+@api_v1.route('/medications/<int:medication_id>/feed', methods=['POST'])
+@login_required
+def feed_medication(medication_id):
+    """Provide AI reference 'feeding' for an existing medication"""
+    try:
+        data = request.json
+        if not data or 'image' not in data:
+            return jsonify({'success': False, 'error': 'Image data required'}), 400
+            
+        medication = MedicationService.feed_medication(
+            medication_id,
+            current_user.id,
+            data['image']
+        )
+        
+        if not medication:
+            return jsonify({'success': False, 'error': 'Medication not found or training failed'}), 404
+            
+        return jsonify({
+            'success': True,
+            'message': 'Neural training complete',
+            'data': medication.to_dict()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @api_v1.route('/medications/<int:medication_id>/mark-taken', methods=['POST'])
 @login_required
 def mark_medication_taken(medication_id):
@@ -277,9 +319,23 @@ def get_medication_status():
         now = datetime.now()
         current_time = now.strftime('%H:%M')
         
+        senior_id = request.args.get('senior_id', type=int)
+        user_id = current_user.id
+        
+        # Security: If senior_id is provided, verify current user is a linked caregiver
+        if senior_id and senior_id != current_user.id:
+            from app.models.relationship import CaregiverSenior
+            relationship = CaregiverSenior.query.filter_by(
+                caregiver_id=current_user.id,
+                senior_id=senior_id
+            ).first()
+            if not relationship:
+                return jsonify({'success': False, 'error': 'Access denied to this senior\'s data'}), 403
+            user_id = senior_id
+            
         # Get user's active medications (date-based filtering)
         medications = Medication.query.filter_by(
-            user_id=current_user.id
+            user_id=user_id
         ).filter(
             (Medication.start_date.is_(None)) | (Medication.start_date <= today)
         ).filter(

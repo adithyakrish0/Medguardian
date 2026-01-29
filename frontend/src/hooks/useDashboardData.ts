@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
 
-export function useDashboardData() {
+export function useDashboardData(seniorId?: number) {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -11,11 +11,13 @@ export function useDashboardData() {
     const fetchDashboard = useCallback(async () => {
         try {
             setLoading(true);
-            // Using the medication-status endpoint for current view
-            const statusData = await apiFetch('/medication-status');
+            // Using the medication-status endpoint with optional senior_id
+            const url = seniorId ? `/medication-status?senior_id=${seniorId}` : '/medication-status';
+            const statusData = await apiFetch(url);
 
-            // Also get profile info
-            const userData = await apiFetch('/users/me').catch(() => ({ data: { username: 'Senior' } }));
+            // Also get profile info (if seniorId, get that senior's info, else get self)
+            const userUrl = seniorId ? `/users/${seniorId}` : '/users/me';
+            const userData = await apiFetch(userUrl).catch(() => ({ data: { username: 'Senior' } }));
 
             setData({
                 user: userData.data,

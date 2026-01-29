@@ -17,7 +17,7 @@ export interface Medication {
     last_taken?: string;
 }
 
-export function useMedications() {
+export function useMedications(seniorId?: number) {
     const [medications, setMedications] = useState<Medication[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,8 @@ export function useMedications() {
     const fetchMedications = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await apiFetch('/medications');
+            const url = seniorId ? `/medications?senior_id=${seniorId}` : '/medications';
+            const data = await apiFetch(url);
             if (data.success) {
                 setMedications(data.data);
             }
@@ -35,7 +36,7 @@ export function useMedications() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [seniorId]);
 
     const markAsTaken = async (id: number, verified: boolean = true, method: string = 'manual') => {
         try {

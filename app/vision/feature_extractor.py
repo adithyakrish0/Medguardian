@@ -13,6 +13,10 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 import io
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # Lazy load model to avoid startup delay
 _feature_model = None
@@ -46,9 +50,9 @@ def get_feature_model():
                 )
             ])
             
-            print("✅ Feature extractor (EfficientNet-B0) loaded successfully")
+            logger.info("✅ Feature extractor (EfficientNet-B0) loaded successfully")
         except Exception as e:
-            print(f"⚠️ EfficientNet failed, falling back to ResNet-18: {e}")
+            logger.warning(f"⚠️ EfficientNet failed, falling back to ResNet-18: {e}")
             try:
                 # Fallback to ResNet-18 if EfficientNet not available
                 import torchvision.models as models
@@ -62,9 +66,9 @@ def get_feature_model():
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
                 ])
-                print("✅ Feature extractor (ResNet-18 fallback) loaded")
+                logger.info("✅ Feature extractor (ResNet-18 fallback) loaded")
             except Exception as e2:
-                print(f"⚠️ Feature extractor failed to load: {e2}")
+                logger.error(f"⚠️ Feature extractor failed to load: {e2}")
                 return None, None
     
     return _feature_model, _transform
@@ -107,7 +111,7 @@ def normalize_lighting(image: np.ndarray) -> np.ndarray:
         return normalized
         
     except Exception as e:
-        print(f"Lighting normalization failed, using original: {e}")
+        logger.warning(f"Lighting normalization failed, using original: {e}")
         return image
 
 
@@ -150,7 +154,7 @@ def extract_features(image: np.ndarray) -> Optional[np.ndarray]:
         return feature_vector
         
     except Exception as e:
-        print(f"Feature extraction error: {e}")
+        logger.error(f"Feature extraction error: {e}")
         return None
 
 
@@ -169,7 +173,7 @@ def extract_features_from_base64(base64_image: str) -> Optional[np.ndarray]:
         return extract_features(image)
         
     except Exception as e:
-        print(f"Base64 feature extraction error: {e}")
+        logger.error(f"Base64 feature extraction error: {e}")
         return None
 
 
@@ -228,7 +232,7 @@ def compare_to_references(
         if background_image_base64:
             background_features = extract_features_from_base64(background_image_base64)
             if background_features is not None:
-                print("🔍 Using background subtraction for comparison")
+                logger.info("🔍 Using background subtraction for comparison")
         
         best_score = 0.0
         best_index = -1
@@ -251,11 +255,11 @@ def compare_to_references(
                     best_score = score
                     best_index = i
         
-        print(f"Visual similarity: best={best_score:.2%} from angle {best_index}{' (bg-subtracted)' if background_features is not None else ''}")
+        logger.info(f"Visual similarity: best={best_score:.2%} from angle {best_index}{' (bg-subtracted)' if background_features is not None else ''}")
         return best_score, best_index
         
     except Exception as e:
-        print(f"Reference comparison error: {e}")
+        logger.error(f"Reference comparison error: {e}")
         return 0.0, -1
 
 

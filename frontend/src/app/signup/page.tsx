@@ -51,9 +51,9 @@ export default function SignupPage() {
                 <h2 className="text-center text-3xl font-extrabold text-foreground">
                     Create your account
                 </h2>
-                <p className="mt-2 text-center text-sm text-gray-600">
+                <p className="mt-2 text-center text-sm text-foreground/70">
                     Already have an account?{' '}
-                    <Link href="/login" className="font-medium text-medical-secondary hover:text-medical-accent">
+                    <Link href="/login" className="font-medium text-primary hover:underline">
                         Sign in instead
                     </Link>
                 </p>
@@ -103,7 +103,7 @@ export default function SignupPage() {
                         </div>
 
                         <div>
-                            <label htmlFor="role" className="block text-sm font-semibold text-medical-primary">
+                            <label htmlFor="role" className="block text-sm font-semibold text-foreground">
                                 I am a...
                             </label>
                             <div className="mt-1 grid grid-cols-2 gap-3">
@@ -111,8 +111,8 @@ export default function SignupPage() {
                                     type="button"
                                     onClick={() => setRole('senior')}
                                     className={`py-3 px-4 border rounded-xl text-sm font-medium transition-all ${role === 'senior'
-                                        ? 'bg-secondary text-white border-secondary shadow-md'
-                                        : 'bg-card-bg text-foreground border-card-border hover:bg-secondary/10'
+                                        ? 'bg-primary text-white border-primary shadow-md'
+                                        : 'bg-card text-foreground border-card-border hover:bg-primary/10'
                                         }`}
                                 >
                                     Senior Citizen
@@ -121,8 +121,8 @@ export default function SignupPage() {
                                     type="button"
                                     onClick={() => setRole('caregiver')}
                                     className={`py-3 px-4 border rounded-xl text-sm font-medium transition-all ${role === 'caregiver'
-                                        ? 'bg-secondary text-white border-secondary shadow-md'
-                                        : 'bg-card-bg text-foreground border-card-border hover:bg-secondary/10'
+                                        ? 'bg-primary text-white border-primary shadow-md'
+                                        : 'bg-card text-foreground border-card-border hover:bg-primary/10'
                                         }`}
                                 >
                                     Caregiver

@@ -31,6 +31,18 @@ class MedicationCreateSchema(BaseModel):
     
     # Verification
     barcode: Optional[str] = Field(None, max_length=100)
+    image: Optional[str] = None  # Base64 encoded reference image
+    
+    @validator('image')
+    def validate_reference_image(cls, v):
+        if not v:
+            return v
+        if not v.startswith('data:image/'):
+            raise ValueError('Invalid image format - must be data URI')
+        max_size = 16 * 1024 * 1024
+        if len(v) > max_size * 1.33:
+            raise ValueError(f'Image too large (max {max_size} bytes)')
+        return v
     
     @validator('name')
     def name_not_empty(cls, v):

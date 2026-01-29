@@ -130,8 +130,8 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedica
                                                 type="button"
                                                 onClick={() => setTimes(prev => ({ ...prev, [t]: !prev[t] }))}
                                                 className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all font-bold capitalize ${times[t]
-                                                        ? 'bg-primary/10 border-primary text-primary shadow-sm'
-                                                        : 'bg-background border-card-border text-foreground/40 hover:bg-secondary/5'
+                                                    ? 'bg-primary/10 border-primary text-primary shadow-sm'
+                                                    : 'bg-background border-card-border text-foreground/40 hover:bg-secondary/5'
                                                     }`}
                                             >
                                                 <div className={`w-2 h-2 rounded-full ${times[t] ? 'bg-primary' : 'bg-foreground/20'}`} />
@@ -150,8 +150,8 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedica
                                                 type="button"
                                                 onClick={() => setPriority(p)}
                                                 className={`flex-1 py-3 rounded-2xl border font-black text-xs uppercase tracking-widest transition-all ${priority === p
-                                                        ? p === 'high' ? 'bg-red-500/10 border-red-500 text-red-500' : 'bg-primary/10 border-primary text-primary'
-                                                        : 'bg-background border-card-border text-foreground/20'
+                                                    ? p === 'high' ? 'bg-red-500/10 border-red-500 text-red-500' : 'bg-primary/10 border-primary text-primary'
+                                                    : 'bg-background border-card-border text-foreground/20'
                                                     }`}
                                             >
                                                 {p}

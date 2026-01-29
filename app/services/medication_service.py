@@ -66,9 +66,75 @@ class MedicationService:
         )
         
         db.session.add(medication)
-        db.session.commit()
+        db.session.flush()
         
+        # Handle reference image if provided
+        if data.get('image'):
+            MedicationService.process_neural_training(medication, data['image'])
+        
+        db.session.commit()
         return medication
+
+    @staticmethod
+    def process_neural_training(medication: Medication, image_uri: str) -> bool:
+        """Centralized logic for neural training / AI feeding.
+        
+        Args:
+            medication: Medication object to update
+            image_uri: Data URI (base64) of the reference image
+        """
+        from app.vision.vision_v2 import vision_v2
+        import os
+        import base64
+        import uuid
+        from flask import current_app
+        
+        try:
+            # 1. Save physical image
+            if ',' in image_uri:
+                image_data = image_uri.split(',')[1]
+            else:
+                image_data = image_uri
+            
+            image_bytes = base64.b64decode(image_data)
+            
+            filename = f"ref_{medication.id}_{uuid.uuid4().hex[:8]}.jpg"
+            upload_dir = os.path.join(current_app.static_folder, 'uploads', 'references')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            file_path = os.path.join(upload_dir, filename)
+            with open(file_path, 'wb') as f:
+                f.write(image_bytes)
+            
+            # 2. Extract AI Neural DNA (Layer 2 & 3)
+            # We use vision_v2 for ORB and Histogram extraction
+            visual_fingerprint = vision_v2.get_fingerprint(image_uri)
+            histogram_fingerprint = vision_v2.get_histogram_fingerprint(image_uri)
+            
+            # 3. Update medication record
+            medication.reference_image_path = f"uploads/references/{filename}"
+            medication.visual_fingerprint = visual_fingerprint
+            medication.histogram_fingerprint = histogram_fingerprint
+            medication.ai_trained = True
+            
+            db.session.add(medication)
+            return True
+            
+        except Exception as e:
+            print(f"Error processing neural training: {e}")
+            return False
+
+    @staticmethod
+    def feed_medication(medication_id: int, user_id: int, image_uri: str) -> Optional[Medication]:
+        """Post-registration AI feeding for an existing medication"""
+        medication = MedicationService.get_by_id(medication_id, user_id)
+        if not medication:
+            return None
+            
+        if MedicationService.process_neural_training(medication, image_uri):
+            db.session.commit()
+            return medication
+        return None
     
     @staticmethod
     def update(medication_id: int, data: Dict, user_id: Optional[int] = None) -> Optional[Medication]:

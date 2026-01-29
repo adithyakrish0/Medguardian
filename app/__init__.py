@@ -52,7 +52,12 @@ def create_app(config_name=None):
     mail.init_app(app)
     
     # CORS: Allow localhost for dev, plus any origins from CORS_ORIGINS env var
-    cors_origins = ["http://localhost:3000", "http://localhost:3001"]
+    cors_origins = [
+        "http://localhost:3000", 
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001"
+    ]
     env_origins = os.getenv('CORS_ORIGINS', '')
     if env_origins:
         cors_origins.extend([o.strip() for o in env_origins.split(',') if o.strip()])
@@ -112,6 +117,13 @@ def create_app(config_name=None):
     def load_user(user_id):
         from .models.auth import User
         return User.query.get(int(user_id))
+    
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'message': 'Authentication required'}), 401
+        from flask import redirect, url_for
+        return redirect(url_for('auth.login', next=request.full_path))
     
     # Import and register blueprints
     from .routes.main import main

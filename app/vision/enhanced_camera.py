@@ -4,6 +4,10 @@ import time
 import threading
 from typing import Optional, Tuple, List, Callable
 from PIL import Image
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class EnhancedCameraInterface:
     """
@@ -67,11 +71,11 @@ class EnhancedCameraInterface:
             if not ret:
                 raise Exception("Failed to capture test frame")
             
-            print(f"Camera {self.camera_id} initialized successfully with resolution {self.resolution}")
+            logger.info(f"Camera {self.camera_id} initialized successfully with resolution {self.resolution}")
             return True
             
         except Exception as e:
-            print(f"Camera initialization failed: {e}")
+            logger.error(f"Camera initialization failed: {e}")
             if self.camera:
                 self.camera.release()
                 self.camera = None
@@ -100,7 +104,7 @@ class EnhancedCameraInterface:
                 return frame
             time.sleep(0.1)
         
-        print(f"Failed to capture image after {timeout} seconds")
+        logger.warning(f"Failed to capture image after {timeout} seconds")
         return None
     
     def capture_multiple_images(self, count: int = 3, delay: float = 1.0) -> List[np.ndarray]:
@@ -137,7 +141,7 @@ class EnhancedCameraInterface:
             bool: True if preview started successfully
         """
         if self.is_capturing:
-            print("Preview is already running")
+            logger.info("Preview is already running")
             return False
         
         if not self.camera or not self.camera.isOpened():
@@ -154,7 +158,7 @@ class EnhancedCameraInterface:
                     if callback:
                         callback(frame)
                 else:
-                    print("Failed to capture frame in preview")
+                    logger.warning("Failed to capture frame in preview")
                     time.sleep(0.1)
                 
                 # Control frame rate
@@ -164,7 +168,7 @@ class EnhancedCameraInterface:
         self.preview_thread.daemon = True
         self.preview_thread.start()
         
-        print(f"Camera preview started at {fps} FPS")
+        logger.info(f"Camera preview started at {fps} FPS")
         return True
     
     def stop_preview(self):
@@ -173,7 +177,7 @@ class EnhancedCameraInterface:
         if self.preview_thread:
             self.preview_thread.join(timeout=2.0)
             self.preview_thread = None
-        print("Camera preview stopped")
+        logger.info("Camera preview stopped")
     
     def get_camera_info(self) -> dict:
         """Get camera information and current settings"""
