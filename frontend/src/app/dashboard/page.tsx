@@ -199,11 +199,8 @@ function SeniorDashboardView({
             const checkDate = new Date(d.setHours(23, 59, 59, 999));
             const isLocked = accountCreatedAt ? checkDate < new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : false;
 
-            // Mark as establishment if this is the first point that is NOT locked, 
-            // OR if it's the specific establishment date.
-            const isEstablishment = i === points - 1
-                ? !isLocked
-                : (!isLocked && history.length > 0 && history[history.length - 1].isLocked);
+            // Mark as establishment if this is the transition point from Locked to Unlocked
+            const isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
 
             const isToday = i === 0 && unit === 'day';
             let adherence: number;
@@ -696,11 +693,8 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
             const checkDate = new Date(d.setHours(23, 59, 59, 999));
             const isLocked = accountCreatedAt ? checkDate < new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : false;
 
-            // Mark as establishment if this is the first point that is NOT locked, 
-            // OR if it's the specific establishment date.
-            const isEstablishment = i === points - 1
-                ? !isLocked
-                : (!isLocked && history.length > 0 && history[history.length - 1].isLocked);
+            // Mark as establishment if this is the transition point from Locked to Unlocked
+            const isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
 
             const isToday = i === 0 && unit === 'day';
             let adherence: number;
