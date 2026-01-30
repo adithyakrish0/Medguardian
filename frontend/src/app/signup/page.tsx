@@ -45,19 +45,16 @@ export default function SignupPage() {
     return (
         <div className="min-h-screen bg-medical-light flex flex-col justify-center py-12 sm:px-6 lg:px-8">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="flex justify-center mb-6">
-                    <div className="w-12 h-12 rounded-xl bg-medical-primary flex items-center justify-center shadow-lg">
-                        <span className="text-white font-bold text-xl">M</span>
+                <div className="flex justify-center mb-10">
+                    <div className="w-16 h-16 rounded-2xl medical-gradient flex items-center justify-center shadow-2xl shadow-primary/20 ring-4 ring-primary/10">
+                        <span className="text-white font-black text-2xl tracking-tighter">MG</span>
                     </div>
                 </div>
-                <h2 className="text-center text-3xl font-extrabold text-foreground">
-                    Create your account
+                <h2 className="text-center text-4xl font-black text-foreground tracking-tight">
+                    Create Account
                 </h2>
-                <p className="mt-2 text-center text-sm text-foreground/70">
-                    Already have an account?{' '}
-                    <Link href="/login" className="font-medium text-primary hover:underline">
-                        Sign in instead
-                    </Link>
+                <p className="mt-4 text-center text-sm text-foreground/50 font-medium uppercase tracking-[0.2em]">
+                    Already have an account? <Link href="/login" className="text-primary hover:text-primary/80 transition-colors">Sign In Instead</Link>
                 </p>
             </div>
 
@@ -116,23 +113,23 @@ export default function SignupPage() {
                             <label htmlFor="role" className="block text-sm font-semibold text-foreground">
                                 I am a...
                             </label>
-                            <div className="mt-1 grid grid-cols-2 gap-3">
+                            <div className="mt-2 p-1 bg-white/5 border border-white/10 rounded-2xl grid grid-cols-2 gap-1">
                                 <button
                                     type="button"
                                     onClick={() => setRole('senior')}
-                                    className={`py-3 px-4 border rounded-xl text-sm font-medium transition-all ${role === 'senior'
-                                        ? 'bg-primary text-white border-primary shadow-md'
-                                        : 'bg-card text-foreground border-card-border hover:bg-primary/10'
+                                    className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${role === 'senior'
+                                        ? 'bg-primary text-white shadow-lg'
+                                        : 'text-foreground/40 hover:text-foreground/60 hover:bg-white/5'
                                         }`}
                                 >
-                                    Senior Citizen
+                                    Senior
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setRole('caregiver')}
-                                    className={`py-3 px-4 border rounded-xl text-sm font-medium transition-all ${role === 'caregiver'
-                                        ? 'bg-primary text-white border-primary shadow-md'
-                                        : 'bg-card text-foreground border-card-border hover:bg-primary/10'
+                                    className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${role === 'caregiver'
+                                        ? 'bg-primary text-white shadow-lg'
+                                        : 'text-foreground/40 hover:text-foreground/60 hover:bg-white/5'
                                         }`}
                                 >
                                     Caregiver
@@ -173,9 +170,9 @@ export default function SignupPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className={`w-full flex justify-center py-4 px-4 border border-transparent rounded-2xl shadow-xl text-sm font-bold text-white bg-primary hover:scale-[1.02] transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                className={`w-full flex justify-center py-5 px-4 rounded-2xl shadow-2xl shadow-primary/30 text-sm font-black uppercase tracking-[0.15em] text-white medical-gradient hover:scale-[1.02] active:scale-[0.98] transition-all focus:outline-none focus:ring-4 focus:ring-primary/20 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
-                                {loading ? 'Creating account...' : 'Create Account'}
+                                {loading ? 'Finalizing Setup...' : 'Launch Your Account'}
                             </button>
                         </div>
                     </form>

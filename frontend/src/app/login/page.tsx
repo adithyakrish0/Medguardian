@@ -45,19 +45,16 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen bg-medical-light flex flex-col justify-center py-12 sm:px-6 lg:px-8">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="flex justify-center mb-6">
-                    <div className="w-12 h-12 rounded-xl bg-medical-primary flex items-center justify-center shadow-lg">
-                        <span className="text-white font-bold text-xl">M</span>
+                <div className="flex justify-center mb-10">
+                    <div className="w-16 h-16 rounded-2xl medical-gradient flex items-center justify-center shadow-2xl shadow-primary/20 ring-4 ring-primary/10">
+                        <span className="text-white font-black text-2xl tracking-tighter">MG</span>
                     </div>
                 </div>
-                <h2 className="text-center text-3xl font-extrabold text-foreground">
-                    Welcome back
+                <h2 className="text-center text-4xl font-black text-foreground tracking-tight">
+                    Welcome Back
                 </h2>
-                <p className="mt-2 text-center text-sm text-foreground/70">
-                    Or{' '}
-                    <Link href="/signup" className="font-medium text-primary hover:underline">
-                        create a new account
-                    </Link>
+                <p className="mt-4 text-center text-sm text-foreground/50 font-medium uppercase tracking-[0.2em]">
+                    Or <Link href="/signup" className="text-primary hover:text-primary/80 transition-colors">Create a New Account</Link>
                 </p>
             </div>
 
@@ -135,8 +132,8 @@ export default function LoginPage() {
                             </div>
 
                             <div className="text-sm">
-                                <a href="#" className="font-medium text-primary hover:underline">
-                                    Forgot your password?
+                                <a href="#" className="font-bold text-primary/80 hover:text-primary transition-colors">
+                                    Forgot Password?
                                 </a>
                             </div>
                         </div>
@@ -145,15 +142,15 @@ export default function LoginPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className={`w-full flex items-center justify-center py-4 px-4 border border-transparent rounded-2xl shadow-xl text-sm font-bold text-white bg-primary hover:scale-[1.02] active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary ${loading ? 'opacity-80 cursor-not-allowed' : ''}`}
+                                className={`w-full flex items-center justify-center py-5 px-4 rounded-2xl shadow-2xl shadow-primary/30 text-sm font-black uppercase tracking-[0.15em] text-white medical-gradient hover:scale-[1.02] active:scale-[0.98] transition-all focus:outline-none focus:ring-4 focus:ring-primary/20 ${loading ? 'opacity-80 cursor-not-allowed' : ''}`}
                             >
                                 {loading ? (
                                     <span className="flex items-center gap-3">
                                         <Loader2 className="w-5 h-5 animate-spin" />
-                                        <span>Signing In...</span>
+                                        <span>Authenticating...</span>
                                     </span>
                                 ) : (
-                                    'Sign In'
+                                    'Sign In To MedGuardian'
                                 )}
                             </button>
                         </div>
