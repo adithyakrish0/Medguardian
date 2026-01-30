@@ -85,7 +85,7 @@ export default function SignupPage() {
                                     required
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
-                                    className="appearance-none block w-full !pl-14 !pr-4 py-3 border border-card-border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background"
+                                    className="appearance-none block w-full !pl-14 !pr-4 py-3 border border-white/10 rounded-xl shadow-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white/5 hover:bg-white/10 hover:border-white/20"
                                     placeholder="Pick a username"
                                 />
                             </div>
@@ -106,7 +106,7 @@ export default function SignupPage() {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="appearance-none block w-full !pl-14 !pr-4 py-3 border border-card-border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background"
+                                    className="appearance-none block w-full !pl-14 !pr-4 py-3 border border-white/10 rounded-xl shadow-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white/5 hover:bg-white/10 hover:border-white/20"
                                     placeholder="Enter your email"
                                 />
                             </div>
@@ -155,7 +155,7 @@ export default function SignupPage() {
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="appearance-none block w-full !pl-14 !pr-12 py-3.5 border border-card-border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background"
+                                    className="appearance-none block w-full !pl-14 !pr-12 py-3.5 border border-white/10 rounded-xl shadow-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white/5 hover:bg-white/10 hover:border-white/20"
                                     placeholder="Min. 8 characters"
                                 />
                                 <button
