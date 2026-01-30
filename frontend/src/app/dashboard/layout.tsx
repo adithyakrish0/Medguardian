@@ -111,7 +111,7 @@ export default function DashboardLayout({
                 })}
             </nav>
 
-            <div className={`p-10 relative shrink-0 border-t border-card-border/50 bg-card/80 backdrop-blur-md ${isCollapsed && !mobile ? 'flex justify-center' : ''}`}>
+            <div className={`p-10 relative shrink-0 bg-card/80 backdrop-blur-md ${isCollapsed && !mobile ? 'flex justify-center' : ''}`}>
                 <div
                     onClick={() => setIsProfileOpen(true)}
                     className={`rounded-[28px] bg-background border border-card-border shadow-sm flex items-center relative overflow-hidden group cursor-pointer transition-all ${isProfileOpen ? 'border-primary/40 ring-4 ring-primary/10' : 'hover:border-primary/20'} ${isCollapsed && !mobile ? 'p-3' : 'p-6 gap-4'}`}
