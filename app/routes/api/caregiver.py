@@ -42,6 +42,7 @@ def get_seniors():
             'connection_status': rel.status,
             'status': status,
             'risk_score': risk_score,
+            'created_at': senior.created_at.isoformat(),
             'adherence_history': analytics_service.get_7_day_adherence(senior.id)
         })
     

@@ -11,6 +11,7 @@ export interface User {
     phone?: string;
     full_name?: string;
     camera_auto_accept?: boolean;
+    created_at: string;
 }
 
 export function useUser() {
