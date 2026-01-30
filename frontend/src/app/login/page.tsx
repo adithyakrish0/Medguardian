@@ -67,8 +67,8 @@ export default function LoginPage() {
                             </div>
                         )}
                         <div>
-                            <label htmlFor="identifier" className="block text-sm font-semibold text-foreground">
-                                Username or Email address
+                            <label htmlFor="identifier" className="block text-sm font-bold text-foreground">
+                                Username or Email
                             </label>
                             <div className="mt-1 relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-foreground/30 group-focus-within:text-primary transition-colors">
@@ -126,8 +126,8 @@ export default function LoginPage() {
                                     type="checkbox"
                                     className="h-4 w-4 text-medical-secondary focus:ring-medical-secondary border-gray-300 rounded"
                                 />
-                                <label htmlFor="remember-me" className="ml-2 block text-sm text-foreground/80">
-                                    Remember me
+                                <label htmlFor="remember-me" className="ml-2 block text-sm text-foreground/60 font-medium">
+                                    Remember Me
                                 </label>
                             </div>
 

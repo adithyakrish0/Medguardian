@@ -89,8 +89,8 @@ export default function SignupPage() {
                         </div>
 
                         <div>
-                            <label htmlFor="email" className="block text-sm font-semibold text-foreground">
-                                Email address
+                            <label htmlFor="email" className="block text-sm font-bold text-foreground">
+                                Email Address
                             </label>
                             <div className="mt-1 relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-foreground/30 group-focus-within:text-primary transition-colors">
@@ -110,8 +110,8 @@ export default function SignupPage() {
                         </div>
 
                         <div>
-                            <label htmlFor="role" className="block text-sm font-semibold text-foreground">
-                                I am a...
+                            <label htmlFor="role" className="block text-sm font-bold text-foreground">
+                                Select Your Role
                             </label>
                             <div className="mt-2 p-1 bg-white/5 border border-white/10 rounded-2xl grid grid-cols-2 gap-1">
                                 <button
@@ -138,8 +138,8 @@ export default function SignupPage() {
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="block text-sm font-semibold text-foreground">
-                                Create Password
+                            <label htmlFor="password" className="block text-sm font-bold text-foreground">
+                                Choose Password
                             </label>
                             <div className="mt-1 relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-foreground/30 group-focus-within:text-primary transition-colors">
