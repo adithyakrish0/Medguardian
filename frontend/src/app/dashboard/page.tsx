@@ -1050,54 +1050,32 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="medical-card p-10 bg-primary/95 text-white shadow-2xl shadow-primary/40 relative overflow-hidden"
+                    className="medical-card p-10 bg-primary/95 text-white shadow-2xl shadow-primary/40 relative overflow-hidden flex flex-col justify-between"
                 >
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
 
-                    <header className="flex justify-between items-center mb-10">
-                        <div className="flex items-center gap-3">
-                            <Activity className="w-6 h-6 text-accent" />
-                            <h3 className="text-2xl font-black tracking-tight">AI Diagnostic Feedback</h3>
-                        </div>
-                        <span className="px-4 py-1.5 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-white/10">
-                            Neural Engine V2
-                        </span>
-                    </header>
+                    <div>
+                        <header className="flex justify-between items-center mb-10">
+                            <div className="flex items-center gap-3">
+                                <Activity className="w-6 h-6 text-accent" />
+                                <h3 className="text-2xl font-black tracking-tight">AI Insights</h3>
+                            </div>
+                        </header>
 
-                    <div className="space-y-8 relative z-10">
-                        <p className="text-3xl font-black leading-tight tracking-tight italic">
+                        <p className="text-3xl font-black leading-tight tracking-tight italic opacity-90">
                             &quot;{alerts.length > 0
                                 ? `Protocol deviation detected. ${alerts[0].senior_name} has missed a dosage sequence. Proactive reminder suggested.`
                                 : "Fleet stability optimized. Adherence precision remains within expected parameters."}&quot;
                         </p>
-
-                        <div className="pt-8 border-t border-white/10">
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-6">Security & Systems</h4>
-                            <div className="space-y-6">
-                                {[
-                                    { msg: "Vision Engine Active", status: "Nominal" },
-                                    { msg: "Sync Relay Status", status: "Encrypted" },
-                                    { msg: "Neural Cache", status: "Optimized" }
-                                ].map((log, i) => (
-                                    <div key={i} className="flex items-center justify-between group cursor-pointer">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-2 h-2 rounded-full bg-accent" />
-                                            <p className="text-sm font-bold group-hover:translate-x-1 transition-transform">{log.msg}</p>
-                                        </div>
-                                        <span className="text-[10px] font-black opacity-40 uppercase tracking-widest">{log.status}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => window.location.href = '/export/fleet/pdf'}
-                            className="w-full py-4 mt-4 bg-white text-primary rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-black/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
-                        >
-                            Export Fleet Analytics
-                            <ArrowRight className="w-4 h-4" />
-                        </button>
                     </div>
+
+                    <button
+                        onClick={() => window.location.href = '/export/fleet/pdf'}
+                        className="w-full py-4 mt-10 bg-white text-primary rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-black/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                    >
+                        Export Fleet Report
+                        <ArrowRight className="w-4 h-4" />
+                    </button>
                 </motion.div>
             </div>
         </div>
