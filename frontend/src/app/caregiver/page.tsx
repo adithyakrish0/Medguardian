@@ -29,12 +29,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AdherenceChart from '@/components/AdherenceChart';
 import { useToast } from '@/components/NiceToast';
+import ContactChoiceModal from '@/components/ContactChoiceModal';
+import DisconnectConfirmModal from '@/components/DisconnectConfirmModal';
 
 export default function CaregiverPage() {
     const router = useRouter();
     const [seniors, setSeniors] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showConnectModal, setShowConnectModal] = useState(false);
+    const [showContactModal, setShowContactModal] = useState(false);
+    const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+    const [seniorToContact, setSeniorToContact] = useState<any>(null);
+    const [seniorToDisconnect, setSeniorToDisconnect] = useState<any>(null);
+    const [isDisconnecting, setIsDisconnecting] = useState(false);
     const { showToast } = useToast();
 
     const fetchSeniors = useCallback(async () => {
@@ -51,22 +58,30 @@ export default function CaregiverPage() {
         }
     }, []);
 
-    const handleRemoveSenior = async (seniorId: number, seniorName: string) => {
-        if (!confirm(`Are you sure you want to disconnect ${seniorName} from your fleet? You will lose access to their health telemetry.`)) {
-            return;
-        }
+    const handleRemoveSenior = (seniorId: number, seniorName: string) => {
+        setSeniorToDisconnect({ id: seniorId, name: seniorName });
+        setShowDisconnectModal(true);
+    };
+
+    const confirmRemoveSenior = async () => {
+        if (!seniorToDisconnect) return;
 
         try {
-            const res = await apiFetch(`/caregiver/remove-senior/${seniorId}`, {
+            setIsDisconnecting(true);
+            const res = await apiFetch(`/caregiver/remove-senior/${seniorToDisconnect.id}`, {
                 method: 'DELETE'
             });
             if (res.success) {
-                setSeniors(seniors.filter(s => s.id !== seniorId));
-                showToast(`Disconnected ${seniorName} from your fleet.`);
+                setSeniors(seniors.filter(s => s.id !== seniorToDisconnect.id));
+                showToast(`Disconnected ${seniorToDisconnect.name} from your fleet.`);
+                setShowDisconnectModal(false);
             }
         } catch (err) {
             console.error('Failed to remove senior:', err);
             showToast('Failed to disconnect senior', 'error');
+        } finally {
+            setIsDisconnecting(false);
+            setSeniorToDisconnect(null);
         }
     };
 
@@ -79,16 +94,8 @@ export default function CaregiverPage() {
             showToast(`No phone number recorded for ${senior.name}.`, 'info');
             return;
         }
-
-        const choice = confirm(`Contact ${senior.name} at ${senior.phone}?\n\nClick OK for Direct Voice Call\nClick Cancel for WhatsApp Message`);
-
-        if (choice) {
-            window.location.href = `tel:${senior.phone}`;
-        } else {
-            // Remove any non-numeric chars for WhatsApp
-            const cleanPhone = senior.phone.replace(/\D/g, '');
-            window.open(`https://wa.me/${cleanPhone}`, '_blank');
-        }
+        setSeniorToContact(senior);
+        setShowContactModal(true);
     };
 
     const handleExportSenior = (seniorId: number) => {
@@ -326,6 +333,30 @@ export default function CaregiverPage() {
                     <ConnectSeniorModal
                         onClose={() => setShowConnectModal(false)}
                         onConnected={fetchSeniors}
+                    />
+                )}
+
+                {showContactModal && seniorToContact && (
+                    <ContactChoiceModal
+                        isOpen={showContactModal}
+                        onClose={() => {
+                            setShowContactModal(false);
+                            setSeniorToContact(null);
+                        }}
+                        senior={seniorToContact}
+                    />
+                )}
+
+                {showDisconnectModal && seniorToDisconnect && (
+                    <DisconnectConfirmModal
+                        isOpen={showDisconnectModal}
+                        onClose={() => {
+                            setShowDisconnectModal(false);
+                            setSeniorToDisconnect(null);
+                        }}
+                        onConfirm={confirmRemoveSenior}
+                        seniorName={seniorToDisconnect.name}
+                        loading={isDisconnecting}
                     />
                 )}
             </AnimatePresence>
