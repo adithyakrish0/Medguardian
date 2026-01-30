@@ -61,8 +61,11 @@ def create_app(config_name=None):
     
     mail.init_app(app)
     
-    # CORS: Allow localhost for dev, plus any origins from CORS_ORIGINS env var
+    # CORS Configuration: Allow localhost and Vercel deployments
+    import re
     cors_origins = [
+        "https://medguardian-peach.vercel.app", # Explicitly allow current domain
+        re.compile(r"https://medguardian-.*\.vercel\.app"), # Match any MedGuardian vercel deploy
         "http://localhost:3000", 
         "http://localhost:3001",
         "http://127.0.0.1:3000",
@@ -70,8 +73,16 @@ def create_app(config_name=None):
     ]
     env_origins = os.getenv('CORS_ORIGINS', '')
     if env_origins:
-        cors_origins.extend([o.strip() for o in env_origins.split(',') if o.strip()])
+        if env_origins == '*':
+            cors_origins = "*"
+            app.logger.warning("CORS: ALLOWING ALL ORIGINS (*)")
+        else:
+            ext_origins = [o.strip() for o in env_origins.split(',') if o.strip()]
+            cors_origins.extend(ext_origins)
+            app.logger.info(f"CORS: Added additional origins from environment: {ext_origins}")
+            
     CORS(app, supports_credentials=True, origins=cors_origins)
+    app.logger.info("CORS: Initialized with support for credentials")
     
     # Initialize SocketIO with proper configuration
     # Production: Uses eventlet async mode with Redis for horizontal scaling
