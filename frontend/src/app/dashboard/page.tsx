@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
@@ -32,7 +32,7 @@ import PhoneSetupModal from '@/components/PhoneSetupModal';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { useToast } from '@/components/NiceToast';
 
-export default function DashboardPage() {
+function DashboardContent() {
     const searchParams = useSearchParams();
     const initialSeniorId = searchParams.get('seniorId');
     const [selectedSeniorId, setSelectedSeniorId] = useState<number | undefined>(
@@ -856,3 +856,21 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
         </div>
     );
 }
+
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={
+            <div className="space-y-12">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="h-44 bg-card/20 border border-card-border rounded-[28px] animate-pulse"></div>
+                    ))}
+                </div>
+                <div className="h-96 bg-card/20 border border-card-border rounded-[32px] animate-pulse"></div>
+            </div>
+        }>
+            <DashboardContent />
+        </Suspense>
+    );
+}
+
