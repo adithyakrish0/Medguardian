@@ -1013,7 +1013,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                     <div className="flex justify-between items-center mb-10">
                         <div className="flex items-center gap-3">
                             <Calendar className="w-6 h-6 text-primary" />
-                            <h3 className="text-2xl font-black text-foreground tracking-tight underline decoration-primary/20 decoration-4 underline-offset-4">Fleet activity</h3>
+                            <h3 className="text-2xl font-black text-foreground tracking-tight">Fleet activity</h3>
                         </div>
                     </div>
 
