@@ -8,8 +8,9 @@ from app.models.relationship import CaregiverSenior
 @api_v1.route('/analytics/adherence/<int:senior_id>', methods=['GET'])
 @login_required
 def get_adherence(senior_id=None):
-    """Get 7-day adherence for self or a managed senior"""
+    """Get adherence history for self or a managed senior"""
     target_id = senior_id or current_user.id
+    days = request.args.get('days', 7, type=int)
     
     # Security check: if senior_id, verify relationship
     if senior_id and senior_id != current_user.id:
@@ -22,7 +23,7 @@ def get_adherence(senior_id=None):
             return jsonify({'success': False, 'message': 'Access denied'}), 403
             
     try:
-        data = analytics_service.get_7_day_adherence(target_id)
+        data = analytics_service.get_adherence_history(target_id, days)
         return jsonify({
             'success': True,
             'data': data

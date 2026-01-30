@@ -1,0 +1,293 @@
+﻿
+> frontend@0.1.0 build
+> next build
+
+  Γû▓ Next.js 14.2.35
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+node.exe : 
+At C:\Program Files\nodejs\npm.ps1:29 char:3
++   & $NODE_EXE $NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], 
+    RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Failed to compile.
+
+./src/app/caregiver/page.tsx
+7:5  Error: 'Users' is defined but never used.  
+@typescript-eslint/no-unused-vars
+8:5  Error: 'Link2' is defined but never used.  
+@typescript-eslint/no-unused-vars
+12:5  Error: 'ChevronRight' is defined but never used.  
+@typescript-eslint/no-unused-vars
+20:5  Error: 'CheckCircle2' is defined but never used.  
+@typescript-eslint/no-unused-vars
+21:5  Error: 'AlertCircle' is defined but never used.  
+@typescript-eslint/no-unused-vars
+22:5  Error: 'Calendar' is defined but never used.  
+@typescript-eslint/no-unused-vars
+23:5  Error: 'ArrowRight' is defined but never used.  
+@typescript-eslint/no-unused-vars
+28:8  Error: 'Link' is defined but never used.  
+@typescript-eslint/no-unused-vars
+35:44  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+77:36  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/app/dashboard/layout.tsx
+17:5  Error: 'Plus' is defined but never used.  
+@typescript-eslint/no-unused-vars
+20:5  Error: 'Search' is defined but never used.  
+@typescript-eslint/no-unused-vars
+21:5  Error: 'LogOut' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+./src/app/dashboard/page.tsx
+26:19  Error: 'TrendIcon' is defined but never used.  
+@typescript-eslint/no-unused-vars
+27:17  Error: 'CalendarIcon' is defined but never used.  
+@typescript-eslint/no-unused-vars
+32:25  Error: 'disconnectSocket' is defined but never 
+used.  @typescript-eslint/no-unused-vars
+43:13  Error: 'showToast' is assigned a value but never 
+used.  @typescript-eslint/no-unused-vars
+97:11  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+98:11  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+106:40  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+115:52  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+126:47  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+145:8  Warning: React Hook useEffect has a missing 
+dependency: 'showToast'. Either include it or remove the 
+dependency array.  react-hooks/exhaustive-deps
+292:61  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+430:91  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+430:102  Error: Unexpected any. Specify a different type. 
+ @typescript-eslint/no-explicit-any
+431:44  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+432:42  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+433:50  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+434:12  Error: 'loadingExtras' is assigned a value but 
+never used.  @typescript-eslint/no-unused-vars
+460:8  Warning: React Hook useCallback has missing 
+dependencies: 'onSeniorChange' and 'selectedSeniorId'. 
+Either include them or remove the dependency array. If 
+'onSeniorChange' changes too often, find the parent 
+component that defines it and wrap that definition in 
+useCallback.  react-hooks/exhaustive-deps
+472:53  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+536:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+543:48  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+570:57  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+574:53  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+593:63  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+593:71  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/app/login/page.tsx
+7:35  Error: 'Mail' is defined but never used.  
+@typescript-eslint/no-unused-vars
+37:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/app/medications/page.tsx
+3:31  Error: 'useRef' is defined but never used.  
+@typescript-eslint/no-unused-vars
+14:5  Error: 'Settings' is defined but never used.  
+@typescript-eslint/no-unused-vars
+17:5  Error: 'CheckCircle2' is defined but never used.  
+@typescript-eslint/no-unused-vars
+35:50  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+37:50  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+38:52  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+40:46  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+191:92  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+258:43  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+346:53  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+346:92  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+395:129  Error: Unexpected any. Specify a different type. 
+ @typescript-eslint/no-explicit-any
+396:44  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+437:8  Warning: React Hook useEffect has missing 
+dependencies: 'onSeniorChange' and 'selectedSeniorId'. 
+Either include them or remove the dependency array. If 
+'onSeniorChange' changes too often, find the parent 
+component that defines it and wrap that definition in 
+useCallback.  react-hooks/exhaustive-deps
+472:46  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+518:43  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+590:53  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+590:92  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+627:26  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/app/signup/page.tsx
+38:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/components/AddMedicationModal.tsx
+10:19  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+103:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/components/AdherenceChart.tsx
+6:11  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/components/AIFeedModal.tsx
+5:59  Error: 'Loader2' is defined but never used.  
+@typescript-eslint/no-unused-vars
+19:12  Error: 'isLoadingML' is assigned a value but never 
+used.  @typescript-eslint/no-unused-vars
+19:25  Error: 'setIsLoadingML' is assigned a value but 
+never used.  @typescript-eslint/no-unused-vars
+24:36  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+116:8  Warning: React Hook useEffect has a missing 
+dependency: 'handleFeed'. Either include it or remove the 
+dependency array.  react-hooks/exhaustive-deps
+118:38  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+148:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/components/AIVerificationModal.tsx
+13:15  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+33:36  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+164:8  Warning: React Hook useEffect has missing 
+dependencies: 'handleAutoCapture' and 'medicationId'. 
+Either include them or remove the dependency array.  
+react-hooks/exhaustive-deps
+166:45  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+216:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/components/ConnectionRequests.tsx
+6:30  Error: 'Bell' is defined but never used.  
+@typescript-eslint/no-unused-vars
+10:46  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/components/ConnectSeniorModal.tsx
+41:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/components/EditMedicationModal.tsx
+101:28  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+130:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/components/Hero.tsx
+5:33  Error: 'Users' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+./src/components/NiceToast.tsx
+5:20  Error: 'useEffect' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+./src/components/ProfileModal.tsx
+84:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+113:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+120:53  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/components/VoiceAssistant.tsx
+7:63  Error: 'stopListening' is assigned a value but 
+never used.  @typescript-eslint/no-unused-vars
+
+./src/hooks/useCaregiverData.ts
+7:44  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+18:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/hooks/useDashboardData.ts
+7:38  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+42:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+48:8  Warning: React Hook useCallback has a missing 
+dependency: 'seniorId'. Either include it or remove the 
+dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useMediaPipe.ts
+1:21  Error: 'useRef' is defined but never used.  
+@typescript-eslint/no-unused-vars
+40:8  Warning: React Hook useEffect has a missing 
+dependency: 'handLandmarker'. Either include it or remove 
+the dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useMedications.ts
+33:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+52:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/hooks/useUser.ts
+28:23  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/hooks/useVoiceAssistant.ts
+11:35  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+44:22  Error: 'err' is defined but never used.  
+@typescript-eslint/no-unused-vars
+64:22  Error: 'e' is defined but never used.  
+@typescript-eslint/no-unused-vars
+78:46  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+78:83  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+86:44  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+./src/lib/api.ts
+29:22  Error: 'jsonError' is defined but never used.  
+@typescript-eslint/no-unused-vars
+36:21  Error: Unexpected any. Specify a different type.  
+@typescript-eslint/no-explicit-any
+
+info  - Need to disable some ESLint rules? Learn more 
+here: https://nextjs.org/docs/basic-features/eslint#disabl
+ing-rules

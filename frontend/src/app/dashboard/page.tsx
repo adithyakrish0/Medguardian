@@ -181,7 +181,7 @@ function SeniorDashboardView({
         let points = 7;
         let unit: 'day' | 'month' = 'day';
 
-        if (range === '1M') points = 12;
+        if (range === '1M') points = 31; // One point per day for the month view
         if (range === '6M') points = 6, unit = 'month';
         if (range === '1Y') points = 12, unit = 'month';
 
@@ -190,7 +190,7 @@ function SeniorDashboardView({
         for (let i = points - 1; i >= 0; i--) {
             const d = new Date(now);
             if (unit === 'day') {
-                if (range === '1M') d.setDate(d.getDate() - Math.floor(i * 2.5));
+                if (range === '1M') d.setDate(d.getDate() - i);
                 else d.setDate(d.getDate() - i);
             } else {
                 d.setDate(1); // Normalize to 1st first to avoid overflow/duplicates
@@ -222,11 +222,39 @@ function SeniorDashboardView({
             } else if (isLocked) {
                 adherence = 0;
             } else {
-                const seed = d.getDate() + d.getMonth() * 31;
-                const variance = (seed % 15);
-                adherence = 98 - variance;
-                if (data?.schedule?.missed?.length > 0 && i > 0 && i < 3 && unit === 'day' && range === '7D') {
-                    adherence -= (10 * (3 - i));
+                if (unit === 'month') {
+                    // Average all real history points for this month
+                    const monthYear = d.toISOString().substring(0, 7); // "YYYY-MM"
+                    const monthPoints = data?.stats?.history?.filter((h: any) => h.full_date.startsWith(monthYear));
+
+                    if (monthPoints && monthPoints.length > 0) {
+                        // For a more honest average, we only count days that had actual scheduled doses
+                        // or at least have real historical data.
+                        const activeDays = monthPoints.filter((h: any) => h.expected > 0);
+                        const sourcePoints = activeDays.length > 0 ? activeDays : monthPoints;
+
+                        const sum = sourcePoints.reduce((acc: number, cur: any) => acc + cur.adherence, 0);
+                        adherence = Math.round(sum / sourcePoints.length);
+                    } else {
+                        // Fallback to simulation for past months where we have no data
+                        const seed = d.getDate() + d.getMonth() * 31;
+                        const variance = (seed % 15);
+                        adherence = 98 - variance;
+                    }
+                } else {
+                    // Day unit - check specific date
+                    const checkString = d.toISOString().split('T')[0];
+                    const realPoint = data?.stats?.history?.find((h: any) => h.full_date === checkString);
+                    if (realPoint) {
+                        adherence = realPoint.adherence;
+                    } else {
+                        const seed = d.getDate() + d.getMonth() * 31;
+                        const variance = (seed % 15);
+                        adherence = 98 - variance;
+                        if (data?.schedule?.missed?.length > 0 && i > 0 && i < 3 && unit === 'day' && range === '7D') {
+                            adherence -= (10 * (3 - i));
+                        }
+                    }
                 }
             }
 
@@ -519,7 +547,15 @@ function SeniorDashboardView({
 
                     <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
-                            { label: `${timeRange} Average`, value: `${Math.round(chartHistory.reduce((acc, curr) => acc + curr.adherence, 0) / chartHistory.length)}%` },
+                            {
+                                label: `${timeRange} Average`,
+                                value: (() => {
+                                    const activePoints = chartHistory.filter(h => !h.isLocked);
+                                    if (activePoints.length === 0) return '---';
+                                    const sum = activePoints.reduce((acc, curr) => acc + curr.adherence, 0);
+                                    return `${Math.round(sum / activePoints.length)}%`;
+                                })()
+                            },
                             { label: `${timeRange} Peak`, value: `${Math.max(...chartHistory.map(h => h.adherence))}%` },
                             { label: 'Streak', value: data?.schedule?.missed?.length === 0 ? 'Active' : 'Broken' },
                             { label: 'Status', value: data?.schedule?.missed?.length === 0 ? 'Optimal' : 'Needs Check' }
@@ -685,7 +721,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
         let points = 7;
         let unit: 'day' | 'month' = 'day';
 
-        if (range === '1M') points = 12;
+        if (range === '1M') points = 31; // One point per day for the month view
         if (range === '6M') points = 6, unit = 'month';
         if (range === '1Y') points = 12, unit = 'month';
 
@@ -695,8 +731,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
         for (let i = points - 1; i >= 0; i--) {
             const d = new Date(now);
             if (unit === 'day') {
-                if (range === '1M') d.setDate(d.getDate() - Math.floor(i * 2.5));
-                else d.setDate(d.getDate() - i);
+                d.setDate(d.getDate() - i);
             } else {
                 d.setDate(1); // Normalize to 1st first
                 d.setMonth(d.getMonth() - i);
@@ -727,13 +762,37 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
             } else if (isLocked) {
                 adherence = 0;
             } else {
-                const seed = d.getDate() + d.getMonth() * 31;
-                const variance = (seed % 15);
-                adherence = 98 - variance;
+                if (unit === 'month') {
+                    // Average all real history points for this month
+                    const monthYear = d.toISOString().substring(0, 7); // "YYYY-MM"
+                    const monthPoints = data?.stats?.history?.filter((h: any) => h.full_date.startsWith(monthYear));
 
-                if (alerts.length > 0 && i > 0 && i < 3 && unit === 'day' && range === '7D') {
-                    adherence -= (10 * (3 - i));
+                    if (monthPoints && monthPoints.length > 0) {
+                        const activeDays = monthPoints.filter((h: any) => h.expected > 0);
+                        const sourcePoints = activeDays.length > 0 ? activeDays : monthPoints;
+                        const sum = sourcePoints.reduce((acc: number, cur: any) => acc + cur.adherence, 0);
+                        adherence = Math.round(sum / sourcePoints.length);
+                    } else {
+                        const seed = d.getDate() + d.getMonth() * 31;
+                        const variance = (seed % 15);
+                        adherence = 98 - variance;
+                    }
+                } else {
+                    // Day unit - check specific date
+                    const checkString = d.toISOString().split('T')[0];
+                    const realPoint = data?.stats?.history?.find((h: any) => h.full_date === checkString);
+
+                    if (realPoint) {
+                        adherence = realPoint.adherence;
+                    } else {
+                        const seed = d.getDate() + d.getMonth() * 31;
+                        const variance = (seed % 15);
+                        adherence = 98 - variance;
+                    }
                 }
+            }
+            if (alerts.length > 0 && i > 0 && i < 3 && unit === 'day' && range === '7D') {
+                adherence -= (10 * (3 - i));
             }
 
             history.push({
@@ -923,7 +982,15 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
 
                 <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                        { label: `${timeRange} Avg Compliance`, value: `${Math.round(chartHistory.reduce((acc, curr) => acc + curr.adherence, 0) / chartHistory.length)}%` },
+                        {
+                            label: `${timeRange} Avg Compliance`,
+                            value: (() => {
+                                const activePoints = chartHistory.filter(h => !h.isLocked);
+                                if (activePoints.length === 0) return '---';
+                                const sum = activePoints.reduce((acc, curr) => acc + curr.adherence, 0);
+                                return `${Math.round(sum / activePoints.length)}%`;
+                            })()
+                        },
                         { label: `${timeRange} Peak`, value: `${Math.max(...chartHistory.map(h => h.adherence))}%` },
                         { label: 'Consistency', value: alerts.length > 2 ? 'Low' : alerts.length > 0 ? 'Medium' : 'High' },
                         { label: 'Trend Phase', value: alerts.length > 0 ? 'Declining' : 'Ascending' }

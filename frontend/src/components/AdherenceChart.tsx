@@ -16,7 +16,7 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
     return (
         <div className="h-full w-full relative">
             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={data} margin={{ top: 40, right: 10, left: -20, bottom: 30 }}>
                     <defs>
                         <linearGradient id="colorAdherence" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#2D60FF" stopOpacity={0.3} />
@@ -76,13 +76,13 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                                         <div className="flex items-center gap-3">
                                             <div className={`w-2 h-2 rounded-full ${data.isLocked ? 'bg-white/20' : 'bg-primary'}`} />
                                             <p className="text-sm font-black text-white">
-                                                {data.isLocked ? 'DATA UNAVAILABLE' : `ADHERENCE: ${data.adherence}%`}
+                                                {data.isLocked ? 'SURVEILLANCE INACTIVE' : `ADHERENCE: ${data.adherence}%`}
                                             </p>
                                         </div>
                                         {data.isEstablishment && (
                                             <div className="mt-2 text-primary font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
                                                 <div className="w-1.5 h-1.5 bg-primary animate-pulse rounded-full" />
-                                                ACCOUNT ESTABLISHED
+                                                Account Created
                                             </div>
                                         )}
                                     </div>
@@ -93,26 +93,12 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                         cursor={{ stroke: '#2D60FF20', strokeWidth: 2 }}
                     />
 
-                    {/* Establishment Marker Line */}
                     {establishmentPoint && (
                         <ReferenceLine
                             x={establishmentPoint.date}
                             stroke="#2D60FF"
                             strokeWidth={2}
                             strokeDasharray="5 5"
-                            label={{
-                                value: 'ACCOUNT CREATED ★',
-                                position: 'top',
-                                fill: '#2D60FF',
-                                fontSize: 9,
-                                fontWeight: '900',
-                                dy: -12,
-                                // Dynamic alignment to keep text inside chart while hugging the line
-                                textAnchor: data.indexOf(establishmentPoint) > data.length - 3 ? 'end' :
-                                    (data.indexOf(establishmentPoint) < 2 ? 'start' : 'middle'),
-                                dx: data.indexOf(establishmentPoint) > data.length - 3 ? -2 :
-                                    (data.indexOf(establishmentPoint) < 2 ? 6 : 0)
-                            }}
                         />
                     )}
 

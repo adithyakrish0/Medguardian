@@ -7,8 +7,8 @@ from sqlalchemy import func
 
 class AnalyticsService:
     @staticmethod
-    def get_7_day_adherence(user_id):
-        """Get adherence data for the last 7 days for a specific user"""
+    def get_adherence_history(user_id, days=7):
+        """Get adherence data for the last X days for a specific user"""
         today = datetime.now().date()
         now = datetime.now()
         days_data = []
@@ -16,21 +16,24 @@ class AnalyticsService:
         # Get active medications for this user
         user_meds = Medication.query.filter_by(user_id=user_id).all()
         
-        for i in range(6, -1, -1):
+        for i in range(days - 1, -1, -1):
             day = today - timedelta(days=i)
+            # ... calculation logic remains same ...
             start_of_day = datetime.combine(day, datetime.min.time())
             end_of_day = datetime.combine(day, datetime.max.time())
             is_today = (day == today)
             
-            # Calculate expected doses for this day
             expected_doses = 0
             for med in user_meds:
+                # Only check meds that were created on or before this day
+                if med.created_at and med.created_at.date() > day:
+                    continue
+
                 reminder_times = med.get_reminder_times()
                 for time_str in reminder_times:
                     try:
                         h, m = map(int, time_str.split(':'))
                         scheduled_dt = datetime.combine(day, datetime.min.time().replace(hour=h, minute=m))
-                        # For today, only count doses that SHOULD have been taken by now (past the grace period)
                         if is_today:
                             if scheduled_dt + timedelta(minutes=30) <= now:
                                 expected_doses += 1
@@ -39,7 +42,6 @@ class AnalyticsService:
                     except:
                         continue
             
-            # Get logs for this day
             day_logs = MedicationLog.query.filter(
                 MedicationLog.user_id == user_id,
                 MedicationLog.taken_at >= start_of_day,
@@ -49,10 +51,6 @@ class AnalyticsService:
             taken = sum(1 for log in day_logs if log.taken_correctly)
             skipped = sum(1 for log in day_logs if not log.taken_correctly)
             
-            # Realistic adherence calculation:
-            # - If no doses expected, default to 100%
-            # - Otherwise, adherence = (taken / expected) * 100
-            # - Skipped doses explicitly reduce adherence from 100%
             if expected_doses == 0:
                 adherence = 100
             else:
@@ -68,6 +66,10 @@ class AnalyticsService:
             })
             
         return days_data
+
+    @staticmethod
+    def get_7_day_adherence(user_id):
+        return AnalyticsService.get_adherence_history(user_id, 7)
 
     @staticmethod
     def calculate_risk_score(senior_id):

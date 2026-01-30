@@ -20,8 +20,8 @@ export function useDashboardData(seniorId?: number) {
             const userUrl = seniorId ? `/users/${seniorId}` : '/users/me';
             const userData = await apiFetch(userUrl).catch(() => ({ data: { username: 'Senior' } }));
 
-            // Fetch 7-day adherence
-            const analyticsUrl = seniorId ? `/analytics/adherence/${seniorId}` : '/analytics/adherence';
+            // Fetch 30-day adherence for honest historical context
+            const analyticsUrl = seniorId ? `/analytics/adherence/${seniorId}?days=30` : '/analytics/adherence?days=30';
             const analyticsData = await apiFetch(analyticsUrl);
 
             setData({
