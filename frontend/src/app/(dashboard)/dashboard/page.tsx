@@ -1070,7 +1070,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                     </div>
 
                     <button
-                        onClick={() => window.location.href = '/export/fleet/pdf'}
+                        onClick={() => window.location.href = '/api/v1/caregiver/export/fleet/pdf'}
                         className="w-full py-4 mt-10 bg-white text-primary rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-black/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
                     >
                         Export Fleet Report

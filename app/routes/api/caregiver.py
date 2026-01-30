@@ -8,6 +8,7 @@ from app.models.medication import Medication
 from app.models.relationship import CaregiverSenior
 from app.models.medication_log import MedicationLog
 from datetime import datetime, timedelta
+from app.utils.export import export_fleet_to_pdf
 
 @api_v1.route('/caregiver/seniors', methods=['GET'])
 @login_required
@@ -313,7 +314,31 @@ def request_camera(senior_id):
         'timestamp': datetime.now().isoformat()
     }, room=f'user_{senior_id}')
     
-    return jsonify({
-        'success': True, 
-        'message': f'Camera request sent to {senior.username}. If they have auto-accept enabled, the session will start immediately.'
-    })
+@api_v1.route('/caregiver/export/fleet/pdf', methods=['GET'])
+@login_required
+def export_fleet_pdf():
+    """Export summary report for the entire managed fleet (Proxied API)"""
+    if current_user.role != 'caregiver':
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+        
+    # Get all accepted seniors
+    relationships = CaregiverSenior.query.filter_by(
+        caregiver_id=current_user.id,
+        status='accepted'
+    ).all()
+    
+    fleet_data = []
+    for rel in relationships:
+        senior = rel.senior
+        logs = MedicationLog.query.filter_by(user_id=senior.id).all()
+        meds = Medication.query.filter_by(user_id=senior.id).all()
+        fleet_data.append({
+            'senior': senior,
+            'logs': logs,
+            'medications': meds
+        })
+        
+    if not fleet_data:
+        return jsonify({'success': False, 'message': 'No seniors in fleet to export'}), 404
+        
+    return export_fleet_to_pdf(fleet_data, current_user)

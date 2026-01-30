@@ -23,6 +23,18 @@ const nextConfig = {
                 source: '/socket.io',
                 destination: 'http://127.0.0.1:5001/socket.io/',
             },
+            {
+                source: '/analytics/:path*',
+                destination: 'http://127.0.0.1:5001/analytics/:path*',
+            },
+            {
+                source: '/analytics',
+                destination: 'http://127.0.0.1:5001/analytics/',
+            },
+            {
+                source: '/export/:path*',
+                destination: 'http://127.0.0.1:5001/export/:path*',
+            },
         ];
     },
 };
