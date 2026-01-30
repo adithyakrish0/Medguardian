@@ -41,10 +41,10 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
 
                     {/* Locked Background Area */}
-                    {lockedPoints.length > 0 && (
+                    {(establishmentPoint || lockedPoints.length > 0) && (
                         <ReferenceArea
                             x1={data[0].date}
-                            x2={lockedPoints[lockedPoints.length - 1].date}
+                            x2={establishmentPoint ? establishmentPoint.date : lockedPoints[lockedPoints.length - 1].date}
                             fill="#ffffff"
                             fillOpacity={0.08}
                             stroke="none"
@@ -101,7 +101,7 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                             strokeWidth={2}
                             strokeDasharray="5 5"
                             label={{
-                                value: '★ ACCOUNT ESTABLISHED',
+                                value: 'ACCOUNT CREATED ★',
                                 position: 'top',
                                 fill: '#2D60FF',
                                 fontSize: 9,
@@ -110,8 +110,8 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                                 // Dynamic alignment to keep text inside chart while hugging the line
                                 textAnchor: data.indexOf(establishmentPoint) > data.length - 3 ? 'end' :
                                     (data.indexOf(establishmentPoint) < 2 ? 'start' : 'middle'),
-                                dx: data.indexOf(establishmentPoint) > data.length - 3 ? -4 :
-                                    (data.indexOf(establishmentPoint) < 2 ? 4 : 0)
+                                dx: data.indexOf(establishmentPoint) > data.length - 3 ? -2 :
+                                    (data.indexOf(establishmentPoint) < 2 ? 6 : 0)
                             }}
                         />
                     )}
