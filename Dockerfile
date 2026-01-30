@@ -23,7 +23,7 @@ WORKDIR /app
 # -----------------------------------------------------------------------------
 # Install system dependencies
 # -----------------------------------------------------------------------------
-# libgl1-mesa-glx: OpenGL support (fallback for some OpenCV operations)
+# libgl1: OpenGL support (fallback for some OpenCV operations)
 # libglib2.0-0, libsm6, libxext6, libxrender-dev: X11 libs for headless OpenCV
 # tesseract-ocr + tesseract-ocr-eng: OCR engine with English language data
 # netcat-openbsd: For database availability check in boot.sh
@@ -32,7 +32,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     tesseract-ocr-eng \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
