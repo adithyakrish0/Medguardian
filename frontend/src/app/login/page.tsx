@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
-import { Eye, EyeOff, Lock, User, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, Mail, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
     const [identifier, setIdentifier] = useState('');
@@ -145,9 +145,16 @@ export default function LoginPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className={`w-full flex justify-center py-4 px-4 border border-transparent rounded-2xl shadow-xl text-sm font-bold text-white bg-primary hover:scale-[1.02] transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                className={`w-full flex items-center justify-center py-4 px-4 border border-transparent rounded-2xl shadow-xl text-sm font-bold text-white bg-primary hover:scale-[1.02] active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary ${loading ? 'opacity-80 cursor-not-allowed' : ''}`}
                             >
-                                {loading ? 'Authenticating...' : 'Sign In'}
+                                {loading ? (
+                                    <span className="flex items-center gap-3">
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <span>Signing In...</span>
+                                    </span>
+                                ) : (
+                                    'Sign In'
+                                )}
                             </button>
                         </div>
                     </form>

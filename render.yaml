@@ -10,6 +10,7 @@ services:
     plan: free
     region: oregon
     healthCheckPath: /health
+    preDeployCommand: python scripts/deploy_init.py
     envVars:
       - key: FLASK_ENV
         value: production

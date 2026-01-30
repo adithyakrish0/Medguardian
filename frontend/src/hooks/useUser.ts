@@ -8,6 +8,9 @@ export interface User {
     username: string;
     email: string;
     role: 'senior' | 'caregiver';
+    phone?: string;
+    full_name?: string;
+    camera_auto_accept?: boolean;
 }
 
 export function useUser() {

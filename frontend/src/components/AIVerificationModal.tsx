@@ -110,7 +110,7 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
 
     // Stage 1 & 2: YOLO-based Hand/Object Detection (backend API)
     useEffect(() => {
-        if (step !== 'scanning') return;
+        if (step !== 'scanning' || medicationId === 0) return;
 
         const detectWithYOLO = async () => {
             if (!videoRef.current || !canvasRef.current) return;
@@ -233,8 +233,14 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                 {/* Header */}
                 <div className="p-6 border-b border-card-border flex justify-between items-center bg-secondary/5">
                     <div>
-                        <h2 className="text-xl font-bold text-foreground">AI Verification</h2>
-                        <p className="text-sm opacity-60">Zero-Trash Layer-4 Radar • {medicationName}</p>
+                        <h2 className="text-xl font-bold text-foreground">
+                            {medicationId === 0 ? 'Emergency Checkup' : 'AI Verification'}
+                        </h2>
+                        <p className="text-sm opacity-60">
+                            {medicationId === 0
+                                ? 'Live session with your caregiver'
+                                : `Zero-Trash Layer-4 Radar • ${medicationName}`}
+                        </p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors font-bold">✕</button>
                 </div>
@@ -269,49 +275,71 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                 {/* Layer Indicators */}
                                 <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
                                     <div className="flex flex-col gap-2">
-                                        <div className="flex gap-2">
-                                            <div className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${handDetected ? 'bg-primary text-white' : 'bg-black/50 text-white/50'}`}>
-                                                STAGE 1: HAND-GATE
+                                        {medicationId !== 0 && (
+                                            <div className="flex gap-2">
+                                                <div className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${handDetected ? 'bg-primary text-white' : 'bg-black/50 text-white/50'}`}>
+                                                    STAGE 1: HAND-GATE
+                                                </div>
+                                                <div className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${handDetected ? 'bg-primary text-white' : 'bg-black/50 text-white/50'}`}>
+                                                    STAGE 2: AUTO-CROP
+                                                </div>
                                             </div>
-                                            <div className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${handDetected ? 'bg-primary text-white' : 'bg-black/50 text-white/50'}`}>
-                                                STAGE 2: AUTO-CROP
-                                            </div>
-                                        </div>
+                                        )}
                                         {errorMsg && (
                                             <div className="bg-red-500/80 backdrop-blur px-2 py-1 rounded text-[10px] text-white font-bold border border-red-500/20">
                                                 ERROR: {errorMsg}
                                             </div>
                                         )}
                                     </div>
-                                    <button
-                                        onClick={() => handleAutoCapture()}
-                                        className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all hover:scale-110 active:scale-95 pointer-events-auto ${handDetected ? 'bg-primary/20 border-primary text-primary' : 'bg-black/40 border-white/10 text-white/20'
-                                            }`}
-                                        title="Manual Capture Fallback"
-                                    >
-                                        <Camera className="w-6 h-6" />
-                                    </button>
+                                    {medicationId !== 0 && (
+                                        <button
+                                            onClick={() => handleAutoCapture()}
+                                            className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all hover:scale-110 active:scale-95 pointer-events-auto ${handDetected ? 'bg-primary/20 border-primary text-primary' : 'bg-black/40 border-white/10 text-white/20'
+                                                }`}
+                                            title="Manual Capture Fallback"
+                                        >
+                                            <Camera className="w-6 h-6" />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="space-y-4">
-                                <div className="flex items-center justify-center gap-3 text-sm font-bold">
-                                    {handDetected ? (
-                                        <div className="text-primary flex items-center gap-2 animate-pulse">
-                                            <span className="w-2 h-2 bg-primary rounded-full" />
-                                            Human Hand Detected
+                                {medicationId === 0 ? (
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="text-accent flex items-center gap-2 animate-pulse font-black">
+                                            <span className="w-3 h-3 bg-accent rounded-full" />
+                                            LIVE CHECKUP ACTIVE
                                         </div>
-                                    ) : (
-                                        <div className="text-foreground/40 flex items-center gap-2">
-                                            <span className="w-2 h-2 bg-foreground/20 rounded-full" />
-                                            Hold bottle in your hand or click icons
+                                        <button
+                                            onClick={onClose}
+                                            className="px-10 py-4 bg-red-500 text-white rounded-2xl font-black shadow-xl hover:bg-red-600 transition-all flex items-center gap-2"
+                                        >
+                                            <Camera className="w-5 h-5" />
+                                            END SESSION
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center justify-center gap-3 text-sm font-bold">
+                                            {handDetected ? (
+                                                <div className="text-primary flex items-center gap-2 animate-pulse">
+                                                    <span className="w-2 h-2 bg-primary rounded-full" />
+                                                    Human Hand Detected
+                                                </div>
+                                            ) : (
+                                                <div className="text-foreground/40 flex items-center gap-2">
+                                                    <span className="w-2 h-2 bg-foreground/20 rounded-full" />
+                                                    Hold bottle in your hand or click icons
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                                <p className="text-xs opacity-50 max-w-xs mx-auto">
-                                    Zero-Trash system prevents false positives.
-                                    <br />Tip: If detection is slow, click the camera icon.
-                                </p>
+                                        <p className="text-xs opacity-50 max-w-xs mx-auto">
+                                            Zero-Trash system prevents false positives.
+                                            <br />Tip: If detection is slow, click the camera icon.
+                                        </p>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}

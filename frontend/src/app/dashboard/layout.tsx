@@ -6,6 +6,8 @@ import VoiceAssistant from '@/components/VoiceAssistant';
 import { useUser } from '@/hooks/useUser';
 import { useState } from 'react';
 import { apiFetch } from '@/lib/api';
+import ProfileModal from '@/components/ProfileModal';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard,
     Pill,
@@ -14,9 +16,12 @@ import {
     Bell,
     Plus,
     ChevronRight,
+    ChevronLeft,
     Search,
     LogOut,
-    ExternalLink
+    ExternalLink,
+    Menu,
+    X
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -26,8 +31,10 @@ export default function DashboardLayout({
 }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { user } = useUser();
-    const [showLogout, setShowLogout] = useState(false);
+    const { user, refresh: refreshUser } = useUser();
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
 
     const handleLogout = async () => {
         try {
@@ -37,18 +44,15 @@ export default function DashboardLayout({
             }
         } catch (err) {
             console.error('Logout failed:', err);
-            // Fallback for dev
             router.push('/login');
         }
     };
-
 
     const navItems = [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Medications", href: "/medications", icon: Pill },
     ];
 
-    // Administrative pages only for caregivers
     if (user?.role === 'caregiver') {
         navItems.push(
             { label: "Managed Fleet", href: "/caregiver", icon: Users },
@@ -56,103 +60,175 @@ export default function DashboardLayout({
         );
     }
 
-    return (
-        <div className="min-h-screen bg-background flex">
-            {/* Sidebar */}
-            <aside className="w-72 bg-card border-r border-card-border hidden lg:flex flex-col shadow-xl z-50">
-                <div className="p-8 pb-12 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-[18px] bg-primary flex items-center justify-center text-white font-black shadow-2xl shadow-primary/40 text-xl">
-                        M
-                    </div>
-                    <div>
+    const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
+        <div className="flex flex-col h-full relative">
+            <div className={`p-10 pb-16 flex items-center ${isCollapsed && !mobile ? 'justify-center' : 'gap-6'} shrink-0`}>
+                <div className="w-12 h-12 rounded-[18px] bg-primary flex items-center justify-center text-white font-black shadow-2xl shadow-primary/40 text-xl shrink-0">
+                    M
+                </div>
+                {(!isCollapsed || mobile) && (
+                    <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="whitespace-nowrap"
+                    >
                         <span className="text-2xl font-black tracking-tight text-foreground block">MedGuardian</span>
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30">Executive Health</span>
+                    </motion.div>
+                )}
+            </div>
+
+            <nav className={`mt-6 flex-1 ${isCollapsed && !mobile ? 'px-4' : 'px-8'} space-y-3 overflow-y-auto custom-scrollbar pb-10`}>
+                {navItems.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => mobile && setIsMobileOpen(false)}
+                            className={`flex items-center ${isCollapsed && !mobile ? 'justify-center' : 'justify-between'} px-5 py-4 rounded-[20px] font-black transition-all group ${isActive
+                                ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
+                                : 'text-foreground/50 hover:bg-secondary/5 hover:text-foreground'
+                                }`}
+                        >
+                            <div className="flex items-center gap-4">
+                                <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 shrink-0 ${isActive ? 'text-white' : 'text-primary/40 group-hover:text-primary'}`} />
+                                {(!isCollapsed || mobile) && (
+                                    <motion.span
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className="text-sm tracking-tight whitespace-nowrap"
+                                    >
+                                        {item.label}
+                                    </motion.span>
+                                )}
+                            </div>
+                            {(!isCollapsed || mobile) && isActive && (
+                                <ChevronRight className="w-4 h-4 opacity-40 shrink-0" />
+                            )}
+                        </Link>
+                    );
+                })}
+            </nav>
+
+            <div className={`p-10 relative shrink-0 border-t border-card-border/50 bg-card/80 backdrop-blur-md ${isCollapsed && !mobile ? 'flex justify-center' : ''}`}>
+                <div
+                    onClick={() => setIsProfileOpen(true)}
+                    className={`rounded-[28px] bg-background border border-card-border shadow-sm flex items-center relative overflow-hidden group cursor-pointer transition-all ${isProfileOpen ? 'border-primary/40 ring-4 ring-primary/10' : 'hover:border-primary/20'} ${isCollapsed && !mobile ? 'p-3' : 'p-6 gap-4'}`}
+                >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 blur-2xl" />
+                    <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center font-black text-secondary shrink-0 overflow-hidden relative border border-card-border">
+                        {user?.username?.slice(0, 2).toUpperCase() || 'U'}
                     </div>
-                </div>
-
-                <nav className="mt-4 flex-1 px-6 space-y-2">
-                    {navItems.map((item) => {
-                        const isActive = pathname === item.href;
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={`flex items-center justify-between px-5 py-4 rounded-[20px] font-black transition-all group ${isActive
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
-                                    : 'text-foreground/50 hover:bg-secondary/5 hover:text-foreground'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-primary/40 group-hover:text-primary'}`} />
-                                    <span className="text-sm tracking-tight">{item.label}</span>
-                                </div>
-                                {isActive && <ChevronRight className="w-4 h-4 opacity-40" />}
-                            </Link>
-                        );
-                    })}
-                </nav>
-
-                <div className="p-8 relative">
-                    {showLogout && (
-                        <div className="absolute bottom-[110%] left-6 right-6 mb-2 p-2 bg-card border border-card-border rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-2 z-50">
-                            <button
-                                onClick={handleLogout}
-                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/10 text-red-500 transition-colors font-black text-sm"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                <span>Sign Out Session</span>
-                            </button>
-                        </div>
+                    {(!isCollapsed || mobile) && (
+                        <>
+                            <div className="overflow-hidden flex-1">
+                                <p className="text-sm font-black text-foreground truncate">{user?.full_name || user?.username || 'User'}</p>
+                                <p className="text-[10px] uppercase tracking-widest font-bold opacity-30 mt-0.5">ID: #{user?.id || '---'}</p>
+                            </div>
+                            <ExternalLink className={`w-4 h-4 shrink-0 transition-all ${isProfileOpen ? 'rotate-90 text-primary opacity-100' : 'opacity-20 translate-x-1 group-hover:opacity-40 group-hover:translate-x-0'}`} />
+                        </>
                     )}
-                    <div
-                        onClick={() => setShowLogout(!showLogout)}
-                        className={`p-6 rounded-[28px] bg-background border border-card-border shadow-sm flex items-center gap-4 relative overflow-hidden group cursor-pointer transition-all ${showLogout ? 'border-primary/40 ring-4 ring-primary/10' : 'hover:border-primary/20'}`}
-                    >
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 blur-2xl" />
-                        <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center font-black text-secondary shrink-0 overflow-hidden relative border border-card-border">
-                            {user?.username?.slice(0, 2).toUpperCase() || 'U'}
-                        </div>
-                        <div className="overflow-hidden flex-1">
-                            <p className="text-sm font-black text-foreground truncate">{user?.username || 'User'}</p>
-                            <p className="text-[10px] uppercase tracking-widest font-bold opacity-30 mt-0.5">ID: #{user?.id || '---'}</p>
-                        </div>
-                        <ExternalLink className={`w-4 h-4 transition-all ${showLogout ? 'rotate-90 text-primary opacity-100' : 'opacity-20 translate-x-1 group-hover:opacity-40 group-hover:translate-x-0'}`} />
-                    </div>
                 </div>
-            </aside>
+            </div>
 
+            {/* Desktop Collapse Toggle */}
+            {!mobile && (
+                <button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-card border border-card-border flex items-center justify-center shadow-lg hover:bg-primary hover:text-white transition-all z-[60]"
+                >
+                    {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                </button>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen bg-background flex">
+            {/* Profile Modal - rendered at root level to avoid z-index issues */}
+            <ProfileModal
+                isOpen={isProfileOpen}
+                onClose={() => setIsProfileOpen(false)}
+                user={user}
+                onRefreshUser={refreshUser}
+                onLogout={handleLogout}
+            />
+
+            {/* Desktop Sidebar */}
+            <motion.aside
+                initial={false}
+                animate={{ width: isCollapsed ? 100 : 288 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="bg-card border-r border-card-border hidden lg:flex flex-col shadow-xl z-50 sticky top-0 h-screen overflow-visible"
+            >
+                <SidebarContent />
+            </motion.aside>
+
+            {/* Mobile Sidebar Overlay */}
+            <AnimatePresence>
+                {isMobileOpen && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsMobileOpen(false)}
+                            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] lg:hidden"
+                        />
+                        <motion.aside
+                            initial={{ x: "-100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "-100%" }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="fixed top-0 left-0 bottom-0 w-[320px] bg-card border-r border-card-border z-[110] lg:hidden"
+                        >
+                            <button
+                                onClick={() => setIsMobileOpen(false)}
+                                className="absolute top-8 right-6 p-2 rounded-xl bg-secondary/5 hover:bg-secondary/10 transition-colors"
+                            >
+                                <X className="w-6 h-6 text-foreground/40" />
+                            </button>
+                            <SidebarContent mobile />
+                        </motion.aside>
+                    </>
+                )}
+            </AnimatePresence>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-screen">
-                <header className="h-24 bg-card/50 backdrop-blur-xl border-b border-card-border flex items-center justify-between px-10 sticky top-0 z-40">
-                    <div className="flex items-center gap-8">
-                        <div className="hidden md:flex items-center gap-3 px-5 py-3 rounded-2xl bg-background border border-card-border text-foreground/30 focus-within:border-primary/20 transition-all group">
-                            <Search className="w-4 h-4 group-focus-within:text-primary transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Global search..."
-                                className="bg-transparent border-none outline-none text-sm font-bold placeholder:text-foreground/20 text-foreground w-48"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-3">
-                            <button className="p-4 rounded-2xl hover:bg-background border border-transparent hover:border-card-border relative transition-all group">
-                                <Bell className="w-5 h-5 text-foreground/60 transition-transform group-hover:rotate-12" />
-                                <span className="absolute top-4 right-4 w-2 h-2 bg-red-500 rounded-full border-2 border-card"></span>
+            <div className="flex-1 flex flex-col min-h-screen min-w-0">
+                <header className="h-24 bg-card/50 backdrop-blur-xl border-b border-card-border sticky top-0 z-40 overflow-hidden">
+                    <div className="max-w-6xl mx-auto h-full px-12 lg:px-24 flex items-center justify-between">
+                        <div className="flex items-center gap-6">
+                            {/* Mobile Menu Trigger */}
+                            <button
+                                onClick={() => setIsMobileOpen(true)}
+                                className="p-3 rounded-2xl bg-secondary/5 border border-card-border/50 lg:hidden hover:bg-secondary/10 transition-all active:scale-95"
+                            >
+                                <Menu className="w-6 h-6 text-primary" />
                             </button>
+
+
+
+                            {/* Mobile Logo (Visible only on mobile) */}
+                            <div className="lg:hidden flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-black shadow-lg shadow-primary/20">M</div>
+                            </div>
                         </div>
-                        <div className="w-px h-8 bg-card-border mx-2" />
-                        <Link href="/medications" className="bg-primary text-white px-8 py-3.5 rounded-[20px] text-sm font-black shadow-2xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
-                            <Plus className="w-4 h-4" />
-                            Fast Action
-                        </Link>
+
+                        <div className="flex items-center gap-4 lg:gap-8">
+                            <div className="flex items-center gap-3">
+                                <button className="p-4 rounded-2xl hover:bg-background border border-transparent hover:border-card-border relative transition-all group">
+                                    <Bell className="w-5 h-5 text-foreground/60 transition-transform group-hover:rotate-12" />
+                                    <span className="absolute top-4 right-4 w-2 h-2 bg-red-500 rounded-full border-2 border-card"></span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </header>
 
-                <main className="flex-1 p-10 overflow-y-auto">
-                    <div className="max-w-7xl mx-auto">
+                <main className="flex-1 py-12 lg:py-20 overflow-y-auto">
+                    <div className="max-w-6xl mx-auto px-12 lg:px-24 pb-24 lg:pb-0">
                         {children}
                     </div>
                 </main>

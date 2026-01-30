@@ -80,7 +80,7 @@ class NotificationService:
             'timestamp': medication.get('time', 'now')
         }
         
-        if not self.send_socketio_event('medication_reminder', socketio_data, room=str(user_id)):
+        if not self.send_socketio_event('medication_reminder', socketio_data, room=f'user_{user_id}'):
             success = False
         
         # Send email if provided
@@ -126,7 +126,7 @@ class NotificationService:
             'icon': icon or '/static/images/pill-icon.png'
         }
         
-        return self.send_socketio_event('browser_notification', notification_data, room=str(user_id))
+        return self.send_socketio_event('browser_notification', notification_data, room=f'user_{user_id}')
 
     def notify_caregivers_of_medication_event(self, senior_id: int, senior_name: str, 
                                             medication_name: str, event_type: str) -> bool:

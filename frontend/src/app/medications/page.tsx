@@ -87,7 +87,7 @@ export default function MedicationsPage() {
     }
 
     return (
-        <div className="w-full">
+        <div className="w-full max-w-6xl mx-auto px-12 lg:px-24 py-12">
             {user?.role === 'caregiver' ? (
                 <CaregiverMedicationsView
                     medications={medications}
@@ -192,14 +192,31 @@ function SeniorMedicationsView({ medications, onAdd, onVerify, onFeed, onEdit, o
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
     const [menuPosition, setMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+    // Close menu on scroll (standard UX for fixed position dropdowns)
+    useEffect(() => {
+        if (!openMenuId) return;
+        const handleScroll = () => setOpenMenuId(null);
+        window.addEventListener('scroll', handleScroll, true);
+        return () => window.removeEventListener('scroll', handleScroll, true);
+    }, [openMenuId]);
+
     const handleOpenMenu = (medId: number, event: React.MouseEvent) => {
         const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        setMenuPosition({ x: rect.right - 180, y: rect.bottom + 8 });
+        const menuHeight = 160; // Approximate menu height
+        const spaceBelow = window.innerHeight - rect.bottom;
+
+        // If not enough space below, position above the button
+        const y = spaceBelow < menuHeight
+            ? rect.top - menuHeight - 8
+            : rect.bottom + 8;
+
+        setMenuPosition({ x: rect.right - 180, y });
         setOpenMenuId(openMenuId === medId ? null : medId);
     };
 
+
     return (
-        <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Header with Back Button */}
             <div className="flex flex-col items-center">
                 {/* Back Button - styled pill */}
@@ -380,18 +397,37 @@ function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
     const [menuPosition, setMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+    // Close menu on scroll (standard UX for fixed position dropdowns)
+    useEffect(() => {
+        if (!openMenuId) return;
+        const handleScroll = () => setOpenMenuId(null);
+        window.addEventListener('scroll', handleScroll, true);
+        return () => window.removeEventListener('scroll', handleScroll, true);
+    }, [openMenuId]);
+
     const handleOpenMenu = (medId: number, event: React.MouseEvent) => {
         const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        setMenuPosition({ x: rect.right - 180, y: rect.bottom + 8 });
+        const menuHeight = 160; // Approximate menu height
+        const spaceBelow = window.innerHeight - rect.bottom;
+
+        // If not enough space below, position above the button
+        const y = spaceBelow < menuHeight
+            ? rect.top - menuHeight - 8
+            : rect.bottom + 8;
+
+        setMenuPosition({ x: rect.right - 180, y });
         setOpenMenuId(openMenuId === medId ? null : medId);
     };
 
     useEffect(() => {
         const fetchSeniors = async () => {
             try {
-                const response = await apiFetch('/caregiver/api/seniors');
+                const response = await apiFetch('/caregiver/seniors');
                 if (response.success) {
                     setSeniors(response.data);
+                    if (!selectedSeniorId && response.data.length > 0) {
+                        onSeniorChange(response.data[0].id);
+                    }
                 }
             } catch (err) {
                 console.error('Failed to fetch seniors:', err);
@@ -401,9 +437,20 @@ function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange
     }, []);
 
     return (
-        <div className="space-y-10 py-4">
+        <div className="space-y-16">
+            {/* Back Button */}
+            <div className="flex justify-center">
+                <a
+                    href="/dashboard"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full text-white/60 hover:text-primary hover:bg-primary/10 transition-all text-sm font-medium"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Dashboard</span>
+                </a>
+            </div>
+
             {/* Senior Switcher */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-card/40 backdrop-blur-md p-6 rounded-[32px] border border-card-border gap-6 mb-12">
+            <div className="flex flex-col md:flex-row justify-between items-center bg-card/40 backdrop-blur-md p-12 rounded-[48px] border border-card-border gap-10 mb-20">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary">
                         <Users className="w-6 h-6" />
@@ -415,16 +462,24 @@ function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange
                 </div>
 
                 <div className="flex items-center gap-3 w-full md:w-auto">
-                    <select
-                        value={selectedSeniorId ?? ''}
-                        onChange={(e) => onSeniorChange(e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-background border border-card-border text-foreground px-6 py-3 rounded-2xl font-bold flex-1 md:w-64 appearance-none focus:outline-none focus:border-secondary transition-colors"
-                    >
-                        <option value="">Local Environment</option>
-                        {seniors.map((s: any) => (
-                            <option key={s.id} value={s.id}>{s.name} (ID: {s.id})</option>
-                        ))}
-                    </select>
+                    <div className="relative flex-1 md:w-64">
+                        <select
+                            value={selectedSeniorId ?? ''}
+                            onChange={(e) => onSeniorChange(e.target.value ? Number(e.target.value) : undefined)}
+                            className="w-full bg-white/10 border border-white/20 text-white px-6 py-3 pr-12 rounded-2xl font-bold appearance-none focus:outline-none focus:border-secondary transition-colors cursor-pointer"
+                        >
+                            <option value="" disabled className="bg-gray-900 text-white">Select a Patient</option>
+                            {seniors.map((s: any) => (
+                                <option key={s.id} value={s.id} className="bg-gray-900 text-white">{s.name} (ID: {s.id})</option>
+                            ))}
+                        </select>
+                        {/* Dropdown Arrow */}
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                            <svg className="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -450,7 +505,7 @@ function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange
             </div>
 
             {/* List Section */}
-            <div className="grid gap-6 overflow-visible">
+            <div className="grid gap-8 overflow-visible">
                 {medications.length === 0 ? (
                     <div className="medical-card p-20 text-center group border-dashed border-[3px] border-card-border/50 bg-card/10">
                         <div className="w-20 h-20 rounded-3xl bg-secondary/10 flex items-center justify-center mx-auto mb-8 group-hover:scale-110 transition-transform duration-500">
@@ -461,7 +516,7 @@ function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange
                     </div>
                 ) : (
                     medications.map((med: any) => (
-                        <div key={med.id} className="medical-card p-8 flex flex-col md:flex-row justify-between items-start md:items-center group hover:border-primary/40 transition-all bg-card/60 backdrop-blur-xl border-l-[10px] border-l-primary/20 overflow-visible">
+                        <div key={med.id} className="medical-card p-10 flex flex-col md:flex-row justify-between items-center group hover:border-primary/40 transition-all bg-card/60 backdrop-blur-xl border-l-[10px] border-l-primary/20 overflow-visible">
                             <div className="flex gap-6 items-center">
                                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner relative ${med.priority === 'high' ? 'bg-red-500/10 text-red-500' : 'bg-primary/5 text-primary'
                                     }`}>

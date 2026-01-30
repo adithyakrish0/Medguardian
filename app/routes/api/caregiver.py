@@ -1,5 +1,5 @@
 """API v1 - Caregiver endpoints"""
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from flask_login import login_required, current_user
 from . import api_v1
 from app.extensions import db
@@ -228,15 +228,26 @@ def send_reminder(senior_id, medication_id):
     senior = relationship.senior
     
     try:
-        send_email(
-            subject=f"💊 Medication Reminder from {current_user.username}",
-            recipient=senior.email,
-            body=f"Hi {senior.username},\n\nYour caregiver {current_user.username} is reminding you to take your {medication.name}.\n\nPlease take your medication as soon as possible.\n\nBest regards,\nMedGuardian"
-        )
+        current_app.logger.info(f"📧 Starting reminder process for senior {senior.username} ({senior_id}), med {medication.name}")
         
-        # Real-time dashboard nudge
+        # Email is optional - don't let it crash the whole request if unconfigured
+        email_sent = False
+        try:
+            from app.utils.email_service import send_email
+            email_sent = send_email(
+                subject=f"💊 Medication Reminder from {current_user.username}",
+                recipient=senior.email,
+                body=f"Hi {senior.username},\n\nYour caregiver {current_user.username} is reminding you to take your {medication.name}.\n\nPlease take your medication as soon as possible.\n\nBest regards,\nMedGuardian"
+            )
+            current_app.logger.info(f"📧 Email sent status: {email_sent}")
+        except Exception as e:
+            current_app.logger.warning(f"⚠️ Email reminder failed (likely unconfigured SMTP): {e}")
+        
+        # Real-time dashboard nudge (This is the primary way caregivers communicate)
         from app.services.notification_service import notification_service
         from datetime import datetime
+        
+        current_app.logger.info(f"🛰️ Sending SocketIO nudge to room user_{senior_id}")
         notification_service.send_socketio_event('medication_reminder', {
             'type': 'caregiver_nudge',
             'caregiver_name': current_user.username,
@@ -244,9 +255,15 @@ def send_reminder(senior_id, medication_id):
             'timestamp': datetime.now().isoformat()
         }, room=f'user_{senior_id}')
         
-        return jsonify({'success': True, 'message': f'Reminder sent to {senior.username}'})
+        msg = f'Reminder sent to {senior.username}'
+        if not email_sent:
+            msg += " (Dashboard nudge only)"
+            
+        current_app.logger.info("✅ Reminder process completed")
+        return jsonify({'success': True, 'message': msg})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error(f"❌ Critical error in send_reminder: {str(e)}")
+        return jsonify({'success': False, 'error': "Failed to process reminder request"}), 500
 @api_v1.route('/caregiver/remove-senior/<int:senior_id>', methods=['DELETE'])
 @login_required
 def remove_senior(senior_id):
@@ -268,4 +285,34 @@ def remove_senior(senior_id):
     return jsonify({
         'success': True,
         'message': 'Successfully disconnected senior from fleet'
+    })
+@api_v1.route('/caregiver/request-camera/<int:senior_id>', methods=['POST'])
+@login_required
+def request_camera(senior_id):
+    """Caregiver requests to see senior's camera for emergency/checkup"""
+    if current_user.role != 'caregiver':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    relationship = CaregiverSenior.query.filter_by(
+        caregiver_id=current_user.id,
+        senior_id=senior_id,
+        status='accepted'
+    ).first()
+    
+    if not relationship:
+        return jsonify({'error': 'Senior not found in your care list'}), 404
+    
+    senior = relationship.senior
+    
+    # Send real-time request to senior
+    from app.services.notification_service import notification_service
+    notification_service.send_socketio_event('camera_request', {
+        'caregiver_id': current_user.id,
+        'caregiver_name': current_user.username,
+        'timestamp': datetime.now().isoformat()
+    }, room=f'user_{senior_id}')
+    
+    return jsonify({
+        'success': True, 
+        'message': f'Camera request sent to {senior.username}. If they have auto-accept enabled, the session will start immediately.'
     })

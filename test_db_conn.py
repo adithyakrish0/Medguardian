@@ -3,7 +3,7 @@ import sys
 
 # Testing the pooler URL
 # Format: postgresql://postgres.[REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
-REF = "gnlijhzttahebknthzu"
+REF = "gnlijhzttaahebknthzu"
 PW = "DNiIRtjBmT9zdFYZ"
 HOST = "aws-1-ap-south-1.pooler.supabase.com"
 PORT = "5432"

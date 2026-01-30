@@ -23,4 +23,9 @@ from app import create_app
 app = create_app()
 
 if __name__ == "__main__":
-    app.run()
+    # Use eventlet's WSGI server instead of Flask's dev server
+    # Flask's app.run() uses threading which conflicts with eventlet
+    import eventlet.wsgi
+    print(f"[INFO] Starting server on http://localhost:5001")
+    eventlet.wsgi.server(eventlet.listen(('', 5001)), app)
+

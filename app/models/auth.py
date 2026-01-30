@@ -8,6 +8,7 @@ class User(UserMixin, BaseModel):
     __tablename__ = 'user'
     
     username = db.Column(db.String(100), nullable=False, unique=True, index=True)
+    full_name = db.Column(db.String(100), nullable=True)
     email = db.Column(db.String(100), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(200))
     role = db.Column(db.String(20), nullable=False, default='senior', index=True)

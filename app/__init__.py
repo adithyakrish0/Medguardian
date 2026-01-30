@@ -11,7 +11,8 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+# Load environment variables - force override to ensure .env takes precedence over global system vars
+load_dotenv(override=True)
 
 # Initialize extensions
 csrf = CSRFProtect()
@@ -42,6 +43,15 @@ def create_app(config_name=None):
     
     # Initialize Flask extensions
     db.init_app(app)
+    
+    # Log database host (masked) for diagnostics
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if db_uri and '@' in db_uri:
+        host_part = db_uri.split('@')[1].split('/')[0]
+        app.logger.info(f"Database connection initialized for host: {host_part}")
+    elif db_uri:
+         app.logger.info(f"Database connection initialized (non-standard URI format)")
+
     login_manager.init_app(app)
     csrf.init_app(app)
     

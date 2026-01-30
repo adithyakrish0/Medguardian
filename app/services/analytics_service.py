@@ -10,22 +10,36 @@ class AnalyticsService:
     def get_7_day_adherence(user_id):
         """Get adherence data for the last 7 days for a specific user"""
         today = datetime.now().date()
+        now = datetime.now()
         days_data = []
         
-        # We need to know how many medications are scheduled per day
-        # For simplicity, we'll get active medications
+        # Get active medications for this user
         user_meds = Medication.query.filter_by(user_id=user_id).all()
-        # Filter for active meds (this is a bit rough as meds might have changed recently)
-        # But for UI Sparklines, this is usually acceptable.
-        expected_per_day = 0
-        for med in user_meds:
-            expected_per_day += len(med.get_reminder_times())
-            
+        
         for i in range(6, -1, -1):
             day = today - timedelta(days=i)
             start_of_day = datetime.combine(day, datetime.min.time())
             end_of_day = datetime.combine(day, datetime.max.time())
+            is_today = (day == today)
             
+            # Calculate expected doses for this day
+            expected_doses = 0
+            for med in user_meds:
+                reminder_times = med.get_reminder_times()
+                for time_str in reminder_times:
+                    try:
+                        h, m = map(int, time_str.split(':'))
+                        scheduled_dt = datetime.combine(day, datetime.min.time().replace(hour=h, minute=m))
+                        # For today, only count doses that SHOULD have been taken by now (past the grace period)
+                        if is_today:
+                            if scheduled_dt + timedelta(minutes=30) <= now:
+                                expected_doses += 1
+                        else:
+                            expected_doses += 1
+                    except:
+                        continue
+            
+            # Get logs for this day
             day_logs = MedicationLog.query.filter(
                 MedicationLog.user_id == user_id,
                 MedicationLog.taken_at >= start_of_day,
@@ -35,12 +49,14 @@ class AnalyticsService:
             taken = sum(1 for log in day_logs if log.taken_correctly)
             skipped = sum(1 for log in day_logs if not log.taken_correctly)
             
-            # Simple adherence calculation
-            # If total expected is 0, we'll say 100% unless there's a skip
-            if expected_per_day == 0:
-                adherence = 100 if skipped == 0 else 0
+            # Realistic adherence calculation:
+            # - If no doses expected, default to 100%
+            # - Otherwise, adherence = (taken / expected) * 100
+            # - Skipped doses explicitly reduce adherence from 100%
+            if expected_doses == 0:
+                adherence = 100
             else:
-                adherence = int((taken / expected_per_day) * 100)
+                adherence = int((taken / expected_doses) * 100)
             
             days_data.append({
                 'date': day.strftime('%a'),
@@ -48,7 +64,7 @@ class AnalyticsService:
                 'adherence': min(adherence, 100),
                 'taken': taken,
                 'skipped': skipped,
-                'expected': expected_per_day
+                'expected': expected_doses
             })
             
         return days_data
