@@ -45,8 +45,8 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                         <ReferenceArea
                             x1={data[0].date}
                             x2={lockedPoints[lockedPoints.length - 1].date}
-                            fill="url(#colorLocked)"
-                            fillOpacity={1}
+                            fill="#ffffff"
+                            fillOpacity={0.08}
                             stroke="none"
                         />
                     )}
