@@ -196,38 +196,16 @@ export default function DashboardLayout({
             </AnimatePresence>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-screen min-w-0">
-                <header className="h-24 bg-card/50 backdrop-blur-xl border-b border-card-border sticky top-0 z-40 overflow-hidden">
-                    <div className="max-w-6xl mx-auto h-full px-12 lg:px-24 flex items-center justify-between">
-                        <div className="flex items-center gap-6">
-                            {/* Mobile Menu Trigger */}
-                            <button
-                                onClick={() => setIsMobileOpen(true)}
-                                className="p-3 rounded-2xl bg-secondary/5 border border-card-border/50 lg:hidden hover:bg-secondary/10 transition-all active:scale-95"
-                            >
-                                <Menu className="w-6 h-6 text-primary" />
-                            </button>
+            <div className="flex-1 flex flex-col min-h-screen min-w-0 relative">
+                {/* Floating Mobile Menu Trigger */}
+                <button
+                    onClick={() => setIsMobileOpen(true)}
+                    className="fixed top-8 left-8 p-4 rounded-2xl bg-card/80 backdrop-blur-xl border border-card-border shadow-2xl lg:hidden z-[60] hover:bg-card transition-all active:scale-95 group"
+                >
+                    <Menu className="w-6 h-6 text-primary group-hover:rotate-12 transition-transform" />
+                </button>
 
-
-
-                            {/* Mobile Logo (Visible only on mobile) */}
-                            <div className="lg:hidden flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-black shadow-lg shadow-primary/20">M</div>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 lg:gap-8">
-                            <div className="flex items-center gap-3">
-                                <button className="p-4 rounded-2xl hover:bg-background border border-transparent hover:border-card-border relative transition-all group">
-                                    <Bell className="w-5 h-5 text-foreground/60 transition-transform group-hover:rotate-12" />
-                                    <span className="absolute top-4 right-4 w-2 h-2 bg-red-500 rounded-full border-2 border-card"></span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </header>
-
-                <main className="flex-1 py-12 lg:py-20 overflow-y-auto">
+                <main className="flex-1 py-12 lg:py-24 overflow-y-auto">
                     <div className="max-w-6xl mx-auto px-12 lg:px-24 pb-24 lg:pb-0">
                         {children}
                     </div>
