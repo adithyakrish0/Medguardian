@@ -193,6 +193,7 @@ function SeniorDashboardView({
                 if (range === '1M') d.setDate(d.getDate() - Math.floor(i * 2.5));
                 else d.setDate(d.getDate() - i);
             } else {
+                d.setDate(1); // Set to 1st to avoid skipping months
                 d.setMonth(d.getMonth() - i);
             }
 
@@ -686,6 +687,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                 if (range === '1M') d.setDate(d.getDate() - Math.floor(i * 2.5));
                 else d.setDate(d.getDate() - i);
             } else {
+                d.setDate(1); // Set to 1st to avoid skipping months
                 d.setMonth(d.getMonth() - i);
             }
 
