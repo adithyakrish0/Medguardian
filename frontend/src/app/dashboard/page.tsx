@@ -198,9 +198,12 @@ function SeniorDashboardView({
 
             const checkDate = new Date(d.setHours(23, 59, 59, 999));
             const isLocked = accountCreatedAt ? checkDate < new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : false;
-            const isEstablishment = accountCreatedAt
-                ? checkDate.toDateString() === new Date(accountCreatedAt).toDateString()
-                : false;
+
+            // Mark as establishment if this is the first point that is NOT locked, 
+            // OR if it's the specific establishment date.
+            const isEstablishment = i === points - 1
+                ? !isLocked
+                : (!isLocked && history.length > 0 && history[history.length - 1].isLocked);
 
             const isToday = i === 0 && unit === 'day';
             let adherence: number;
@@ -208,7 +211,7 @@ function SeniorDashboardView({
             if (isToday) {
                 adherence = realAdherence;
             } else if (isLocked) {
-                adherence = 85;
+                adherence = 0;
             } else {
                 const seed = d.getDate() + d.getMonth() * 31;
                 const variance = (seed % 15);
@@ -491,8 +494,8 @@ function SeniorDashboardView({
                                     key={range.id}
                                     onClick={() => setTimeRange(range.id)}
                                     className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${timeRange === range.id
-                                            ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                            : 'text-foreground/40 hover:text-foreground/60'
+                                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                        : 'text-foreground/40 hover:text-foreground/60'
                                         }`}
                                 >
                                     {range.label}
@@ -693,10 +696,11 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
             const checkDate = new Date(d.setHours(23, 59, 59, 999));
             const isLocked = accountCreatedAt ? checkDate < new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : false;
 
-            // Check if this point is exactly the account creation date
-            const isEstablishment = accountCreatedAt
-                ? checkDate.toDateString() === new Date(accountCreatedAt).toDateString()
-                : false;
+            // Mark as establishment if this is the first point that is NOT locked, 
+            // OR if it's the specific establishment date.
+            const isEstablishment = i === points - 1
+                ? !isLocked
+                : (!isLocked && history.length > 0 && history[history.length - 1].isLocked);
 
             const isToday = i === 0 && unit === 'day';
             let adherence: number;
@@ -704,8 +708,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
             if (isToday) {
                 adherence = realAdherence;
             } else if (isLocked) {
-                // Background constant level for "locked" area - keeps chart height consistent
-                adherence = 85;
+                adherence = 0;
             } else {
                 const seed = d.getDate() + d.getMonth() * 31;
                 const variance = (seed % 15);
