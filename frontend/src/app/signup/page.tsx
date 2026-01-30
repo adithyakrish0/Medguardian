@@ -4,11 +4,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { Eye, EyeOff, Lock, User, Mail } from 'lucide-react';
 
 export default function SignupPage() {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [role, setRole] = useState('senior');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -72,7 +74,10 @@ export default function SignupPage() {
                             <label htmlFor="username" className="block text-sm font-semibold text-foreground">
                                 Username
                             </label>
-                            <div className="mt-1">
+                            <div className="mt-1 relative group">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-foreground/30 group-focus-within:text-primary transition-colors">
+                                    <User className="w-4 h-4" />
+                                </div>
                                 <input
                                     id="username"
                                     name="username"
@@ -80,7 +85,8 @@ export default function SignupPage() {
                                     required
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
-                                    className="appearance-none block w-full px-4 py-3 border border-card-border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-secondary focus:border-secondary transition-all"
+                                    className="appearance-none block w-full !pl-14 !pr-4 py-3 border border-card-border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background"
+                                    placeholder="Pick a username"
                                 />
                             </div>
                         </div>
@@ -89,7 +95,10 @@ export default function SignupPage() {
                             <label htmlFor="email" className="block text-sm font-semibold text-foreground">
                                 Email address
                             </label>
-                            <div className="mt-1">
+                            <div className="mt-1 relative group">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-foreground/30 group-focus-within:text-primary transition-colors">
+                                    <Mail className="w-4 h-4" />
+                                </div>
                                 <input
                                     id="email"
                                     name="email"
@@ -97,7 +106,8 @@ export default function SignupPage() {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="appearance-none block w-full px-4 py-3 border border-card-border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-secondary focus:border-secondary transition-all"
+                                    className="appearance-none block w-full !pl-14 !pr-4 py-3 border border-card-border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background"
+                                    placeholder="Enter your email"
                                 />
                             </div>
                         </div>
@@ -132,18 +142,30 @@ export default function SignupPage() {
 
                         <div>
                             <label htmlFor="password" className="block text-sm font-semibold text-foreground">
-                                Password
+                                Create Password
                             </label>
-                            <div className="mt-1">
+                            <div className="mt-1 relative group">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-foreground/30 group-focus-within:text-primary transition-colors">
+                                    <Lock className="w-4 h-4" />
+                                </div>
                                 <input
                                     id="password"
                                     name="password"
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="appearance-none block w-full px-4 py-3 border border-card-border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-secondary focus:border-secondary transition-all"
+                                    className="appearance-none block w-full !pl-14 !pr-12 py-3.5 border border-card-border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background"
+                                    placeholder="Min. 8 characters"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-foreground/30 hover:text-primary transition-colors focus:outline-none"
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
                             </div>
                         </div>
 

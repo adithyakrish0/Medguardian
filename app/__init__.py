@@ -174,6 +174,7 @@ def create_app(config_name=None):
     from .models.medication_log import MedicationLog
     from .models.medication_interaction import MedicationInteraction, InteractionCheckResult
     from .models.snooze_log import SnoozeLog
+    from .models.security_audit import SecurityAudit
     
     @app.before_request
     def log_request_info():

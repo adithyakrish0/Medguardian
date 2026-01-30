@@ -106,6 +106,39 @@ def senior_detail(senior_id):
                          recent_logs=recent_logs,
                          relationship=relationship)
 
+@caregiver.route('/api/recent-logs')
+@login_required
+def get_recent_logs():
+    """Get recent medication logs across all linked seniors"""
+    if current_user.role != 'caregiver':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    relationships = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
+    senior_ids = [rel.senior_id for rel in relationships]
+    
+    if not senior_ids:
+        return jsonify({'success': True, 'logs': []})
+    
+    recent_logs = MedicationLog.query.filter(
+        MedicationLog.user_id.in_(senior_ids)
+    ).order_by(MedicationLog.taken_at.desc()).limit(15).all()
+    
+    logs_data = []
+    for log in recent_logs:
+        logs_data.append({
+            'id': log.id,
+            'senior_name': log.user.username,
+            'medication_name': log.medication.name,
+            'taken_at': log.taken_at.isoformat(),
+            'taken_correctly': log.taken_correctly,
+            'notes': log.notes
+        })
+        
+    return jsonify({
+        'success': True,
+        'logs': logs_data
+    })
+
 @caregiver.route('/api/alerts')
 @login_required
 def get_alerts():
@@ -129,42 +162,25 @@ def get_alerts():
             db.func.date(MedicationLog.taken_at) == today
         ).all()
         
-        taken_med_ids = [log.medication_id for log in today_logs if log.taken_correctly]
+        # Track what was handled today (taken or skipped)
+        handled_med_ids = [log.medication_id for log in today_logs]
         
-        # Check for missed medications
         for med in medications:
-            # Check each scheduled time
+            # Get actual scheduled times
+            reminder_times = med.get_reminder_times() if hasattr(med, 'get_reminder_times') else []
             missed_times = []
             
-            if med.morning and now.hour >= 10:  # 2 hours past 8 AM
-                if med.id not in taken_med_ids:
-                    missed_times.append('Morning (8 AM)')
-            
-            if med.afternoon and now.hour >= 16:  # 2 hours past 2 PM
-                if med.id not in taken_med_ids:
-                    missed_times.append('Afternoon (2 PM)')
-            
-            if med.evening and now.hour >= 20:  # 2 hours past 6 PM
-                if med.id not in taken_med_ids:
-                    missed_times.append('Evening (6 PM)')
-            
-            if med.night and now.hour >= 23:  # 2 hours past 9 PM
-                if med.id not in taken_med_ids:
-                    missed_times.append('Night (9 PM)')
-            
-            # Check custom times
-            if med.custom_reminder_times:
+            for time_str in reminder_times:
                 try:
-                    custom_times = json.loads(med.custom_reminder_times)
-                    for time_str in custom_times:
-                        hour, minute = map(int, time_str.split(':'))
-                        scheduled_time = datetime(now.year, now.month, now.day, hour, minute)
-                        # Check if 30 mins past scheduled time
-                        if now > scheduled_time + timedelta(minutes=30):
-                            if med.id not in taken_med_ids:
-                                missed_times.append(f'Custom ({time_str})')
+                    hour, minute = map(int, time_str.split(':'))
+                    scheduled_time = datetime(now.year, now.month, now.day, hour, minute)
+                    
+                    # If current time is 30+ mins past scheduled and med wasn't handled
+                    if now > scheduled_time + timedelta(minutes=30):
+                        if med.id not in handled_med_ids:
+                            missed_times.append(time_str)
                 except:
-                    pass
+                    continue
             
             if missed_times:
                 alerts.append({
@@ -177,11 +193,12 @@ def get_alerts():
                     'type': 'missed_dose'
                 })
     
-    # Sort by priority (critical first)
+    # Sort by priority
     priority_order = {'critical': 0, 'high': 1, 'normal': 2, 'low': 3}
     alerts.sort(key=lambda x: priority_order.get(x['priority'], 2))
     
     return jsonify({
+        'success': True,
         'alerts': alerts,
         'count': len(alerts),
         'timestamp': now.isoformat()
@@ -222,3 +239,51 @@ def send_reminder(senior_id, medication_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@caregiver.route('/api/add-senior', methods=['POST'])
+@login_required
+def api_add_senior():
+    """API endpoint to add a senior by username"""
+    if current_user.role != 'caregiver':
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    from app.models.auth import User
+    data = request.get_json()
+    senior_username = data.get('username')
+    
+    if not senior_username:
+        return jsonify({'success': False, 'message': 'Username is required'}), 400
+        
+    senior = User.query.filter_by(username=senior_username).first()
+    
+    if not senior:
+        return jsonify({'success': False, 'message': 'Senior not found'}), 404
+        
+    if senior.role != 'senior':
+        return jsonify({'success': False, 'message': 'User is not a senior citizen'}), 400
+        
+    existing = CaregiverSenior.query.filter_by(
+        caregiver_id=current_user.id,
+        senior_id=senior.id
+    ).first()
+    
+    if existing:
+        return jsonify({'success': False, 'message': 'Senior already in fleet'}), 400
+        
+    relationship = CaregiverSenior(
+        caregiver_id=current_user.id,
+        senior_id=senior.id,
+        relationship_type='primary'
+    )
+    
+    db.session.add(relationship)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Successfully attached {senior_username} to fleet',
+        'senior': {
+            'id': senior.id,
+            'name': senior.username
+        }
+    })

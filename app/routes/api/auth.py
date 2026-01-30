@@ -95,7 +95,30 @@ def api_status():
             'user': {
                 'id': current_user.id,
                 'username': current_user.username,
-                'role': current_user.role
+                'role': current_user.role,
+                'phone': current_user.phone
             }
         }), 200
     return jsonify({'authenticated': False}), 200
+
+@api_v1.route('/auth/profile', methods=['PUT'])
+@login_required
+def update_profile():
+    """Update user profile (phone, etc)"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': 'No data provided'}), 400
+        
+    if 'phone' in data:
+        current_user.phone = data.get('phone')
+        
+    db.session.commit()
+    return jsonify({
+        'success': True, 
+        'message': 'Profile updated',
+        'user': {
+            'id': current_user.id,
+            'username': current_user.username,
+            'phone': current_user.phone
+        }
+    })

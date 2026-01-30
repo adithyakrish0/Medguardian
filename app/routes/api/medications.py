@@ -325,12 +325,20 @@ def get_medication_status():
         # Security: If senior_id is provided, verify current user is a linked caregiver
         if senior_id and senior_id != current_user.id:
             from app.models.relationship import CaregiverSenior
+            from app.services.audit_service import audit_service
             relationship = CaregiverSenior.query.filter_by(
                 caregiver_id=current_user.id,
                 senior_id=senior_id
             ).first()
             if not relationship:
                 return jsonify({'success': False, 'error': 'Access denied to this senior\'s data'}), 403
+            
+            # Audit log for sensitive data access
+            audit_service.log_event(
+                action='view_senior_dashboard',
+                target_id=senior_id,
+                details=f"Caregiver accessed dashboard for senior ID {senior_id}"
+            )
             user_id = senior_id
             
         # Get user's active medications (date-based filtering)
@@ -415,6 +423,10 @@ def get_medication_status():
         }), 200
         
     except Exception as e:
+        import traceback
+        import sys
+        print(f"❌ [API] Critical error in get_medication_status: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return jsonify({
             'success': False,
             'error': str(e)

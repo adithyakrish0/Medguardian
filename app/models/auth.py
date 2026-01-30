@@ -11,6 +11,7 @@ class User(UserMixin, BaseModel):
     email = db.Column(db.String(100), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(200))
     role = db.Column(db.String(20), nullable=False, default='senior', index=True)
+    phone = db.Column(db.String(20), nullable=True)
     
     # Telegram integration
     telegram_chat_id = db.Column(db.String(50), nullable=True, unique=True)

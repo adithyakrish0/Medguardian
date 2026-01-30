@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDashboardData } from '@/hooks/useDashboardData';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import { apiFetch } from '@/lib/api';
+import { useSearchParams } from 'next/navigation';
 import AIVerificationModal from '@/components/AIVerificationModal';
 import {
     Activity,
@@ -19,15 +20,25 @@ import {
     Heart,
     Smile,
     ArrowRight,
-    Users
+    Users,
+    Bell,
+    Shield,
+    TrendingUp as TrendIcon,
+    Calendar as CalendarIcon
 } from 'lucide-react';
+import AdherenceChart from '@/components/AdherenceChart';
+import { connectSocket, disconnectSocket } from '@/lib/socket';
 
 export default function DashboardPage() {
-    const [selectedSeniorId, setSelectedSeniorId] = useState<number | undefined>(undefined);
+    const searchParams = useSearchParams();
+    const initialSeniorId = searchParams.get('seniorId');
+    const [selectedSeniorId, setSelectedSeniorId] = useState<number | undefined>(
+        initialSeniorId ? Number(initialSeniorId) : undefined
+    );
     const { data, loading: dataLoading, error, refresh } = useDashboardData(selectedSeniorId);
     const { user, loading: userLoading } = useUser();
 
-    if (dataLoading || userLoading) {
+    if (userLoading) {
         return (
             <div className="space-y-12">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -40,7 +51,7 @@ export default function DashboardPage() {
         );
     }
 
-    if (error) {
+    if (error && !dataLoading) {
         return (
             <div className="p-10 medical-card bg-red-500/5 border-red-500/20 text-red-600">
                 <AlertCircle className="w-12 h-12 mb-4" />
@@ -55,20 +66,57 @@ export default function DashboardPage() {
             {user?.role === 'caregiver' ? (
                 <CaregiverDashboardView
                     data={data}
+                    user={user}
                     onSeniorChange={(id) => setSelectedSeniorId(id)}
                     selectedSeniorId={selectedSeniorId}
                 />
             ) : (
-                <SeniorDashboardView data={data} onRefresh={refresh} />
+                <SeniorDashboardView data={data} user={user} onRefresh={refresh} />
             )}
         </div>
     );
 }
 
-function SeniorDashboardView({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+import ConnectionRequests from '@/components/ConnectionRequests';
+
+function SeniorDashboardView({ data, user, onRefresh }: { data: any; user: any; onRefresh: () => void }) {
     const nextMed = data?.schedule?.upcoming?.[0];
     const takenToday = data?.schedule?.taken?.length ?? 0;
     const [verifyingMed, setVerifyingMed] = useState<{ id: number; name: string } | null>(null);
+    const [nudge, setNudge] = useState<any>(null);
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        console.log('🔗 Connecting to Live Sync Relay for senior:', user.id);
+        const socket = connectSocket(user.id);
+
+        socket.on('medication_reminder', (payload: any) => {
+            console.log('💊 REMINDER RECEIVED:', payload);
+            if (payload.type === 'caregiver_nudge') {
+                setNudge(payload);
+                onRefresh();
+
+                // Clear nudge after 30 seconds
+                setTimeout(() => setNudge(null), 30000);
+            }
+        });
+
+        return () => {
+            socket.off('medication_reminder');
+        };
+    }, [user?.id, onRefresh]);
+
+    const handleUpdatePhone = async () => {
+        const phone = prompt("Enter your phone number for caregiver contact:", user?.phone || "");
+        if (phone) {
+            await apiFetch('/auth/profile', {
+                method: 'PUT',
+                body: JSON.stringify({ phone })
+            });
+            window.location.reload();
+        }
+    };
 
     const markAsTaken = async (medicationId: number, verified: boolean, method: string) => {
         const endpoint = `/medications/${medicationId}/mark-taken`;
@@ -81,6 +129,9 @@ function SeniorDashboardView({ data, onRefresh }: { data: any; onRefresh: () => 
 
     return (
         <div className="space-y-12 py-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            {/* Connection Requests */}
+            <ConnectionRequests />
+
             {/* Greeting */}
             <header className="mb-16">
                 <h1 className="text-6xl md:text-7xl font-black text-foreground tracking-tighter mb-4 italic">
@@ -92,6 +143,60 @@ function SeniorDashboardView({ data, onRefresh }: { data: any; onRefresh: () => 
             </header>
 
             <div className="grid gap-10">
+                {/* Real-time Caregiver Nudge */}
+                <AnimatePresence>
+                    {nudge && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0, y: -20 }}
+                            animate={{ height: 'auto', opacity: 1, y: 0 }}
+                            exit={{ height: 0, opacity: 0, y: -20 }}
+                            className="medical-card p-10 bg-accent text-white shadow-3xl shadow-accent/40 rounded-[48px] relative overflow-hidden flex items-center justify-between"
+                        >
+                            <div className="flex items-center gap-6 relative z-10 font-black italic">
+                                <div className="p-4 bg-white/20 rounded-2xl animate-bounce">
+                                    <Bell className="w-8 h-8" />
+                                </div>
+                                <div>
+                                    <p className="text-sm uppercase tracking-widest opacity-80">Message from {nudge.caregiver_name}:</p>
+                                    <h3 className="text-4xl tracking-tighter">"Please don't forget your {nudge.medication_name}!"</h3>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setNudge(null)}
+                                className="px-10 py-5 bg-white text-accent rounded-3xl font-black shadow-2xl hover:scale-105 active:scale-95 transition-all text-lg relative z-10"
+                            >
+                                GOT IT
+                            </button>
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Profile Completion Alert */}
+                {!user?.phone && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="medical-card p-6 bg-white/5 border-dashed border-2 border-primary/20 rounded-[32px] flex items-center justify-between group hover:border-primary/40 transition-all"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                <Shield className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                                <h4 className="font-black text-sm uppercase tracking-wider">Safety Contact Profile Incomplete</h4>
+                                <p className="text-xs opacity-50 font-bold">Add your phone number so caregivers can reach you during emergencies.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleUpdatePhone}
+                            className="px-6 py-3 bg-primary text-white rounded-2xl text-xs font-black hover:scale-105 transition-all shadow-lg shadow-primary/20"
+                        >
+                            SETUP NOW
+                        </button>
+                    </motion.div>
+                )}
+
                 {/* Missed Medications Alert - Show FIRST if overdue */}
                 {data?.schedule?.missed?.length > 0 && (
                     <motion.div
@@ -248,43 +353,105 @@ function SeniorDashboardView({ data, onRefresh }: { data: any; onRefresh: () => 
     );
 }
 
-function CaregiverDashboardView({ data, onSeniorChange, selectedSeniorId }: { data: any, onSeniorChange: (id: number | undefined) => void, selectedSeniorId?: number }) {
+function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }: { data: any, user: any, onSeniorChange: (id: number | undefined) => void, selectedSeniorId?: number }) {
     const [seniors, setSeniors] = useState<any[]>([]);
+    const [alerts, setAlerts] = useState<any[]>([]);
+    const [recentLogs, setRecentLogs] = useState<any[]>([]);
+    const [loadingExtras, setLoadingExtras] = useState(true);
+
+    const fetchData = useCallback(async () => {
+        try {
+            setLoadingExtras(true);
+            const [seniorsRes, alertsRes, logsRes] = await Promise.all([
+                apiFetch('/caregiver/seniors'),
+                apiFetch('/caregiver/alerts'),
+                apiFetch('/caregiver/recent-logs')
+            ]);
+
+            if (seniorsRes.success) setSeniors(seniorsRes.data);
+            if (alertsRes.success) setAlerts(alertsRes.alerts);
+            if (logsRes.success) setRecentLogs(logsRes.logs);
+        } catch (err) {
+            console.error('Failed to fetch caregiver extras:', err);
+        } finally {
+            setLoadingExtras(false);
+        }
+    }, []);
 
     useEffect(() => {
-        const fetchSeniors = async () => {
-            try {
-                const response = await apiFetch('/caregiver/api/seniors');
-                if (response.success) {
-                    setSeniors(response.data);
-                }
-            } catch (err) {
-                console.error('Failed to fetch seniors:', err);
+        fetchData();
+    }, [fetchData]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        console.log('🔗 Connecting to Live Sync Relay for user:', user.id);
+        const socket = connectSocket(user.id);
+
+        socket.on('fleet_activity_update', (update: any) => {
+            console.log('🚀 LIVE UPDATE RECEIVED:', update);
+
+            // Add to recent logs
+            const newLog = {
+                id: Date.now(), // Temporary ID for list key
+                senior_name: update.senior_name,
+                medication_name: update.medication_name,
+                taken_at: update.timestamp,
+                taken_correctly: update.event_type === 'taken',
+                notes: update.event_type === 'taken' ? 'Verified via Live Sync' : 'Skipped via Live Sync'
+            };
+
+            setRecentLogs(prev => [newLog, ...prev.slice(0, 14)]);
+
+            // Optional: If it's a skip, we might want to refresh alerts too
+            if (update.event_type === 'skipped') {
+                apiFetch('/caregiver/alerts').then(res => {
+                    if (res.success) setAlerts(res.alerts);
+                });
             }
+        });
+
+        return () => {
+            console.log('🧼 Cleaning up Socket listeners');
+            socket.off('fleet_activity_update');
         };
-        fetchSeniors();
-    }, []);
+    }, [user?.id]);
+
+    const sendReminder = async (seniorId: number, medicationId: number) => {
+        try {
+            const res = await apiFetch(`/caregiver/send-reminder/${seniorId}/${medicationId}`, {
+                method: 'POST'
+            });
+            if (res.success) {
+                alert(`Reminder sent!`);
+            }
+        } catch (err) {
+            console.error('Failed to send reminder:', err);
+        }
+    };
 
     const stats = [
         {
             label: "Adherence Precision",
             value: `${data?.stats?.adherence ?? 100}%`,
-            trend: "Optimal Range",
+            trend: data?.stats?.history?.length > 0
+                ? `${Math.round(data.stats.history.reduce((a: any, b: any) => a + b.adherence, 0) / data.stats.history.length)}% 7-Day Average`
+                : "Optimal Range",
             icon: Activity,
-            color: "text-accent",
-            bg: "bg-accent/10"
+            color: alerts.length > 0 ? "text-red-500" : "text-accent",
+            bg: alerts.length > 0 ? "bg-red-500/10" : "bg-accent/10"
         },
         {
-            label: "Sequential Dose",
-            value: data?.schedule?.upcoming?.[0]?.time || "Verified",
-            trend: data?.schedule?.upcoming?.[0]?.name || "Cycles Clear",
+            label: "Active Protocols",
+            value: (data?.stats?.total ?? 0).toString(),
+            trend: data?.schedule?.upcoming?.[0] ? `Next: ${data.schedule.upcoming[0].name}` : "Verified",
             icon: Clock,
             color: "text-primary",
             bg: "bg-primary/10"
         },
         {
-            label: "Total Protocols",
-            value: (data?.stats?.total ?? 0).toString(),
+            label: "Fleet Health",
+            value: seniors.length.toString(),
             trend: `${data?.schedule?.taken?.length ?? 0} Logs Finalized`,
             icon: Zap,
             color: "text-secondary",
@@ -312,13 +479,49 @@ function CaregiverDashboardView({ data, onSeniorChange, selectedSeniorId }: { da
                         onChange={(e) => onSeniorChange(e.target.value ? Number(e.target.value) : undefined)}
                         className="bg-background border border-card-border text-foreground px-6 py-3 rounded-2xl font-bold flex-1 md:w-64 appearance-none focus:outline-none focus:border-primary transition-colors"
                     >
-                        <option value="">My Personal View</option>
+                        <option value="">Full Fleet Overview</option>
                         {seniors.map(s => (
                             <option key={s.id} value={s.id}>{s.name} (ID: {s.id})</option>
                         ))}
                     </select>
                 </div>
             </div>
+
+            {/* Alert Center - Only show if there are alerts */}
+            {alerts.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="medical-card p-8 bg-red-600 text-white shadow-3xl shadow-red-500/40 rounded-[40px] relative overflow-hidden"
+                >
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl text-3xl" />
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+                                <AlertCircle className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black">Attention Required</h3>
+                                <p className="font-bold opacity-80">{alerts.length} missed doses detected across your seniors.</p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            {alerts.slice(0, 3).map((alert, i) => (
+                                <div key={i} className="bg-white/10 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 flex items-center gap-3">
+                                    <span>{alert.senior_name}: {alert.medication_name}</span>
+                                    <button
+                                        onClick={() => sendReminder(alert.senior_id, alert.medication_id)}
+                                        className="bg-white text-red-600 px-3 py-1 rounded-lg hover:scale-105 transition-all text-[10px] font-black"
+                                    >
+                                        REMIND
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -346,8 +549,46 @@ function CaregiverDashboardView({ data, onSeniorChange, selectedSeniorId }: { da
                 ))}
             </div>
 
+            {/* Historical Trending Chart */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="medical-card p-10 bg-card/40 backdrop-blur-md relative overflow-hidden"
+            >
+                <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full -mr-48 -mt-48 blur-3xl pointer-events-none" />
+                <div className="flex items-center justify-between mb-8 relative z-10">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] opacity-30 mb-1">Deep Analytics</p>
+                        <h3 className="text-3xl font-black text-foreground tracking-tight underline decoration-primary/20 decoration-4 underline-offset-4">7-Day Adherence Trend</h3>
+                    </div>
+                    <div className="px-4 py-2 bg-background/50 rounded-xl border border-card-border flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-50">Precision Tracking</span>
+                    </div>
+                </div>
+
+                <div className="bg-background/20 p-6 rounded-[32px] border border-card-border/50">
+                    <AdherenceChart data={data?.stats?.history || []} />
+                </div>
+
+                <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                        { label: 'Avg Compliance', value: `${Math.round((data?.stats?.history?.reduce((acc: any, val: any) => acc + val.adherence, 0) || 0) / (data?.stats?.history?.length || 1))}%` },
+                        { label: 'Peak Adherence', value: `${Math.max(...(data?.stats?.history?.map((d: any) => d.adherence) || [0]))}%` },
+                        { label: 'Consistency', value: 'High' },
+                        { label: 'Trend Phase', value: 'Ascending' }
+                    ].map((stat, i) => (
+                        <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                            <p className="text-[10px] font-black opacity-30 uppercase tracking-widest mb-1">{stat.label}</p>
+                            <p className="text-lg font-black text-foreground">{stat.value}</p>
+                        </div>
+                    ))}
+                </div>
+            </motion.div>
+
             <div className="grid lg:grid-cols-2 gap-8">
-                {/* Schedule Card */}
+                {/* Internal Schedule Card */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -356,55 +597,42 @@ function CaregiverDashboardView({ data, onSeniorChange, selectedSeniorId }: { da
                     <div className="flex justify-between items-center mb-10">
                         <div className="flex items-center gap-3">
                             <Calendar className="w-6 h-6 text-primary" />
-                            <h3 className="text-2xl font-black text-foreground tracking-tight underline decoration-primary/20 decoration-4 underline-offset-4">Active Schedule</h3>
+                            <h3 className="text-2xl font-black text-foreground tracking-tight underline decoration-primary/20 decoration-4 underline-offset-4">Fleet activity</h3>
                         </div>
-                        <button className="text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-100 transition-opacity bg-primary/10 px-4 py-2 rounded-full border border-primary/20">
-                            Full Timeline
-                        </button>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-4 py-2 rounded-full border border-primary/20">
+                            Live Stream
+                        </span>
                     </div>
 
                     <div className="space-y-4">
-                        {/* Taken Meds */}
-                        {data?.schedule.taken.map((med: any) => (
-                            <div key={med.id} className="flex items-center gap-5 p-5 rounded-[24px] border border-accent/10 bg-accent/5 group transition-all hover:bg-accent/10">
-                                <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center text-accent">
-                                    <CheckCircle2 className="w-7 h-7" />
+                        {recentLogs.map((log) => (
+                            <div key={log.id} className="flex items-center gap-5 p-5 rounded-[24px] border border-card-border bg-background/30 hover:bg-card transition-all group">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${log.taken_correctly ? 'bg-accent/10 text-accent' : 'bg-red-500/10 text-red-500'}`}>
+                                    {log.taken_correctly ? <CheckCircle2 className="w-7 h-7" /> : <AlertCircle className="w-7 h-7" />}
                                 </div>
                                 <div className="flex-1">
-                                    <p className="font-black text-foreground tracking-tight text-lg">{med.name}</p>
-                                    <p className="text-[10px] font-black text-accent uppercase tracking-[0.2em] opacity-60">Verified at {med.taken_at}</p>
+                                    <p className="font-black text-foreground tracking-tight text-lg leading-tight">
+                                        {log.senior_name}: {log.medication_name}
+                                    </p>
+                                    <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mt-1">
+                                        {log.taken_correctly ? 'Verified' : 'Skipped'} • {new Date(log.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
                                 </div>
-                                <div className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em]">Logged</div>
+                                <ChevronRight className="w-4 h-4 opacity-10 group-hover:opacity-100 transition-opacity" />
                             </div>
                         ))}
 
-                        {/* Upcoming Meds */}
-                        {data?.schedule.upcoming.map((med: any) => (
-                            <div key={med.id} className="flex items-center gap-5 p-5 rounded-[24px] border border-card-border bg-background/50 hover:bg-card hover:border-primary/20 transition-all group">
-                                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                                    <Clock className="w-7 h-7" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="font-black text-foreground tracking-tight text-lg">{med.name}</p>
-                                    <p className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] italic">Window: {med.time}</p>
-                                </div>
-                                <button className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-110 transition-all group-hover:rotate-90">
-                                    <Play className="w-5 h-5 fill-current" />
-                                </button>
-                            </div>
-                        ))}
-
-                        {data?.stats.total === 0 && (
+                        {recentLogs.length === 0 && (
                             <div className="py-20 text-center opacity-30">
-                                <AlertCircle className="w-12 h-12 mx-auto mb-4" />
-                                <p className="text-lg font-black tracking-tight">System Idle</p>
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-2">Awaiting next operational cycle</p>
+                                <Activity className="w-12 h-12 mx-auto mb-4" />
+                                <p className="text-lg font-black tracking-tight">No Recent Activity</p>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-2">Logs will appear here in real-time</p>
                             </div>
                         )}
                     </div>
                 </motion.div>
 
-                {/* Health Insights */}
+                {/* AI Insights Card */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -423,34 +651,37 @@ function CaregiverDashboardView({ data, onSeniorChange, selectedSeniorId }: { da
                         </span>
                     </header>
 
-                    <div className="space-y-8">
+                    <div className="space-y-8 relative z-10">
                         <p className="text-3xl font-black leading-tight tracking-tight italic">
-                            &quot;{data?.stats.adherence === 100
-                                ? "Critical path secured. Maintain current dosing logic for continued metabolic stability."
-                                : "Adherence deviation detected. Recalibrating upcoming reminder sensitivity."}&quot;
+                            &quot;{alerts.length > 0
+                                ? `Protocol deviation detected. ${alerts[0].senior_name} has missed a dosage sequence. Proactive reminder suggested.`
+                                : "Fleet stability optimized. Adherence precision remains within expected parameters."}&quot;
                         </p>
 
                         <div className="pt-8 border-t border-white/10">
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-6">Recent System Logs</h4>
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-6">Security & Systems</h4>
                             <div className="space-y-6">
                                 {[
-                                    { msg: "Voice synthesis calibrated", time: "2m ago" },
-                                    { msg: "Biometric verification successful", time: "14m ago" },
-                                    { msg: "Peripheral sensor sync complete", time: "1h ago" }
+                                    { msg: "Vision Engine Active", status: "Nominal" },
+                                    { msg: "Sync Relay Status", status: "Encrypted" },
+                                    { msg: "Neural Cache", status: "Optimized" }
                                 ].map((log, i) => (
                                     <div key={i} className="flex items-center justify-between group cursor-pointer">
                                         <div className="flex items-center gap-4">
                                             <div className="w-2 h-2 rounded-full bg-accent" />
                                             <p className="text-sm font-bold group-hover:translate-x-1 transition-transform">{log.msg}</p>
                                         </div>
-                                        <span className="text-[10px] font-black opacity-40 uppercase tracking-widest">{log.time}</span>
+                                        <span className="text-[10px] font-black opacity-40 uppercase tracking-widest">{log.status}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        <button className="w-full py-4 mt-4 bg-white text-primary rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-black/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
-                            Download Compliance Report
+                        <button
+                            onClick={() => window.location.href = '/export/fleet/pdf'}
+                            className="w-full py-4 mt-4 bg-white text-primary rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-black/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                        >
+                            Export Fleet Analytics
                             <ArrowRight className="w-4 h-4" />
                         </button>
                     </div>

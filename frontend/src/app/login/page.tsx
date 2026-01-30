@@ -4,10 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { Eye, EyeOff, Lock, User, Mail } from 'lucide-react';
 
 export default function LoginPage() {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const router = useRouter();
@@ -71,7 +73,10 @@ export default function LoginPage() {
                             <label htmlFor="identifier" className="block text-sm font-semibold text-foreground">
                                 Username or Email address
                             </label>
-                            <div className="mt-1">
+                            <div className="mt-1 relative group">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-foreground/30 group-focus-within:text-primary transition-colors">
+                                    <User className="w-4 h-4" />
+                                </div>
                                 <input
                                     id="identifier"
                                     name="identifier"
@@ -80,7 +85,8 @@ export default function LoginPage() {
                                     required
                                     value={identifier}
                                     onChange={(e) => setIdentifier(e.target.value)}
-                                    className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-medical-secondary focus:border-medical-secondary transition-all"
+                                    className="appearance-none block w-full !pl-14 !pr-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background"
+                                    placeholder="Enter username or email"
                                 />
                             </div>
                         </div>
@@ -89,17 +95,29 @@ export default function LoginPage() {
                             <label htmlFor="password" className="block text-sm font-semibold text-foreground">
                                 Password
                             </label>
-                            <div className="mt-1">
+                            <div className="mt-1 relative group">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-foreground/30 group-focus-within:text-primary transition-colors">
+                                    <Lock className="w-4 h-4" />
+                                </div>
                                 <input
                                     id="password"
                                     name="password"
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     autoComplete="current-password"
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-medical-secondary focus:border-medical-secondary transition-all"
+                                    className="appearance-none block w-full !pl-14 !pr-12 py-3.5 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background"
+                                    placeholder="Enter secure password"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-foreground/30 hover:text-primary transition-colors focus:outline-none"
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
                             </div>
                         </div>
 

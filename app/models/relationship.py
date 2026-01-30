@@ -8,6 +8,7 @@ class CaregiverSenior(db.Model):
     caregiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     senior_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     relationship_type = db.Column(db.String(50), default='primary')  # primary, secondary, etc.
+    status = db.Column(db.String(20), default='pending', index=True) # pending, accepted, rejected
     added_at = db.Column(db.DateTime, server_default=db.func.now())
     notes = db.Column(db.Text)
     

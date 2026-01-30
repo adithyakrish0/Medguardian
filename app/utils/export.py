@@ -152,3 +152,100 @@ def export_to_pdf(logs, medications, user):
         response.headers['Content-Type'] = 'text/plain'
         
         return response
+
+def export_fleet_to_pdf(fleet_data, caregiver):
+    """Export fleet summary report to PDF format"""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Header
+        title_style = ParagraphStyle(
+            'FleetTitle',
+            parent=styles['Heading1'],
+            fontSize=26,
+            textColor=colors.HexColor('#28a745'), # Green for fleet health
+            spaceAfter=20,
+            alignment=TA_CENTER
+        )
+        elements.append(Paragraph("Fleet Adherence Report", title_style))
+        elements.append(Paragraph(f"<b>Caregiver:</b> {caregiver.username}", styles['Normal']))
+        elements.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y')}", styles['Normal']))
+        elements.append(Spacer(1, 0.4 * inch))
+
+        # Fleet Summary Table
+        elements.append(Paragraph("<b>Fleet Overview</b>", styles['Heading2']))
+        elements.append(Spacer(1, 0.2 * inch))
+
+        summary_data = [['Senior Name', 'Total Meds', 'Compliance', 'Status']]
+        for entry in fleet_data:
+            senior = entry['senior']
+            logs = entry['logs']
+            meds = entry['medications']
+            
+            total_logs = len(logs)
+            taken = sum(1 for l in logs if l.taken_correctly)
+            compliance = int((taken/total_logs*100)) if total_logs > 0 else 0
+            
+            status = "Optimal" if compliance >= 80 else "Attention" if compliance >= 50 else "Critical"
+            
+            summary_data.append([
+                senior.username,
+                str(len(meds)),
+                f"{compliance}%",
+                status
+            ])
+
+        t = Table(summary_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke])
+        ]))
+        elements.append(t)
+        elements.append(PageBreak())
+
+        # Individual Breakdowns
+        for entry in fleet_data:
+            senior = entry['senior']
+            logs = entry['logs']
+            elements.append(Paragraph(f"<b>Patient Detail: {senior.username}</b>", styles['Heading2']))
+            elements.append(Spacer(1, 0.2 * inch))
+            
+            data = [['Date', 'Medication', 'Status']]
+            for log in logs[:10]: # Just show last 10
+                data.append([
+                    log.taken_at.strftime('%m/%d'),
+                    log.medication.name[:30],
+                    'Taken' if log.taken_correctly else 'Missed'
+                ])
+            
+            st = Table(data, colWidths=[1.5*inch, 4*inch, 1.5*inch])
+            st.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('FONTSIZE', (0, 0), (-1, -1), 9)
+            ]))
+            elements.append(st)
+            elements.append(Spacer(1, 0.5 * inch))
+
+        doc.build(elements)
+        buffer.seek(0)
+        response = make_response(buffer.getvalue())
+        response.headers['Content-Disposition'] = f'attachment; filename=fleet_report_{datetime.now().strftime("%Y%m%d")}.pdf'
+        response.headers['Content-Type'] = 'application/pdf'
+        return response
+    except Exception as e:
+        return make_response(f"Export failed: {str(e)}", 500)

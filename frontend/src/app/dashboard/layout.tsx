@@ -1,9 +1,11 @@
 "use client";
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import VoiceAssistant from '@/components/VoiceAssistant';
 import { useUser } from '@/hooks/useUser';
+import { useState } from 'react';
+import { apiFetch } from '@/lib/api';
 import {
     LayoutDashboard,
     Pill,
@@ -12,7 +14,9 @@ import {
     Bell,
     Plus,
     ChevronRight,
-    Search
+    Search,
+    LogOut,
+    ExternalLink
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -21,7 +25,22 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
+    const router = useRouter();
     const { user } = useUser();
+    const [showLogout, setShowLogout] = useState(false);
+
+    const handleLogout = async () => {
+        try {
+            const res = await apiFetch('/auth/logout', { method: 'POST' });
+            if (res.success) {
+                router.push('/login');
+            }
+        } catch (err) {
+            console.error('Logout failed:', err);
+            // Fallback for dev
+            router.push('/login');
+        }
+    };
 
 
     const navItems = [
@@ -32,7 +51,7 @@ export default function DashboardLayout({
     // Administrative pages only for caregivers
     if (user?.role === 'caregiver') {
         navItems.push(
-            { label: "Caregivers", href: "/caregiver", icon: Users },
+            { label: "Managed Fleet", href: "/caregiver", icon: Users },
             { label: "Analytics", href: "/analytics", icon: LineChart }
         );
     }
@@ -73,16 +92,31 @@ export default function DashboardLayout({
                     })}
                 </nav>
 
-                <div className="p-8">
-                    <div className="p-6 rounded-[28px] bg-background border border-card-border shadow-sm flex items-center gap-4 relative overflow-hidden group cursor-pointer hover:border-primary/20 transition-all">
+                <div className="p-8 relative">
+                    {showLogout && (
+                        <div className="absolute bottom-[110%] left-6 right-6 mb-2 p-2 bg-card border border-card-border rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-2 z-50">
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/10 text-red-500 transition-colors font-black text-sm"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                <span>Sign Out Session</span>
+                            </button>
+                        </div>
+                    )}
+                    <div
+                        onClick={() => setShowLogout(!showLogout)}
+                        className={`p-6 rounded-[28px] bg-background border border-card-border shadow-sm flex items-center gap-4 relative overflow-hidden group cursor-pointer transition-all ${showLogout ? 'border-primary/40 ring-4 ring-primary/10' : 'hover:border-primary/20'}`}
+                    >
                         <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 blur-2xl" />
                         <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center font-black text-secondary shrink-0 overflow-hidden relative border border-card-border">
                             {user?.username?.slice(0, 2).toUpperCase() || 'U'}
                         </div>
-                        <div className="overflow-hidden">
+                        <div className="overflow-hidden flex-1">
                             <p className="text-sm font-black text-foreground truncate">{user?.username || 'User'}</p>
                             <p className="text-[10px] uppercase tracking-widest font-bold opacity-30 mt-0.5">ID: #{user?.id || '---'}</p>
                         </div>
+                        <ExternalLink className={`w-4 h-4 transition-all ${showLogout ? 'rotate-90 text-primary opacity-100' : 'opacity-20 translate-x-1 group-hover:opacity-40 group-hover:translate-x-0'}`} />
                     </div>
                 </div>
             </aside>

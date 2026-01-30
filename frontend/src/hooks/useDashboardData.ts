@@ -20,6 +20,10 @@ export function useDashboardData(seniorId?: number) {
             const userUrl = seniorId ? `/users/${seniorId}` : '/users/me';
             const userData = await apiFetch(userUrl).catch(() => ({ data: { username: 'Senior' } }));
 
+            // Fetch 7-day adherence
+            const analyticsUrl = seniorId ? `/analytics/adherence/${seniorId}` : '/analytics/adherence';
+            const analyticsData = await apiFetch(analyticsUrl);
+
             setData({
                 user: userData.data,
                 schedule: {
@@ -31,7 +35,8 @@ export function useDashboardData(seniorId?: number) {
                     adherence: statusData.total_today > 0
                         ? Math.round((statusData.taken.length / statusData.total_today) * 100)
                         : 100,
-                    total: statusData.total_today
+                    total: statusData.total_today,
+                    history: analyticsData.data || []
                 }
             });
         } catch (err: any) {

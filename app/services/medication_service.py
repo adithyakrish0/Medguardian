@@ -180,6 +180,22 @@ class MedicationService:
         db.session.add(log)
         db.session.commit()
         
+        # Notify caregivers in real-time
+        try:
+            from app.services.notification_service import notification_service
+            from app.models.auth import User
+            senior = User.query.get(user_id)
+            medication = Medication.query.get(medication_id)
+            if senior and medication:
+                notification_service.notify_caregivers_of_medication_event(
+                    senior_id=user_id,
+                    senior_name=senior.username,
+                    medication_name=medication.name,
+                    event_type='taken'
+                )
+        except Exception as e:
+            print(f"Failed to notify caregivers: {e}")
+        
         return log
     
     @staticmethod
@@ -206,6 +222,22 @@ class MedicationService:
         
         db.session.add(log)
         db.session.commit()
+        
+        # Notify caregivers in real-time
+        try:
+            from app.services.notification_service import notification_service
+            from app.models.auth import User
+            senior = User.query.get(user_id)
+            medication = Medication.query.get(medication_id)
+            if senior and medication:
+                notification_service.notify_caregivers_of_medication_event(
+                    senior_id=user_id,
+                    senior_name=senior.username,
+                    medication_name=medication.name,
+                    event_type='skipped'
+                )
+        except Exception as e:
+            print(f"Failed to notify caregivers: {e}")
         
         return log
 

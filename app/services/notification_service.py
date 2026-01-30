@@ -3,6 +3,7 @@ from typing import List, Optional, Dict
 from flask import current_app
 from flask_mail import Mail, Message
 from flask_socketio import SocketIO, emit
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -126,6 +127,37 @@ class NotificationService:
         }
         
         return self.send_socketio_event('browser_notification', notification_data, room=str(user_id))
+
+    def notify_caregivers_of_medication_event(self, senior_id: int, senior_name: str, 
+                                            medication_name: str, event_type: str) -> bool:
+        """Notify all accepted caregivers when a senior takes or skips medication via SocketIO"""
+        from app.models.relationship import CaregiverSenior
+        
+        try:
+            relationships = CaregiverSenior.query.filter_by(
+                senior_id=senior_id, 
+                status='accepted'
+            ).all()
+            
+            success = True
+            for rel in relationships:
+                caregiver_id = rel.caregiver_id
+                # We use the user_id room established in socket_events.py
+                event_sent = self.send_socketio_event('fleet_activity_update', {
+                    'senior_id': senior_id,
+                    'senior_name': senior_name,
+                    'medication_name': medication_name,
+                    'event_type': event_type,  # 'taken' or 'skipped'
+                    'timestamp': datetime.now().isoformat()
+                }, room=f'user_{caregiver_id}')
+                
+                if not event_sent:
+                    success = False
+                    
+            return success
+        except Exception as e:
+            logger.error(f"Error in notify_caregivers_of_medication_event: {e}")
+            return False
 
 
 # Global notification service instance
