@@ -193,15 +193,26 @@ function SeniorDashboardView({
                 if (range === '1M') d.setDate(d.getDate() - Math.floor(i * 2.5));
                 else d.setDate(d.getDate() - i);
             } else {
-                d.setDate(1); // Set to 1st to avoid skipping months
+                d.setDate(1); // Normalize to 1st first to avoid overflow/duplicates
                 d.setMonth(d.getMonth() - i);
+                if (i === 0) d.setDate(now.getDate()); // Last point is today
             }
 
             const checkDate = new Date(d.setHours(23, 59, 59, 999));
             const isLocked = accountCreatedAt ? checkDate < new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : false;
 
             // Mark as establishment if this is the transition point from Locked to Unlocked
-            const isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
+            let isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
+
+            // Special Case: If the very FIRST point in the chart is NOT locked, but account was created RECENTLY
+            // (within this point's window), it might be the establishment point.
+            if (i === points - 1 && !isLocked && accountCreatedAt) {
+                const startOfRange = new Date(checkDate);
+                if (unit === 'day') startOfRange.setDate(startOfRange.getDate() - 1);
+                else startOfRange.setMonth(startOfRange.getMonth() - 1);
+
+                if (accountCreatedAt >= startOfRange) isEstablishment = true;
+            }
 
             const isToday = i === 0 && unit === 'day';
             let adherence: number;
@@ -687,8 +698,9 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                 if (range === '1M') d.setDate(d.getDate() - Math.floor(i * 2.5));
                 else d.setDate(d.getDate() - i);
             } else {
-                d.setDate(1); // Set to 1st to avoid skipping months
+                d.setDate(1); // Normalize to 1st first
                 d.setMonth(d.getMonth() - i);
+                if (i === 0) d.setDate(now.getDate()); // Last point is today
             }
 
             // Normalize time to start of day for accurate comparison
@@ -696,7 +708,16 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
             const isLocked = accountCreatedAt ? checkDate < new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : false;
 
             // Mark as establishment if this is the transition point from Locked to Unlocked
-            const isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
+            let isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
+
+            // Special Case: If the very FIRST point in the chart is NOT locked, but account was created RECENTLY
+            if (i === points - 1 && !isLocked && accountCreatedAt) {
+                const startOfRange = new Date(checkDate);
+                if (unit === 'day') startOfRange.setDate(startOfRange.getDate() - 1);
+                else startOfRange.setMonth(startOfRange.getMonth() - 1);
+
+                if (accountCreatedAt >= startOfRange) isEstablishment = true;
+            }
 
             const isToday = i === 0 && unit === 'day';
             let adherence: number;
