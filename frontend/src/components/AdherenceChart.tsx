@@ -106,7 +106,8 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                                 fill: '#2D60FF',
                                 fontSize: 9,
                                 fontWeight: '900',
-                                dy: -12
+                                dy: -12,
+                                dx: data.indexOf(establishmentPoint) > data.length - 3 ? -60 : 0 // Shift left if near the edge
                             }}
                         />
                     )}
