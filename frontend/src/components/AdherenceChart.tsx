@@ -107,7 +107,11 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                                 fontSize: 9,
                                 fontWeight: '900',
                                 dy: -12,
-                                dx: data.indexOf(establishmentPoint) > data.length - 3 ? -60 : 0 // Shift left if near the edge
+                                // Dynamic alignment to keep text inside chart while hugging the line
+                                textAnchor: data.indexOf(establishmentPoint) > data.length - 3 ? 'end' :
+                                    (data.indexOf(establishmentPoint) < 2 ? 'start' : 'middle'),
+                                dx: data.indexOf(establishmentPoint) > data.length - 3 ? -4 :
+                                    (data.indexOf(establishmentPoint) < 2 ? 4 : 0)
                             }}
                         />
                     )}
