@@ -341,4 +341,28 @@ def export_fleet_pdf():
     if not fleet_data:
         return jsonify({'success': False, 'message': 'No seniors in fleet to export'}), 404
         
+    from app.services.audit_service import audit_service
+    audit_service.log_action(
+        user_id=current_user.id,
+        action='FLEET_PDF_EXPORT',
+        details=f"Caregiver exported clinical summary for {len(fleet_data)} seniors"
+    )
+    
     return export_fleet_to_pdf(fleet_data, current_user)
+
+@api_v1.route('/caregiver/telemetry-fleet', methods=['GET'])
+@login_required
+def get_fleet_telemetry_api():
+    """Get high-density telemetry for the fleet (Sparklines + Heatmap)"""
+    if current_user.role != 'caregiver':
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+        
+    try:
+        from app.services.analytics_service import analytics_service
+        data = analytics_service.get_fleet_telemetry(current_user.id)
+        return jsonify({
+            'success': True,
+            'data': data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

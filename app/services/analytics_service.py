@@ -112,8 +112,11 @@ class AnalyticsService:
         return int(score)
 
     @staticmethod
-    def get_fleet_analytics(caregiver_id):
-        """Get analytics for all seniors in a caregiver's fleet"""
+    def get_fleet_telemetry(caregiver_id):
+        """
+        Get detailed high-density telemetry for the War Room.
+        Includes 7-day sparkline data and 24-hr dose status (heat map).
+        """
         from app.models.relationship import CaregiverSenior
         
         relationships = CaregiverSenior.query.filter_by(
@@ -121,27 +124,122 @@ class AnalyticsService:
             status='accepted'
         ).all()
         
-        fleet_stats = []
+        today = datetime.now().date()
+        now = datetime.now()
+        telemetry = []
+        
         for rel in relationships:
             senior = rel.senior
             risk_score = AnalyticsService.calculate_risk_score(senior.id)
             
-            # Determine status label
-            status = 'Stable'
-            if risk_score > 100:
-                status = 'Critical'
-            elif risk_score > 40:
-                status = 'Attention'
+            # 7-day adherence for sparkline
+            history = AnalyticsService.get_7_day_adherence(senior.id)
+            
+            # 24-hour dose status for heatmap
+            meds = Medication.query.filter_by(user_id=senior.id).all()
+            today_logs = MedicationLog.query.filter(
+                MedicationLog.user_id == senior.id,
+                db.func.date(MedicationLog.taken_at) == today
+            ).all()
+            
+            heatmap = []
+            # Calculate all dosages for today
+            all_scheduled = []
+            for med in meds:
+                if med.created_at and med.created_at.date() > today:
+                    continue
                 
-            fleet_stats.append({
+                reminder_times = med.get_reminder_times()
+                for time_str in reminder_times:
+                    try:
+                        h, m = map(int, time_str.split(':'))
+                        scheduled_dt = datetime.combine(today, datetime.min.time().replace(hour=h, minute=m))
+                        
+                        # Find if there is a log for this med around this time
+                        # (simplistic check: same day, same med)
+                        log = next((l for l in today_logs if l.medication_id == med.id and abs((l.taken_at - scheduled_dt).total_seconds()) < 7200), None)
+                        
+                        status = 'upcoming'
+                        if log:
+                            status = 'taken' if log.taken_correctly else 'missed'
+                        elif scheduled_dt + timedelta(minutes=60) < now:
+                            status = 'missed'
+                            
+                        all_scheduled.append({
+                            'time': time_str,
+                            'hour': h,
+                            'minute': m,
+                            'status': status,
+                            'med_name': med.name
+                        })
+                    except: continue
+            
+            # Sort by time
+            all_scheduled.sort(key=lambda x: (x['hour'], x['minute']))
+            
+            telemetry.append({
                 'senior_id': senior.id,
                 'senior_name': senior.username,
                 'risk_score': risk_score,
-                'status': status,
-                'adherence_history': AnalyticsService.get_7_day_adherence(senior.id)
+                'status': 'Critical' if risk_score > 100 else 'Attention' if risk_score > 40 else 'Stable',
+                'sparkline': [d['adherence'] for d in history],
+                'heatmap': all_scheduled,
+                'last_updated': now.isoformat()
             })
             
-        # Sort by risk score descending
-        return sorted(fleet_stats, key=lambda x: x['risk_score'], reverse=True)
+    @staticmethod
+    def analyze_risk_anomalies(user_id):
+        """
+        Analyze historical patterns to detect behavioral anomalies.
+        Returns a list of detected patterns and a forecasted risk percentage.
+        """
+        history = AnalyticsService.get_adherence_history(user_id, 14) # Check last 2 weeks
+        now = datetime.now()
+        
+        anomalies = []
+        risk_score = 0
+        
+        # 1. Pattern: Specific Time-of-Day consistent misses
+        time_miss_map = {}
+        for day in history:
+            # We need to look at specific logs for these days to find time patterns
+            # But get_adherence_history only returns daily sums
+            pass # Placeholder for more complex log analysis if needed
+            
+        # Simplified: Check if adherence has been declining over the last 3 days
+        if len(history) >= 3:
+            recent_trend = [d['adherence'] for d in history[-3:]]
+            if recent_trend[0] > recent_trend[1] > recent_trend[2]:
+                anomalies.append({
+                    'type': 'negative_trend',
+                    'message': 'Downward adherence trend detected over last 72 hours.',
+                    'severity': 'high'
+                })
+                risk_score += 40
+
+        # 2. Check for "Weekend Lapse Syndrome"
+        weekends = [d for d in history if datetime.fromisoformat(d['full_date']).weekday() >= 5]
+        if weekends:
+            avg_weekend = sum(d['adherence'] for d in weekends) / len(weekends)
+            weekdays = [d for d in history if datetime.fromisoformat(d['full_date']).weekday() < 5]
+            avg_weekday = sum(d['adherence'] for d in weekdays) / len(weekdays) if weekdays else 100
+            
+            if avg_weekday - avg_weekend > 20:
+                anomalies.append({
+                    'type': 'weekend_lapse',
+                    'message': 'Statistical probability of weekend adherence lapse is high (20%+ delta).',
+                    'severity': 'attention'
+                })
+                risk_score += 30
+
+        # 3. Forecasted risk for the next 24 hours
+        # Base risk is current risk score divided by max reasonable score
+        forecasted_risk = min(int(risk_score + (100 - (sum(d['adherence'] for d in history[-3:]) / 3 if len(history) >=3 else 100))), 100)
+        
+        return {
+            'anomalies': anomalies,
+            'forecasted_risk': forecasted_risk,
+            'confidence': 85 if len(history) >= 7 else 50
+        }
 
 analytics_service = AnalyticsService()

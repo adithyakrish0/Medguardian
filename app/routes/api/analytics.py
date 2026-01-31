@@ -46,3 +46,31 @@ def get_fleet_analytics():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_v1.route('/analytics/anomalies', methods=['GET'])
+@api_v1.route('/analytics/anomalies/<int:senior_id>', methods=['GET'])
+@login_required
+def get_anomalies(senior_id=None):
+    """Get detected behavioral anomalies and forecasted risk"""
+    target_id = senior_id or current_user.id
+    
+    # Security check: if senior_id, verify relationship
+    if senior_id and senior_id != current_user.id:
+        rel = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            senior_id=senior_id,
+            status='accepted'
+        ).first()
+        if not rel:
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+            
+    try:
+        from app.services.analytics_service import analytics_service
+        data = analytics_service.analyze_risk_anomalies(target_id)
+        return jsonify({
+            'success': True,
+            'data': data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+

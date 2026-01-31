@@ -21,7 +21,9 @@ import {
     LogOut,
     ExternalLink,
     Menu,
-    X
+    X,
+    Shield,
+    Lock
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -56,9 +58,14 @@ export default function DashboardLayout({
     if (user?.role === 'caregiver') {
         navItems.push(
             { label: "Managed Fleet", href: "/caregiver", icon: Users },
+            { label: "War Room", href: "/war-room", icon: Shield },
             { label: "Analytics", href: "/analytics", icon: LineChart }
         );
     }
+
+    navItems.push(
+        { label: "Governance & Privacy", href: "/governance", icon: Lock }
+    );
 
     const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
         <div className="flex flex-col h-full relative">

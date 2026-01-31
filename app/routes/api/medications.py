@@ -502,5 +502,42 @@ def skip_medication(medication_id):
             'error': str(e)
         }), 500
 
+@api_v1.route('/medications/check-interactions', methods=['POST'])
+@login_required
+def check_interactions_api():
+    """Verify potential interactions for a candidate medication"""
+    data = request.json
+    if not data or 'name' not in data:
+        return jsonify({'error': 'Medication name required'}), 400
+        
+    senior_id = data.get('senior_id') or current_user.id
+    candidate_name = data['name']
+    
+    # Get existing meds for this user
+    from app.models.medication import Medication
+    from app.models.relationship import CaregiverSenior
+    
+    # Security check: if senior_id, verify relationship
+    if senior_id != current_user.id:
+        rel = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            senior_id=senior_id,
+            status='accepted'
+        ).first()
+        if not rel:
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    existing_meds = Medication.query.filter_by(user_id=senior_id).all()
+    existing_names = [m.name for m in existing_meds]
+    
+    from app.services.medication_interaction_service import medication_interaction_service
+    conflicts = medication_interaction_service.check_interactions(candidate_name, existing_names)
+    
+    return jsonify({
+        'success': True,
+        'conflicts': conflicts
+    })
+
+
 
 

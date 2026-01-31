@@ -37,3 +37,31 @@ def health_check():
             'device': model_info['device']
         }
     }), 200
+
+@api_v1.route('/users/audit-logs', methods=['GET'])
+@api_v1.route('/users/audit-logs/<int:target_user_id>', methods=['GET'])
+@login_required
+def get_audit_logs(target_user_id=None):
+    """Get security and clinical audit logs"""
+    from app.services.audit_service import audit_service
+    from app.models.relationship import CaregiverSenior
+    
+    # Target ID for query
+    query_id = target_user_id or current_user.id
+    
+    # Security check: if target_user_id, verify relationship
+    if target_user_id and target_user_id != current_user.id:
+        rel = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            senior_id=target_user_id,
+            status='accepted'
+        ).first()
+        if not rel:
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+            
+    logs = audit_service.get_logs_for_user(query_id)
+    return jsonify({
+        'success': True,
+        'logs': [l.to_dict() for l in logs]
+    })
+

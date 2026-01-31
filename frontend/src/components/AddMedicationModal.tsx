@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Loader2, Bell, Clock, Plus } from 'lucide-react';
+import { X, Save, Loader2, Bell, Clock, Plus, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 interface AddMedicationModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAdd: (data: any) => Promise<void>;
+    seniorId?: number;
 }
 
 const TIME_SLOTS = [
@@ -17,7 +19,7 @@ const TIME_SLOTS = [
     { key: 'night', label: 'Night', time: '9:00 PM', icon: '🌙' },
 ];
 
-export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedicationModalProps) {
+export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }: AddMedicationModalProps) {
     const [formData, setFormData] = useState({
         name: '',
         dosage: '',
@@ -35,6 +37,30 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedica
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [newCustomTime, setNewCustomTime] = useState('');
+    const [conflicts, setConflicts] = useState<any[]>([]);
+    const [checkingInteractions, setCheckingInteractions] = useState(false);
+
+    const checkConflicts = async (name: string) => {
+        if (!name || name.length < 3) {
+            setConflicts([]);
+            return;
+        }
+
+        try {
+            setCheckingInteractions(true);
+            const res = await apiFetch('/medications/check-interactions', {
+                method: 'POST',
+                body: JSON.stringify({ name, senior_id: seniorId })
+            });
+            if (res.success) {
+                setConflicts(res.conflicts);
+            }
+        } catch (err) {
+            console.error('Interaction check failed:', err);
+        } finally {
+            setCheckingInteractions(false);
+        }
+    };
 
     const toggleTimeSlot = (slot: string) => {
         setFormData(prev => ({ ...prev, [slot]: !prev[slot as keyof typeof prev] }));
@@ -147,6 +173,37 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedica
                                 </div>
                             )}
 
+                            {conflicts.length > 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-red-600 p-6 rounded-2xl border border-red-500/50 shadow-2xl shadow-red-500/20 relative overflow-hidden"
+                                >
+                                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                                        <ShieldAlert className="w-12 h-12" />
+                                    </div>
+                                    <div className="flex items-start gap-4 relative z-10">
+                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                                            <AlertTriangle className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-white font-black uppercase text-xs tracking-widest mb-1">Critical Interaction Warning</h4>
+                                            <p className="text-white/90 text-sm font-bold leading-relaxed">
+                                                Potential hazard detected with existing fleet protocol:
+                                            </p>
+                                            <ul className="mt-3 space-y-2">
+                                                {conflicts.map((c, i) => (
+                                                    <li key={i} className="text-xs font-black bg-white/10 p-3 rounded-xl border border-white/5">
+                                                        <span className="text-white underline">{c.med_a}</span> conflicts with <span className="text-white underline">{c.med_b}</span>:
+                                                        <p className="mt-1 font-bold opacity-80 normal-case">{c.message}</p>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
                             {/* SECTION 1: Basic Info */}
                             <div>
                                 <div className="flex items-center gap-2 mb-4">
@@ -161,10 +218,18 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedica
                                             type="text"
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm placeholder-white/30"
+                                            onBlur={(e) => checkConflicts(e.target.value)}
+                                            className={`w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 text-white text-sm placeholder-white/30 transition-all ${conflicts.length > 0 ? 'ring-2 ring-red-500/50' : 'focus:ring-primary/50'
+                                                }`}
                                             placeholder="e.g., Aspirin"
                                             required
                                         />
+                                        {checkingInteractions && (
+                                            <div className="absolute right-3 top-[38px] flex items-center gap-2">
+                                                <Loader2 className="w-3 h-3 text-primary animate-spin" />
+                                                <span className="text-[10px] font-black text-primary uppercase">Safety Check...</span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Dosage */}
@@ -188,8 +253,8 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedica
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, priority: 'normal' })}
                                                 className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${formData.priority === 'normal'
-                                                        ? 'bg-primary text-white'
-                                                        : 'bg-white/5 text-white/50 hover:bg-white/10'
+                                                    ? 'bg-primary text-white'
+                                                    : 'bg-white/5 text-white/50 hover:bg-white/10'
                                                     }`}
                                             >
                                                 Normal
@@ -198,8 +263,8 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedica
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, priority: 'high' })}
                                                 className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${formData.priority === 'high'
-                                                        ? 'bg-red-500 text-white'
-                                                        : 'bg-white/5 text-white/50 hover:bg-white/10'
+                                                    ? 'bg-red-500 text-white'
+                                                    : 'bg-white/5 text-white/50 hover:bg-white/10'
                                                     }`}
                                             >
                                                 High
@@ -225,8 +290,8 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd }: AddMedica
                                             type="button"
                                             onClick={() => toggleTimeSlot(slot.key)}
                                             className={`p-4 rounded-xl transition-all text-center ${formData[slot.key as keyof typeof formData]
-                                                    ? 'bg-primary/20 ring-1 ring-primary/50'
-                                                    : 'bg-white/5 hover:bg-white/10'
+                                                ? 'bg-primary/20 ring-1 ring-primary/50'
+                                                : 'bg-white/5 hover:bg-white/10'
                                                 }`}
                                         >
                                             <div className="text-2xl mb-1">{slot.icon}</div>

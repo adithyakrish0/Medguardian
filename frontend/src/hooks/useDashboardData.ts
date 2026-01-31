@@ -24,6 +24,10 @@ export function useDashboardData(seniorId?: number) {
             const analyticsUrl = seniorId ? `/analytics/adherence/${seniorId}?days=30` : '/analytics/adherence?days=30';
             const analyticsData = await apiFetch(analyticsUrl);
 
+            // Fetch predictive risk anomalies
+            const anomaliesUrl = seniorId ? `/analytics/anomalies/${seniorId}` : '/analytics/anomalies';
+            const anomaliesData = await apiFetch(anomaliesUrl).catch(() => ({ data: { anomalies: [], forecasted_risk: 0 } }));
+
             setData({
                 user: userData.data,
                 schedule: {
@@ -36,7 +40,8 @@ export function useDashboardData(seniorId?: number) {
                         ? Math.round((statusData.taken.length / statusData.total_today) * 100)
                         : 100,
                     total: statusData.total_today,
-                    history: analyticsData.data || []
+                    history: analyticsData.data || [],
+                    predictive: anomaliesData.data
                 }
             });
         } catch (err: any) {

@@ -1050,32 +1050,78 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="medical-card p-10 bg-primary/95 text-white shadow-2xl shadow-primary/40 relative overflow-hidden flex flex-col justify-between"
+                    className={`medical-card p-10 shadow-2xl relative overflow-hidden flex flex-col justify-between transition-colors duration-500 ${(data?.stats?.predictive?.anomalies?.some((a: any) => a.severity === 'high'))
+                            ? 'bg-red-600 text-white shadow-red-500/40'
+                            : (data?.stats?.predictive?.anomalies?.length > 0)
+                                ? 'bg-amber-600 text-white shadow-amber-500/40'
+                                : 'bg-primary/95 text-white shadow-primary/40'
+                        }`}
                 >
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
 
                     <div>
                         <header className="flex justify-between items-center mb-10">
                             <div className="flex items-center gap-3">
-                                <Activity className="w-6 h-6 text-accent" />
-                                <h3 className="text-2xl font-black tracking-tight">AI Insights</h3>
+                                {data?.stats?.predictive?.anomalies?.length > 0 ? (
+                                    <AlertTriangle className="w-6 h-6 text-white animate-pulse" />
+                                ) : (
+                                    <Activity className="w-6 h-6 text-accent" />
+                                )}
+                                <h3 className="text-2xl font-black tracking-tight uppercase">
+                                    {data?.stats?.predictive?.anomalies?.length > 0 ? 'Proactive Alert' : 'AI Insights'}
+                                </h3>
                             </div>
+                            {data?.stats?.predictive?.forecasted_risk > 0 && (
+                                <div className="bg-white/20 px-4 py-2 rounded-2xl border border-white/10">
+                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                        Forecasted Risk: {data.stats.predictive.forecasted_risk}%
+                                    </span>
+                                </div>
+                            )}
                         </header>
 
-                        <p className="text-3xl font-black leading-tight tracking-tight italic opacity-90">
-                            &quot;{alerts.length > 0
-                                ? `Protocol deviation detected. ${alerts[0].senior_name} has missed a dosage sequence. Proactive reminder suggested.`
-                                : "Fleet stability optimized. Adherence precision remains within expected parameters."}&quot;
-                        </p>
+                        <div className="space-y-6">
+                            <p className="text-3xl font-black leading-tight tracking-tight italic opacity-90">
+                                &quot;{data?.stats?.predictive?.anomalies?.length > 0
+                                    ? data.stats.predictive.anomalies[0].message
+                                    : alerts.length > 0
+                                        ? `Protocol deviation detected. ${alerts[0].senior_name} has missed a dosage sequence. Proactive reminder suggested.`
+                                        : "Fleet stability optimized. Adherence precision remains within expected parameters."}&quot;
+                            </p>
+
+                            {data?.stats?.predictive?.anomalies?.length > 1 && (
+                                <div className="p-4 bg-white/10 rounded-2xl border border-white/10">
+                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Secondary Insights</p>
+                                    <ul className="space-y-2">
+                                        {data.stats.predictive.anomalies.slice(1).map((a: any, i: number) => (
+                                            <li key={i} className="text-xs font-bold flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                                                {a.message}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <button
-                        onClick={() => window.location.href = '/api/v1/caregiver/export/fleet/pdf'}
-                        className="w-full py-4 mt-10 bg-white text-primary rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-black/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
-                    >
-                        Export Fleet Report
-                        <ArrowRight className="w-4 h-4" />
-                    </button>
+                    <div className="flex flex-col md:flex-row gap-4 mt-10">
+                        <button
+                            onClick={() => window.location.href = '/api/v1/caregiver/export/fleet/pdf'}
+                            className="flex-1 py-4 bg-white text-primary rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-black/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                        >
+                            Export Fleet Report
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
+                        {data?.stats?.predictive?.anomalies?.length > 0 && (
+                            <button
+                                onClick={() => showToast("Proactive monitoring strategy updated.", "success")}
+                                className="flex-1 py-4 bg-white/20 text-white rounded-[20px] font-black text-sm uppercase tracking-widest border border-white/20 hover:bg-white/30 transition-all flex items-center justify-center gap-2"
+                            >
+                                Acknowledge Risk
+                            </button>
+                        )}
+                    </div>
                 </motion.div>
             </div>
         </div>
