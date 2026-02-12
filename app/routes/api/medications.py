@@ -1,4 +1,6 @@
 """API v1 - Medication endpoints"""
+import sys
+import traceback
 from flask import jsonify, request
 from flask_login import login_required, current_user
 from pydantic import ValidationError
@@ -334,14 +336,15 @@ def get_medication_status():
                 return jsonify({'success': False, 'error': 'Access denied to this senior\'s data'}), 403
             
             # Audit log for sensitive data access
-            audit_service.log_event(
+            audit_service.log_action(
+                user_id=current_user.id,
                 action='view_senior_dashboard',
                 target_id=senior_id,
                 details=f"Caregiver accessed dashboard for senior ID {senior_id}"
             )
             user_id = senior_id
             
-        # Get user's active medications (date-based filtering)
+        # Get user's active medications
         medications = Medication.query.filter_by(
             user_id=user_id
         ).filter(
@@ -350,68 +353,82 @@ def get_medication_status():
             (Medication.end_date.is_(None)) | (Medication.end_date >= today)
         ).all()
         
+        # New independent dose instance logic
+        all_dose_slots = []
+        for med in medications:
+            times = med.get_reminder_times() if hasattr(med, 'get_reminder_times') else []
+            if not times:
+                # Anytime medication - one slot per day
+                all_dose_slots.append({
+                    'id': med.id, 'name': med.name, 'dosage': med.dosage,
+                    'time': 'Anytime', 'sort_time': '23:59'
+                })
+            else:
+                for t in times:
+                    all_dose_slots.append({
+                        'id': med.id, 'name': med.name, 'dosage': med.dosage,
+                        'time': t, 'sort_time': t
+                    })
+        
+        # Get all logs from today
+        logs_today = MedicationLog.query.filter(
+            MedicationLog.user_id == user_id,
+            MedicationLog.taken_at >= datetime.combine(today, datetime.min.time())
+        ).order_by(MedicationLog.taken_at.asc()).all()
+        
+        print(f"DEBUG: [API] User {user_id} has {len(all_dose_slots)} slots and {len(logs_today)} logs today", file=sys.stderr)
+        
+        # Group logs by medication for greedy matching
+        logs_by_med = {}
+        for log in logs_today:
+            mid = log.medication_id
+            if mid not in logs_by_med: logs_by_med[mid] = []
+            logs_by_med[mid].append(log)
+            
         taken = []
         skipped = []
         missed = []
         upcoming = []
         
-        for med in medications:
-            # Check if handled today (taken or skipped)
-            log_today = MedicationLog.query.filter_by(
-                medication_id=med.id
-            ).filter(
-                MedicationLog.taken_at >= datetime.combine(today, datetime.min.time())
-            ).first()
+        # Process each medication's slots
+        med_ids = set(slot['id'] for slot in all_dose_slots)
+        for med_id in med_ids:
+            med_slots = [s for s in all_dose_slots if s['id'] == med_id]
+            med_slots.sort(key=lambda x: x['sort_time'])
             
-            # Get scheduled times for this medication
-            times = med.get_reminder_times() if hasattr(med, 'get_reminder_times') else []
+            med_logs = logs_by_med.get(med_id, [])
             
-            if log_today:
-                if log_today.taken_correctly:
-                    taken.append({
-                        'id': med.id,
-                        'name': med.name,
-                        'dosage': med.dosage,
-                        'taken_at': log_today.taken_at.strftime('%H:%M')
-                    })
+            for i, slot in enumerate(med_slots):
+                if i < len(med_logs):
+                    # Match this slot to a log
+                    log = med_logs[i]
+                    log_data = {
+                        'id': slot['id'], 'name': slot['name'],
+                        'dosage': slot['dosage'], 'time': slot['time']
+                    }
+                    if log.taken_correctly:
+                        log_data['taken_at'] = log.taken_at.strftime('%H:%M')
+                        taken.append(log_data)
+                    else:
+                        log_data['skipped_at'] = log.taken_at.strftime('%H:%M')
+                        skipped.append(log_data)
                 else:
-                    skipped.append({
-                        'id': med.id,
-                        'name': med.name,
-                        'dosage': med.dosage,
-                        'skipped_at': log_today.taken_at.strftime('%H:%M')
-                    })
-            else:
-                # Split times into past and future
-                past_times = [t for t in times if t <= current_time] if times else []
-                future_times = [t for t in times if t > current_time] if times else []
-                
-                # If there are future times, show as upcoming (priority)
-                if future_times:
-                    upcoming.append({
-                        'id': med.id,
-                        'name': med.name,
-                        'dosage': med.dosage,
-                        'time': min(future_times)
-                    })
-                elif past_times:
-                    # All scheduled times have passed - it's missed
-                    missed.append({
-                        'id': med.id,
-                        'name': med.name,
-                        'dosage': med.dosage,
-                        'scheduled_time': max(past_times)  # Show the most recent missed time
-                    })
-                else:
-                    # No specific times set - treat as "anytime today" medication
-                    upcoming.append({
-                        'id': med.id,
-                        'name': med.name,
-                        'dosage': med.dosage,
-                        'time': 'Anytime'
-                    })
+                    # No log for this slot
+                    if slot['time'] == 'Anytime':
+                        upcoming.append(slot)
+                    elif slot['time'] <= current_time:
+                        print(f"DEBUG: [API] Marking slot {slot['name']} @ {slot['time']} as MISSED", file=sys.stderr)
+                        missed.append({
+                            'id': slot['id'], 'name': slot['name'],
+                            'dosage': slot['dosage'], 'scheduled_time': slot['time']
+                        })
+                    else:
+                        upcoming.append(slot)
 
-
+        # Final sorting for the UI
+        upcoming.sort(key=lambda x: x['sort_time'])
+        missed.sort(key=lambda x: x['scheduled_time'], reverse=True)
+        taken.sort(key=lambda x: x['taken_at'], reverse=True)
         
         return jsonify({
             'success': True,
@@ -419,12 +436,10 @@ def get_medication_status():
             'skipped': skipped,
             'missed': missed,
             'upcoming': upcoming,
-            'total_today': len(medications)
+            'total_today': len(all_dose_slots)
         }), 200
         
     except Exception as e:
-        import traceback
-        import sys
         print(f"❌ [API] Critical error in get_medication_status: {str(e)}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         return jsonify({

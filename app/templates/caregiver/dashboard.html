@@ -198,10 +198,16 @@
                                         No recent activity
                                         {% endif %}
                                     </div>
-                                    <a href="{{ url_for('caregiver.senior_detail', senior_id=stat.senior.id) }}"
-                                        class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye me-1"></i>View
-                                    </a>
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ url_for('caregiver.senior_detail', senior_id=stat.senior.id) }}"
+                                            class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                        <button class="btn btn-sm btn-danger pulse-panic"
+                                            onclick="triggerPanic({{ stat.senior.id }}, '{{ stat.senior.username }}')">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>PANIC
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -260,6 +266,7 @@
 </div>
 
 <script>
+    const socket = io(); // Shared socket for real-time updates
     // Fetch and display alerts
     async function refreshAlerts() {
         const container = document.getElementById('alertsContainer');
@@ -355,5 +362,22 @@
 
     // Auto-refresh every 5 minutes
     setInterval(refreshAlerts, 300000);
+    // Remote Panic Trigger
+    async function triggerPanic(seniorId, seniorName) {
+        if (!confirm(`⚠️ TRIGGER PANIC ALERT for ${seniorName}?\nThis will play a loud alarm on their dashboard.`)) return;
+
+        try {
+            const response = await fetch(`/api/caregiver/trigger-panic/${seniorId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            });
+            if ((await response.json()).success) {
+                alert('🚨 Panic signal broadcasted successfully.');
+            }
+        } catch (e) { console.error(e); }
+    }
 </script>
 {% endblock %}

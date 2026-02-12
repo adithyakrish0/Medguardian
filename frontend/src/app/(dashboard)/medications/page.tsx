@@ -23,19 +23,23 @@ import {
     MoreVertical,
     Pencil,
     Trash2,
-    RefreshCw
+    RefreshCw,
+    Loader2
 } from 'lucide-react';
 import AIFeedModal from '@/components/AIFeedModal';
+import { useToast } from '@/components/NiceToast';
 
 export default function MedicationsPage() {
     const [selectedSeniorId, setSelectedSeniorId] = useState<number | undefined>(undefined);
     const { medications, loading: medsLoading, error, markAsTaken, refresh } = useMedications(selectedSeniorId);
     const { user, loading: userLoading } = useUser();
+    const { showToast } = useToast();
     const [verifyingMed, setVerifyingMed] = useState<{ id: number, name: string } | null>(null);
     const [feedingMed, setFeedingMed] = useState<any | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingMed, setEditingMed] = useState<any | null>(null);
     const [deletingMed, setDeletingMed] = useState<any | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const handleAddMedication = async (data: any) => {
         try {
@@ -52,16 +56,23 @@ export default function MedicationsPage() {
     };
 
     const handleDeleteMedication = async (medId: number) => {
+        setIsDeleting(true);
         try {
             const response = await apiFetch(`/medications/${medId}`, {
                 method: 'DELETE'
             });
             if (response.success) {
+                showToast('Medication deleted successfully', 'success');
                 refresh();
                 setDeletingMed(null);
+            } else {
+                showToast(response.error || 'Failed to delete medication', 'error');
             }
         } catch (err) {
             console.error('Error deleting medication:', err);
+            showToast('A network error occurred while deleting', 'error');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -149,9 +160,11 @@ export default function MedicationsPage() {
                                     Cancel
                                 </button>
                                 <button
+                                    disabled={isDeleting}
                                     onClick={() => handleDeleteMedication(deletingMed.id)}
-                                    className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all"
+                                    className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
+                                    {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
                                     Delete
                                 </button>
                             </div>

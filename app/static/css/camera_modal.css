@@ -310,6 +310,50 @@
     font-size: 18px;
 }
 
+/* Cognitive Safety Lockdown */
+.lockdown-alert {
+    text-align: center;
+    padding: 30px;
+    background: #fff5f5;
+    border: 3px solid #f87171;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(239, 68, 68, 0.2);
+}
+
+.lockdown-icon {
+    font-size: 80px;
+    margin-bottom: 20px;
+}
+
+.lockdown-alert h3 {
+    color: #b91c1c;
+    font-weight: 800;
+    font-size: 28px;
+    margin-bottom: 15px;
+}
+
+.lockdown-alert p {
+    color: #4b5563;
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: .8;
+    }
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .modal-content {

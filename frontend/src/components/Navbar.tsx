@@ -1,4 +1,7 @@
+"use client";
+
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 export default function Navbar() {
     return (
@@ -19,17 +22,23 @@ export default function Navbar() {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <Link
-                            href="/login"
-                            className="px-5 py-2 rounded-full font-medium text-foreground hover:bg-black/5 transition-all"
-                        >
-                            Sign In
+                        <Link href="/login">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="px-5 py-2 rounded-full font-medium text-foreground hover:bg-black/5 transition-all"
+                            >
+                                Sign In
+                            </motion.button>
                         </Link>
-                        <Link
-                            href="/signup"
-                            className="px-5 py-2 rounded-full font-medium bg-secondary text-white shadow-lg hover:bg-primary transition-all"
-                        >
-                            Get Started
+                        <Link href="/signup">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="px-5 py-2 rounded-full font-medium bg-secondary text-white shadow-lg hover:bg-primary transition-all"
+                            >
+                                Get Started
+                            </motion.button>
                         </Link>
                     </div>
                 </div>

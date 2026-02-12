@@ -27,8 +27,8 @@ class MedicationInteraction(db.Model):
     last_updated = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     
     # Relationships
-    medication1 = db.relationship("Medication", foreign_keys=[medication1_id])
-    medication2 = db.relationship("Medication", foreign_keys=[medication2_id])
+    medication1 = db.relationship("Medication", foreign_keys=[medication1_id], backref=db.backref('interactions_as_med1', cascade="all, delete-orphan"))
+    medication2 = db.relationship("Medication", foreign_keys=[medication2_id], backref=db.backref('interactions_as_med2', cascade="all, delete-orphan"))
     
     def __repr__(self):
         return f'<MedicationInteraction {self.medication1.name} <-> {self.medication2.name}: {self.severity}>'

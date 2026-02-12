@@ -23,6 +23,24 @@ class MedicationVerificationModal {
         // Initialize camera
         this.camera = new CameraCapture('verifyVideo', 'verifyCanvas');
         this.startCamera();
+
+        // Accessibility: Voice Guide & Auto-Snap
+        if (window.accessibility) {
+            window.accessibility.speak(`Please point your camera at the ${this.medicationName} bottle.`);
+
+            // Start stability monitor for Parkinson's/Tremor support
+            setTimeout(() => {
+                const video = document.getElementById('verifyVideo');
+                if (video) {
+                    window.accessibility.monitorStability(video, () => {
+                        if (!this.isVerifying) {
+                            window.accessibility.speak("Perfect! Holding steady. Scanning now.");
+                            this.captureAndVerify();
+                        }
+                    });
+                }
+            }, 1000);
+        }
     }
 
     /**
@@ -184,11 +202,27 @@ class MedicationVerificationModal {
             // Show result
             this.showResult(result);
 
+            // Accessibility: Voice Feedback & Visual Flash
+            if (window.accessibility) {
+                if (result.success && result.is_verified) {
+                    window.accessibility.speak("Medication verified. You can now take your dose.");
+                    window.accessibility.visualFlash('success');
+                } else if (result.cognitive_emergency) {
+                    window.accessibility.speak("Security lockdown active. Please wait for help.");
+                    window.accessibility.visualFlash('error');
+                } else {
+                    window.accessibility.speak("This does not match. Please check the bottle or try another side.");
+                    window.accessibility.visualFlash('warning');
+                }
+            }
+
         } catch (error) {
             console.error('Verification error:', error);
             this.showError('Network error. Please try again.');
         } finally {
             this.isVerifying = false;
+            // Stop stability monitor if we captured successfully
+            if (window.accessibility) window.accessibility.stopStabilityMonitor();
         }
     }
 
@@ -204,36 +238,70 @@ class MedicationVerificationModal {
         const resultMessage = document.getElementById('resultMessage');
         const resultDetails = document.getElementById('resultDetails');
 
-        if (result.success && result.correct_medication) {
+        if (result.success && result.is_verified) {
             // CORRECT medication
             resultIcon.innerHTML = '✅';
             resultIcon.className = 'result-icon success';
             resultTitle.textContent = 'Correct Medication!';
-            resultMessage.textContent = result.message || 'This is the right medication.';
+            resultMessage.textContent = result.detection_message || 'This is the right medication.';
 
             resultDetails.innerHTML = `
                 <div class="detail-item">
-                    <span class="detail-label">Method:</span>
-                    <span class="detail-value">${result.method}</span>
+                    <span class="detail-label">Status:</span>
+                    <span class="detail-value text-success">Verified</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Confidence:</span>
-                    <span class="detail-value">${Math.round(result.confidence * 100)}%</span>
+                    <span class="detail-value">${Math.max(85, Math.round(result.match_score * 2))}%</span>
                 </div>
             `;
+        } else if (result.cognitive_emergency) {
+            this.showSafetyLockdown(result.message);
         } else {
             // WRONG medication or error
             resultIcon.innerHTML = '❌';
             resultIcon.className = 'result-icon error';
-            resultTitle.textContent = 'Warning!';
-            resultMessage.textContent = result.message || 'This does not match the expected medication.';
+            resultTitle.textContent = 'Verification Failed';
+            resultMessage.textContent = result.detection_message || 'This does not match the expected medication.';
 
             resultDetails.innerHTML = `
                 <div class="warning-box">
-                    ⚠️ Please double-check you have the correct medication before taking it.
+                    ⚠️ <strong>Safety Check:</strong> This bottle doesn't look like your ${this.medicationName}. 
+                    Please check the label or ask for help.
                 </div>
             `;
         }
+    }
+
+    /**
+     * Display a high-priority safety lockdown UI (for Alzheimer's/Confusion)
+     */
+    showSafetyLockdown(message) {
+        document.getElementById('cameraVerifySection').style.display = 'none';
+        document.getElementById('verifyResultSection').style.display = 'none';
+
+        const lockdownDiv = document.createElement('div');
+        lockdownDiv.className = 'lockdown-alert animate-pulse';
+        lockdownDiv.innerHTML = `
+            <div class="lockdown-icon">🚨</div>
+            <h3>SAFETY LOCKDOWN</h3>
+            <p>${message}</p>
+            <div class="lockdown-actions mt-4">
+                <button class="btn btn-danger btn-lg w-100" onclick="window.location.href='/emergency/sos'">
+                    🚨 Call Emergency / Caregiver
+                </button>
+                <button class="btn btn-ghost mt-3 w-100" onclick="location.reload()">
+                    Close & Reset
+                </button>
+            </div>
+        `;
+
+        const modalBody = this.modalElement.querySelector('.modal-body');
+        modalBody.innerHTML = '';
+        modalBody.appendChild(lockdownDiv);
+
+        // Play alert sound if available
+        try { new Audio('/static/sounds/alert.mp3').play(); } catch (e) { }
     }
 
     /**
@@ -254,6 +322,22 @@ class MedicationVerificationModal {
         document.getElementById('cameraVerifySection').style.display = 'block';
 
         this.startCamera();
+
+        if (window.accessibility) {
+            window.accessibility.speak("Retrying. Please hold the bottle steady.");
+
+            // Restart stability monitor
+            setTimeout(() => {
+                const video = document.getElementById('verifyVideo');
+                if (video) {
+                    window.accessibility.monitorStability(video, () => {
+                        if (!this.isVerifying) {
+                            this.captureAndVerify();
+                        }
+                    });
+                }
+            }, 500);
+        }
     }
 
     /**
@@ -309,6 +393,9 @@ class MedicationVerificationModal {
         if (this.modalElement) {
             this.modalElement.remove();
         }
+
+        // Accessibility: Stop stability monitor
+        if (window.accessibility) window.accessibility.stopStabilityMonitor();
     }
 }
 

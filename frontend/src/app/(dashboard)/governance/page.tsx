@@ -69,7 +69,7 @@ export default function GovernancePage() {
                             </div>
                             <div>
                                 <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Privacy Status</p>
-                                <p className="text-sm font-black text-foreground">Military-Grade Encryption</p>
+                                <p className="text-sm font-black text-foreground">Bank-Level Security</p>
                             </div>
                         </div>
                     </div>
@@ -138,8 +138,8 @@ export default function GovernancePage() {
                                     className="p-8 flex items-start gap-6 hover:bg-secondary/5 transition-all group"
                                 >
                                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${isCritical
-                                            ? 'bg-red-500/10 border-red-500/20 text-red-500 shadow-lg shadow-red-500/10'
-                                            : 'bg-primary/10 border-primary/20 text-primary'
+                                        ? 'bg-red-500/10 border-red-500/20 text-red-500 shadow-lg shadow-red-500/10'
+                                        : 'bg-primary/10 border-primary/20 text-primary'
                                         }`}>
                                         <Icon className="w-6 h-6" />
                                     </div>

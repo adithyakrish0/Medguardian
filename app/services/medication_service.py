@@ -5,6 +5,8 @@ from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models.medication import Medication
 from app.models.medication_log import MedicationLog
+from app.models.snooze_log import SnoozeLog
+from app.models.medication_interaction import MedicationInteraction
 
 
 class MedicationService:
@@ -34,13 +36,28 @@ class MedicationService:
     
     @staticmethod
     def get_by_id(medication_id: int, user_id: Optional[int] = None) -> Optional[Medication]:
-        """Get medication by ID, optionally verify ownership"""
-        query = Medication.query.filter_by(id=medication_id)
+        """Get medication by ID, optionally verify ownership or caregiver access"""
+        medication = Medication.query.filter_by(id=medication_id).first()
+        if not medication:
+            return None
         
         if user_id is not None:
-            query = query.filter_by(user_id=user_id)
-        
-        return query.first()
+            # Check if user is the owner
+            if medication.user_id == user_id:
+                return medication
+            
+            # Check if user is a caregiver for the owner
+            from app.models.relationship import CaregiverSenior
+            is_caregiver = CaregiverSenior.query.filter_by(
+                caregiver_id=user_id,
+                senior_id=medication.user_id,
+                status='accepted'
+            ).first() is not None
+            
+            if not is_caregiver:
+                return None
+                
+        return medication
     
     @staticmethod
     def create(user_id: int, data: Dict) -> Medication:
@@ -154,12 +171,29 @@ class MedicationService:
     
     @staticmethod
     def delete(medication_id: int, user_id: Optional[int] = None) -> bool:
-        """Delete a medication"""
+        """Delete a medication and all its associated data (logs, snoozes, interactions)"""
+        # get_by_id now handles caregiver checks
         medication = MedicationService.get_by_id(medication_id, user_id)
         
         if not medication:
             return False
+            
+        # Due to cascade="all, delete-orphan" in relationship definitions,
+        # we don't strictly need to delete these manually, but doing so
+        # explicitly ensures no session state issues.
+        # 1. Clean up logs
+        MedicationLog.query.filter_by(medication_id=medication.id).delete()
         
+        # 2. Clean up snooze logs
+        SnoozeLog.query.filter_by(medication_id=medication.id).delete()
+        
+        # 3. Clean up medication interactions
+        MedicationInteraction.query.filter(
+            (MedicationInteraction.medication1_id == medication.id) | 
+            (MedicationInteraction.medication2_id == medication.id)
+        ).delete()
+        
+        # 4. Final deletion of the medication itself
         db.session.delete(medication)
         db.session.commit()
         return True
@@ -217,6 +251,7 @@ class MedicationService:
             user_id=user_id,
             taken_at=datetime.now(),
             taken_correctly=False,  # False indicates skipped
+            status='skipped',       # Explicitly set status for analytics
             notes=notes or "Skipped by user"
         )
         

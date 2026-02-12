@@ -67,11 +67,11 @@ class ReferenceImageCapture {
                         </div>
 
                         <div class="tips">
-                            <h4>💡 Tips for Best Results:</h4>
+                            <h4>💡 Multi-Angle Training (AI Robustness):</h4>
                             <ul>
-                                <li>✓ Use good lighting</li>
-                                <li>✓ Keep bottle label visible</li>
-                                <li>✓ Fill the frame with medication</li>
+                                <li>📸 Take 3-5 photos from different sides</li>
+                                <li>✓ Front (Label), Back (Text), and Sides</li>
+                                <li>✓ This helps the AI identify the bottle even if turned around</li>
                                 <li>✓ Avoid shadows and reflections</li>
                             </ul>
                         </div>
@@ -262,14 +262,15 @@ class ReferenceImageCapture {
             const data = await response.json();
 
             if (data.success) {
-                // Show success message
-                this.showSuccess('Reference image saved successfully!');
-
-                // Close modal after 2 seconds
-                setTimeout(() => {
-                    this.close();
-                    location.reload(); // Reload to show updated medication
-                }, 2000);
+                const totalAngles = data.total_angles || 1;
+                this.showSuccess(`
+                    Angle ${totalAngles} saved! 
+                    <br><small>Take 2-3 more from different sides for best results.</small>
+                    <div class="mt-3">
+                        <button class="btn btn-secondary" onclick="referenceCapture.retake()">Add Another Angle</button>
+                        <button class="btn btn-primary" onclick="location.reload()">Finish Training</button>
+                    </div>
+                `);
             } else {
                 this.showError(data.error || 'Failed to save image');
             }

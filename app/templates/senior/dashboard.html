@@ -311,6 +311,37 @@
 
 {% block content %}
 <div class="senior-dashboard">
+    <div class="row mb-4 dashboard-status-row">
+        <div class="col-md-6">
+            <div class="card bg-dark text-white shadow-sm" style="border-radius: 12px; border-left: 5px solid #00f2fe;">
+                <div class="card-body py-2 d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="fas fa-microchip text-info me-2"></i>
+                        <span class="small fw-bold text-uppercase">Hardware Sentinel</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-success me-2">LOCKED</span>
+                        <span class="small text-info blink-fast">BRIDGE ACTIVE</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark text-white shadow-sm" style="border-radius: 12px; border-left: 5px solid #a18cd1;">
+                <div class="card-body py-2 d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="fas fa-brain text-purple me-2"></i>
+                        <span class="small fw-bold text-uppercase">Personalized AI</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-primary">MODEL: V-EMBED-1024</span>
+                        <span class="ms-2 small opacity-75">FEW-SHOT READY</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Premium Welcome Header -->
     <div class="welcome-header">
         <div class="greeting-text">
@@ -389,8 +420,9 @@
 
             <div class="secondary-actions">
                 <button type="button" class="action-btn-secondary"
-                    onclick="snoozeDose({{ current_medication.id }})">Snooze (10m)</button>
-                <button type="button" class="action-btn-secondary" onclick="skipDose({{ current_medication.id }})">Skip
+                    onclick="snoozeDose({{ current_medication.id|tojson }})">Snooze (10m)</button>
+                <button type="button" class="action-btn-secondary"
+                    onclick="skipDose({{ current_medication.id|tojson }})">Skip
                     Today</button>
             </div>
             {% endif %}
@@ -440,7 +472,7 @@
     </div>
 
     <script>
-        window.upcomingMedications = {{ upcoming_medications | tojson | safe }};
+        window.upcomingMedications = {{ upcoming_medications |default ([]) | tojson | safe }};
         window.nextMedicationId = {{ current_medication.id if current_medication else 'null' }};
 
         function skipDose(medId) {
@@ -470,6 +502,39 @@
                 .then(d => { if (d.success) { alert('Snoozed for 10 minutes!'); location.reload(); } else { alert('Error: ' + d.message); } })
                 .catch(e => alert('Error: ' + e));
         }
+    </script>
+
+    <!-- Quiet Mode Toggle (Sticky) -->
+    <div class="quiet-mode-toggle-container">
+        <button class="btn-quiet-mode" onclick="toggleQuietMode()">
+            <i class="fas fa-eye-slash me-2"></i><span id="quietToggleText">Switch to Quiet Mode</span>
+        </button>
+    </div>
+
+    <script>
+        function toggleQuietMode() {
+            const body = document.body;
+            body.classList.toggle('quiet-mode');
+            const isQuiet = body.classList.contains('quiet-mode');
+
+            // Save preference
+            localStorage.setItem('quietModeEnabled', isQuiet);
+
+            // Update button text
+            document.getElementById('quietToggleText').textContent =
+                isQuiet ? 'Exit Quiet Mode' : 'Switch to Quiet Mode';
+
+            if (window.accessibility && isQuiet) {
+                window.accessibility.speak("Quiet Mode enabled. High focus view active.");
+            }
+        }
+
+        // Apply preference on load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('quietModeEnabled') === 'true') {
+                toggleQuietMode();
+            }
+        });
     </script>
 </div>
 {% endblock %}

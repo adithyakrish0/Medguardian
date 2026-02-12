@@ -76,6 +76,25 @@
 
     <!-- Summary Cards -->
     <div class="row mb-4">
+        <!-- IoT Device Card (High Impact) -->
+        <div class="col-md-4 mb-3">
+            <div class="card stat-card h-100 bg-info bg-opacity-10 border-info">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-info text-white me-3">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center">
+                            <h5 class="mb-0 fw-bold">Smart Pill Box</h5>
+                            <span class="badge bg-success ms-2 pulse-slow" id="iotStatus">Online</span>
+                        </div>
+                        <small class="text-muted d-block" id="iotDeviceInfo">Syncing with GUARDIAN-VBOX-001</small>
+                        <div id="iotLastEvent" class="x-small text-info mt-1 fw-bold">No recent events</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="col-md-2 col-sm-4 mb-3">
             <div class="card stat-card h-100">
                 <div class="card-body text-center">
@@ -98,51 +117,41 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2 col-sm-4 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body text-center">
-                    <div class="stat-icon bg-warning text-white mx-auto mb-2">
-                        <i class="fas fa-clock"></i>
+        <div class="col-md-4 mb-3">
+            <div class="card stat-card h-100 bg-dark text-white border-primary shadow-lg"
+                style="border: 2px solid var(--primary-color) !important;">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon bg-primary text-white me-3">
+                        <i class="fas fa-brain"></i>
                     </div>
-                    <h3 class="mb-0" id="pendingToday">-</h3>
-                    <small class="text-muted">Pending Today</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2 col-sm-4 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body text-center">
-                    <div class="stat-icon bg-info text-white mx-auto mb-2">
-                        <i class="fas fa-percentage"></i>
+                    <div>
+                        <h4 class="mb-0" id="forecastedRisk">Calculating...</h4>
+                        <small class="text-primary fw-bold">ML Predictive Risk Score</small>
                     </div>
-                    <h3 class="mb-0" id="complianceRate">-</h3>
-                    <small class="text-muted">Compliance Rate</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2 col-sm-4 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body text-center">
-                    <div class="stat-icon bg-danger text-white mx-auto mb-2">
-                        <i class="fas fa-fire"></i>
-                    </div>
-                    <h3 class="mb-0" id="currentStreak">-</h3>
-                    <small class="text-muted">Day Streak</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2 col-sm-4 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body text-center">
-                    <div class="stat-icon bg-secondary text-white mx-auto mb-2">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
-                    <h3 class="mb-0" id="totalDoses">-</h3>
-                    <small class="text-muted">Monthly Doses</small>
                 </div>
             </div>
         </div>
     </div>
+
+    <style>
+        @keyframes pulse-slow {
+            0% {
+                opacity: 0.6;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.6;
+            }
+        }
+
+        .pulse-slow {
+            animation: pulse-slow 2s infinite;
+        }
+    </style>
 
     <!-- Charts Row 1 -->
     <div class="row mb-4">
@@ -174,11 +183,53 @@
 
     <!-- Charts Row 2 -->
     <div class="row">
+        <!-- New Bio-Twin Chart (Takes up full width for impact) -->
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm h-100 border-primary">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center"
+                    style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;">
+                    <h5 class="mb-0">
+                        <i class="fas fa-dna me-2 text-info"></i>Bio-Digital Twin: Pharmacokinetic Simulation
+                    </h5>
+                    <span class="badge bg-info">Experimental Model</span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <div class="chart-container" style="height: 300px;">
+                                <canvas id="bioTwinChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-3 border-start">
+                            <h6 class="text-muted text-uppercase x-small">Current Status</h6>
+                            <h3 id="currentConcentration" class="mb-1 text-primary">--%</h3>
+                            <small id="bioStatusText" class="d-block mb-3 text-muted">Awaiting Simulation...</small>
+
+                            <hr>
+
+                            <h6 class="text-muted text-uppercase x-small">Bio-Safety Window</h6>
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge bg-success me-2"
+                                    style="width: 10px; height: 10px; padding: 0; border-radius: 50%;"></span>
+                                <small>Optimal (>20%)</small>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-danger me-2"
+                                    style="width: 10px; height: 10px; padding: 0; border-radius: 50%;"></span>
+                                <small>Sub-Therapeutic (<20%)< /small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="col-lg-6 mb-4">
             <div class="card shadow-sm">
                 <div class="card-header bg-info text-white">
                     <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Monthly Trend</h5>
                 </div>
+                <!-- ... existing trend chart ... -->
                 <div class="card-body">
                     <div class="chart-container">
                         <canvas id="trendChart"></canvas>
@@ -186,16 +237,19 @@
                 </div>
             </div>
         </div>
+
         <div class="col-lg-6 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Insights</h5>
+            <div class="card shadow-sm h-100 border-primary">
+                <div
+                    class="card-header bg-white text-dark d-flex justify-content-between align-items-center border-bottom">
+                    <h5 class="mb-0"><i class="fas fa-microchip me-2 text-primary"></i>Next-Dose Forecast (AIML)</h5>
+                    <span class="badge bg-primary">Real-time</span>
                 </div>
                 <div class="card-body">
-                    <div id="insightsContainer">
+                    <div id="mlForecastContainer">
                         <div class="text-center py-4">
                             <div class="spinner-border text-primary" role="status"></div>
-                            <p class="text-muted mt-2">Generating insights...</p>
+                            <p class="text-muted mt-2">Computing future risks...</p>
                         </div>
                     </div>
                 </div>
@@ -205,7 +259,7 @@
 </div>
 
 <script>
-    let weeklyChart, distributionChart, trendChart;
+    let weeklyChart, distributionChart, trendChart, bioTwinChart;
 
     // Initialize charts
     document.addEventListener('DOMContentLoaded', function () {
@@ -219,6 +273,74 @@
         const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
 
         Chart.defaults.color = textColor;
+
+        // --- NEW: Bio-Digital Twin Chart ---
+        const ctxBio = document.getElementById('bioTwinChart').getContext('2d');
+        const gradient = ctxBio.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(56, 189, 248, 0.5)'); // Light Blue
+        gradient.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+        bioTwinChart = new Chart(ctxBio, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Serum Concentration (mg/L)',
+                    data: [],
+                    borderColor: '#38bdf8',
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }, {
+                    label: 'Toxicity Threshold',
+                    data: [],
+                    borderColor: '#ef4444',
+                    borderDash: [5, 5],
+                    borderWidth: 1,
+                    fill: false,
+                    pointRadius: 0
+                }, {
+                    label: 'Therapeutic Minimum',
+                    data: [],
+                    borderColor: '#10b981',
+                    borderDash: [5, 5],
+                    borderWidth: 1,
+                    fill: false,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: textColor } },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function (context) {
+                                return context.parsed.y + '% Concentration';
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 30, // Normalizing to 30mg/L scale
+                        title: { display: true, text: 'Drug Plasma Concentration (mg/L)' },
+                        grid: { color: gridColor }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
 
         // Weekly compliance chart
         weeklyChart = new Chart(document.getElementById('weeklyChart'), {
@@ -275,35 +397,11 @@
             }
         });
 
-        // Trend line chart
+        // Trend line chart (Simplified for brevity in replacement)
         trendChart = new Chart(document.getElementById('trendChart'), {
             type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Compliance %',
-                    data: [],
-                    borderColor: 'rgba(23, 162, 184, 1)',
-                    backgroundColor: 'rgba(23, 162, 184, 0.2)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        grid: { color: gridColor }
-                    },
-                    x: { grid: { display: false } }
-                }
-            }
+            data: { labels: [], datasets: [{ label: 'Compliance %', data: [], borderColor: 'rgba(23, 162, 184, 1)', backgroundColor: 'rgba(23, 162, 184, 0.2)', fill: true, tension: 0.4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, grid: { color: gridColor } }, x: { grid: { display: false } } } }
         });
     }
 
@@ -312,9 +410,98 @@
             loadSummary(),
             loadCompliance(),
             loadDistribution(),
-            loadTrends()
+            loadTrends(),
+            loadMLAnomalies(),
+            loadBioTwin() // NEW
         ]);
         generateInsights();
+    }
+
+    async function loadBioTwin() {
+        try {
+            const response = await fetch('/analytics/api/bio-twin');
+            const data = await response.json();
+
+            // Update Chart
+            if (data.forecast && data.forecast.points) {
+                const points = data.forecast.points;
+                const windows = data.forecast.windows;
+
+                bioTwinChart.data.labels = points.map(p => p.time);
+                bioTwinChart.data.datasets[0].data = points.map(p => p.concentration);
+
+                // Overlay Window Lines
+                bioTwinChart.data.datasets[1].data = points.map(() => 15); // Toxicity Threshold
+                bioTwinChart.data.datasets[2].data = points.map(() => 5);  // Therapeutic Minimum
+
+                bioTwinChart.update();
+            }
+
+            // Update Current Status Info
+            if (data.current_status && data.current_status.length > 0) {
+                const mainMed = data.current_status[0];
+                document.getElementById('currentConcentration').textContent = mainMed.concentration_mg_l + ' mg/L';
+                document.getElementById('bioStatusText').textContent = mainMed.status;
+
+                const statusEl = document.getElementById('currentConcentration');
+                if (mainMed.status.includes('Toxicity')) statusEl.className = "mb-1 text-danger fw-bold";
+                else if (mainMed.status.includes('Sub')) statusEl.className = "mb-1 text-warning fw-bold";
+                else statusEl.className = "mb-1 text-success fw-bold";
+            }
+
+        } catch (error) {
+            console.error('Failed to load Bio-Twin simulation:', error);
+        }
+    }
+
+    async function loadMLAnomalies() {
+        try {
+            const response = await fetch('/api/v1/analytics/anomalies');
+            const result = await response.json();
+
+            if (result.success) {
+                const data = result.data;
+                document.getElementById('forecastedRisk').textContent = data.forecasted_risk + '%';
+
+                // Color risk score
+                const riskEl = document.getElementById('forecastedRisk');
+                if (data.forecasted_risk > 60) riskEl.className = 'mb-0 text-danger';
+                else if (data.forecasted_risk > 30) riskEl.className = 'mb-0 text-warning';
+                else riskEl.className = 'mb-0 text-success';
+
+                // Display ML Forecast list
+                const container = document.getElementById('mlForecastContainer');
+                if (data.ml_forecast && data.ml_forecast.length > 0) {
+                    let html = '<ul class="list-group list-group-flush">';
+                    data.ml_forecast.forEach(item => {
+                        const prob = Math.round(item.probability * 100);
+                        const progressColor = prob > 80 ? 'success' : (prob > 50 ? 'warning' : 'danger');
+                        html += `
+                            <li class="list-group-item px-0 border-0 mb-3 bg-transparent">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold fs-6">${item.medication}</span>
+                                    <span class="badge bg-light text-dark border">${item.time}</span>
+                                </div>
+                                <div class="progress" style="height: 10px; border-radius: 10px;">
+                                    <div class="progress-bar bg-${progressColor}" role="progressbar" 
+                                         style="width: ${prob}%" aria-valuenow="${prob}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="d-flex justify-content-between x-small mt-1">
+                                    <span class="text-muted">Adherence Probability</span>
+                                    <span class="fw-bold text-${progressColor}">${prob}%</span>
+                                </div>
+                            </li>
+                        `;
+                    });
+                    html += '</ul>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p class="text-muted text-center py-4">Insufficient data for ML forecasting.</p>';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load ML anomalies:', error);
+        }
     }
 
     async function loadSummary() {
@@ -416,6 +603,41 @@
 
     function exportReport() {
         window.location.href = '/export/pdf-report';
+    }
+
+    // ==============================================
+    // HYPER-WOW: IoT & PANIC LISTENERS
+    // ==============================================
+    const activeSocket = window.socket || window.seniorSocket || (window.reminderSystem ? window.reminderSystem.socket : null);
+
+    if (activeSocket) {
+        // IoT Device Event
+        activeSocket.on('iot_event', function (data) {
+            console.log('📡 IoT Event received:', data);
+            const eventEl = document.getElementById('iotLastEvent');
+            if (data.event === 'LID_OPENED') {
+                eventEl.textContent = `Lid opened: ${data.medication} (${data.timestamp})`;
+                eventEl.classList.replace('text-info', 'text-success');
+                eventEl.closest('.card').classList.add('bg-success', 'bg-opacity-25');
+                setTimeout(() => eventEl.closest('.card').classList.remove('bg-success', 'bg-opacity-25'), 3000);
+            }
+        });
+
+        // Remote Caregiver Panic
+        socket.on('panic_alert', function (data) {
+            Swal.fire({
+                title: '🚨 EMERGENCY ALERT!',
+                text: `Caregiver ${data.caregiver_name} is checking on you!`,
+                icon: 'warning',
+                confirmButtonText: 'I am OK!',
+                confirmButtonColor: '#d33',
+                backdrop: `rgba(255,0,0,0.4)`,
+                allowOutsideClick: false
+            });
+            // Play sound if possible
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play();
+        });
     }
 </script>
 {% endblock %}

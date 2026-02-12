@@ -72,11 +72,21 @@ class VerificationService:
                 except Exception as e:
                     logger.error(f"Failed to decode histogram fingerprint: {e}")
 
+            # Layer 4: Deep Embedding Matching
+            reference_embedding = None
+            if medication.embedding_data:
+                try:
+                    import json
+                    reference_embedding = json.loads(medication.embedding_data)
+                except Exception as e:
+                    logger.error(f"Failed to load embedding data: {e}")
+
             # Process via Triple-Layer Vision Engine V2
             result = self.vision_engine.process_frame(
                 image_data, 
                 expected_features=expected_des,
-                reference_histogram=reference_histogram
+                reference_histogram=reference_histogram,
+                reference_embedding=reference_embedding
             )
             
             # Check barcodes as fallback/supplement
@@ -94,6 +104,14 @@ class VerificationService:
             if layers_checked:
                 confidence = len(layers_passed) / len(layers_checked)
             
+            # Stage 4: Cognitive Guardrail (Alzheimer's Safety)
+            from app.services.cognitive_engine import cognitive_engine
+            cognitive_status = cognitive_engine.analyze_interaction(
+                current_user.id if hasattr(current_user, 'id') else None,
+                medication_id,
+                is_success=is_verified
+            )
+            
             return {
                 'success': True,
                 'verified': is_verified,
@@ -101,6 +119,8 @@ class VerificationService:
                 'method': 'triple_layer' if result.get('is_verified') else 'barcode' if has_barcode_match else 'none',
                 'confidence': confidence,
                 'message': result.get('message', ''),
+                'cognitive_status': cognitive_status,
+                'cognitive_emergency': cognitive_status == 'emergency',
                 'layers': {
                     'detection': result.get('layer1_detection', False),
                     'features': result.get('layer2_features', False),
@@ -219,6 +239,13 @@ class VerificationService:
                 if histogram_fingerprint:
                     medication.histogram_fingerprint = histogram_fingerprint
                     logger.info(f"Saved Layer 3 (Histogram) fingerprint for medication {medication_id}")
+                
+                # Layer 4: Deep Embedding Fingerprint
+                embedding_fingerprint = self.vision_engine.get_embedding_fingerprint(image_data)
+                if embedding_fingerprint:
+                    import json
+                    medication.embedding_data = json.dumps(embedding_fingerprint)
+                    logger.info(f"Saved Layer 4 (Deep Embedding) for medication {medication_id}")
                 
                 db.session.commit()
             

@@ -67,6 +67,18 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
         }
     }, [user, isOpen]);
 
+    // Lock body scroll when modal is open
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
     const handleProfileSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -125,13 +137,13 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
     if (user?.role === 'senior') {
         tabs.push({ id: 'preferences', label: 'Safety', icon: Shield });
     } else {
-        tabs.push({ id: 'preferences', label: 'Fleet', icon: Bell });
+        tabs.push({ id: 'preferences', label: 'Alerts', icon: Bell });
     }
 
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 overflow-hidden">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -423,8 +435,8 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                                             <Bell className="w-7 h-7 text-primary" />
                                                         </div>
                                                         <div>
-                                                            <h4 className="text-xl font-black text-white italic">Fleet Alerts</h4>
-                                                            <p className="text-sm font-bold opacity-30">Global notification preferences for your fleet.</p>
+                                                            <h4 className="text-xl font-black text-white italic">Patient Alerts</h4>
+                                                            <p className="text-sm font-bold opacity-30">Notification preferences for your patients.</p>
                                                         </div>
                                                     </div>
                                                     <div className="space-y-4">

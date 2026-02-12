@@ -13,7 +13,7 @@ class SnoozeLog(db.Model):
     
     # Relationships
     user = db.relationship('User', backref='snooze_logs')
-    medication = db.relationship('Medication', backref='snooze_logs')
+    medication = db.relationship('Medication', backref=db.backref('snooze_logs', cascade="all, delete-orphan"))
     
     def to_dict(self):
         """Convert snooze log to dictionary for JSON serialization"""

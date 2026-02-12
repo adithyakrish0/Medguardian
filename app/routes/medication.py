@@ -449,11 +449,23 @@ def verify_realtime():
             except Exception as e:
                 logger.error(f"Failed to decode histogram fingerprint: {e}")
 
-        # Process frame via Triple-Layer Engine
+        # Layer 4: Deep Embedding (Multi-Angle Robustness)
+        reference_embeddings = None
+        if medication and medication.embedding_data:
+            try:
+                reference_embeddings = json.loads(medication.embedding_data)
+                # Ensure it's a list of lists
+                if reference_embeddings and not isinstance(reference_embeddings[0], list):
+                    reference_embeddings = [reference_embeddings]
+            except Exception as e:
+                logger.error(f"Failed to parse embedding data: {e}")
+
+        # Process frame via Quad-Layer Engine (Multi-Angle)
         result = vision_v2.process_frame(
             image_data, 
             expected_features=expected_des,
-            reference_histogram=reference_histogram
+            reference_histogram=reference_histogram,
+            reference_embedding=reference_embeddings # Now passing the full list
         )
         
         # Add metadata for frontend
@@ -585,6 +597,28 @@ def save_reference_image(medication_id):
         if histogram_fingerprint:
             medication.histogram_fingerprint = histogram_fingerprint
             logger.info(f"Saved Layer 3 (Histogram) fingerprint for medication {medication_id}")
+
+        # Layer 4: Deep Embedding Fingerprint (Personalized AI)
+        embedding = vision_v2.get_embedding_fingerprint(image_data)
+        if embedding:
+            # Load existing embeddings or start new list
+            existing_embeddings = []
+            if medication.embedding_data:
+                try:
+                    existing_embeddings = json.loads(medication.embedding_data)
+                    # If it's a legacy flat list, convert to list of lists
+                    if existing_embeddings and not isinstance(existing_embeddings[0], list):
+                        existing_embeddings = [existing_embeddings]
+                except:
+                    existing_embeddings = []
+            
+            existing_embeddings.append(embedding)
+            # Limit to latest 5 embeddings
+            if len(existing_embeddings) > 5:
+                existing_embeddings = existing_embeddings[-5:]
+                
+            medication.embedding_data = json.dumps(existing_embeddings)
+            logger.info(f"Saved Layer 4 (Deep Embedding) angle {len(existing_embeddings)} for medication {medication_id}")
 
         # 6. Update ALL fields
         medication.reference_image_path = image_path

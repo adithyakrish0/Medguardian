@@ -61,35 +61,44 @@ def create_app(config_name=None):
     
     mail.init_app(app)
     
-    # CORS Configuration: Allow localhost and Vercel deployments
+    # CORS Configuration
     import re
-    cors_origins = [
-        "https://medguardian-peach.vercel.app", # Explicitly allow current domain
-        re.compile(r"https://medguardian-.*\.vercel\.app"), # Match any MedGuardian vercel deploy
+    default_origins = [
+        "https://medguardian-peach.vercel.app", 
+        re.compile(r"https://medguardian-.*\.vercel\.app"),
+        re.compile(r"https://.*\.ngrok-free\.(app|dev)"),
+        re.compile(r"https://.*\.trycloudflare\.com"),
         "http://localhost:3000", 
         "http://localhost:3001",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001"
     ]
+    
     env_origins = os.getenv('CORS_ORIGINS', '')
     if env_origins:
         if env_origins == '*':
+            # Note: with supports_credentials=True, origins cannot be '*'
+            # We must use a more restrictive approach or mirror the Origin header (handled by flask-cors if configured)
             cors_origins = "*"
-            app.logger.warning("CORS: ALLOWING ALL ORIGINS (*)")
+            app.logger.warning("CORS: ALLOWING ALL ORIGINS (*) - Credentials may fail if requested")
         else:
             ext_origins = [o.strip() for o in env_origins.split(',') if o.strip()]
-            cors_origins.extend(ext_origins)
-            app.logger.info(f"CORS: Added additional origins from environment: {ext_origins}")
-            
-    CORS(app, supports_credentials=True, origins=cors_origins)
-    app.logger.info("CORS: Initialized with support for credentials")
+            cors_origins = default_origins + ext_origins
+            app.logger.info(f"CORS: Loaded origins: {ext_origins}")
+    else:
+        cors_origins = default_origins
+
+    CORS(app, supports_credentials=True, origins=cors_origins, 
+         expose_headers=["Content-Type", "Authorization"],
+         allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
+    app.logger.info("CORS: Initialized with explicit origins and credentials support")
     
     # Initialize SocketIO with proper configuration
     # Production: Uses eventlet async mode with Redis for horizontal scaling
     # Development: Uses threading mode (no Redis required)
     try:
         socketio_config = {
-            'cors_allowed_origins': "*",
+            'cors_allowed_origins': cors_origins if cors_origins != '*' else "*",
             'logger': True,
             'engineio_logger': False,
             'async_mode': 'eventlet',  # Required for Gunicorn eventlet workers
@@ -199,10 +208,21 @@ def create_app(config_name=None):
     
     @app.before_request
     def log_request_info():
+        from flask import g
+        import time
+        g.request_start_time = time.time()
         if request.path.startswith('/api/'):
-            app.logger.info(f'API Request: {request.method} {request.path}')
+            print(f'🟢 START: {request.method} {request.path}')
             app.logger.debug(f'Headers: {dict(request.headers)}')
-            app.logger.debug(f'Body: {request.get_data(as_text=True)[:500]}')
+    
+    @app.after_request
+    def log_request_time(response):
+        from flask import g
+        import time
+        if hasattr(g, 'request_start_time') and request.path.startswith('/api/'):
+            duration = (time.time() - g.request_start_time) * 1000
+            print(f'🔴 END: {request.method} {request.path} - {duration:.2f}ms ({duration/1000:.2f}s)')
+        return response
     
     # Error handlers
     @app.errorhandler(400)
@@ -226,6 +246,25 @@ def create_app(config_name=None):
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
+        import traceback
+        import sys
+        from datetime import datetime
+        
+        # Log to stderr
+        print(f"🔥 [GLOBAL] Internal Server Error: {error}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        
+        # Log to file for diagnostics
+        try:
+            with open('error_traceback.log', 'a') as f:
+                f.write(f"\n--- ERROR at {datetime.now()} ---\n")
+                f.write(f"Url: {request.url}\n")
+                f.write(f"Method: {request.method}\n")
+                f.write(f"User: {current_user.id if current_user.is_authenticated else 'Anonymous'}\n")
+                traceback.print_exc(file=f)
+        except:
+            pass
+            
         app.logger.error(f'Internal server error: {error}')
         if request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Internal Server Error', 'error': str(error)}), 500

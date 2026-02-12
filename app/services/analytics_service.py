@@ -4,25 +4,56 @@ from app.models.medication_log import MedicationLog
 from app.models.auth import User
 from app.extensions import db
 from sqlalchemy import func
+from collections import defaultdict
 
 class AnalyticsService:
     @staticmethod
     def get_adherence_history(user_id, days=7):
-        """Get adherence data for the last X days for a specific user"""
+        """
+        Get adherence data for the last X days for a specific user.
+        OPTIMIZED: Uses a single batched query instead of N+1 queries.
+        """
         today = datetime.now().date()
         now = datetime.now()
-        days_data = []
         
-        # Get active medications for this user
+        # Get active medications for this user (single query)
         user_meds = Medication.query.filter_by(user_id=user_id).all()
+        
+        # Find the earliest medication creation date
+        earliest_med_date = None
+        for med in user_meds:
+            if med.created_at:
+                med_date = med.created_at.date()
+                if earliest_med_date is None or med_date < earliest_med_date:
+                    earliest_med_date = med_date
+        
+        # Calculate date range
+        start_date = today - timedelta(days=days - 1)
+        end_date = today
+        
+        # CRITICAL FIX: Single batched query for all days (instead of N+1)
+        start_of_range = datetime.combine(start_date, datetime.min.time())
+        end_of_range = datetime.combine(end_date, datetime.max.time())
+        
+        all_logs = MedicationLog.query.filter(
+            MedicationLog.user_id == user_id,
+            MedicationLog.taken_at >= start_of_range,
+            MedicationLog.taken_at <= end_of_range
+        ).all()
+        
+        # Group logs by date in Python (much faster than 30 DB queries)
+        logs_by_date = defaultdict(list)
+        for log in all_logs:
+            date_key = log.taken_at.date()
+            logs_by_date[date_key].append(log)
+        
+        days_data = []
         
         for i in range(days - 1, -1, -1):
             day = today - timedelta(days=i)
-            # ... calculation logic remains same ...
-            start_of_day = datetime.combine(day, datetime.min.time())
-            end_of_day = datetime.combine(day, datetime.max.time())
             is_today = (day == today)
             
+            # Calculate expected doses for this day
             expected_doses = 0
             for med in user_meds:
                 # Only check meds that were created on or before this day
@@ -42,27 +73,36 @@ class AnalyticsService:
                     except:
                         continue
             
-            day_logs = MedicationLog.query.filter(
-                MedicationLog.user_id == user_id,
-                MedicationLog.taken_at >= start_of_day,
-                MedicationLog.taken_at <= end_of_day
-            ).all()
+            # Get pre-fetched logs for this day (no additional DB query!)
+            day_logs = logs_by_date.get(day, [])
             
-            taken = sum(1 for log in day_logs if log.taken_correctly)
-            skipped = sum(1 for log in day_logs if not log.taken_correctly)
+            taken = sum(1 for log in day_logs if log.get_status() == 'verified')
+            skipped = sum(1 for log in day_logs if log.get_status() == 'skipped')
+            missed = sum(1 for log in day_logs if log.get_status() == 'missed')
             
-            if expected_doses == 0:
-                adherence = 100
+            # Determine if day is before any medication was created
+            is_before_account = earliest_med_date and day < earliest_med_date
+            
+            if is_before_account:
+                adherence = None
+                is_locked = True
+            elif expected_doses == 0:
+                adherence = None
+                is_locked = False
             else:
                 adherence = int((taken / expected_doses) * 100)
+                is_locked = False
             
             days_data.append({
-                'date': day.strftime('%a'),
+                'date': day.strftime('%a') if days <= 7 else day.strftime('%d %b'),
                 'full_date': day.isoformat(),
-                'adherence': min(adherence, 100),
+                'adherence': adherence,
                 'taken': taken,
                 'skipped': skipped,
-                'expected': expected_doses
+                'missed': missed,
+                'expected': expected_doses,
+                'isLocked': is_locked,
+                'isEstablishment': earliest_med_date and day == earliest_med_date
             })
             
         return days_data
@@ -81,9 +121,10 @@ class AnalyticsService:
         today = datetime.now().date()
         yesterday = today - timedelta(days=1)
         
-        # 1. 7-Day Adherence Penalty
+        # 1. 7-Day Adherence Penalty (exclude locked days and None values)
         stats = AnalyticsService.get_7_day_adherence(senior_id)
-        avg_adherence = sum(d['adherence'] for d in stats) / len(stats) if stats else 100
+        valid_stats = [d['adherence'] for d in stats if d['adherence'] is not None and not d.get('isLocked', False)]
+        avg_adherence = sum(valid_stats) / len(valid_stats) if valid_stats else 100
         score += (100 - avg_adherence)
         
         # 2. Recent Misses Penalty
@@ -96,7 +137,6 @@ class AnalyticsService:
             score += (yesterday_stats['skipped'] * 15)
             
         # 3. High Priority Penalty
-        # If any missed/skipped med was high priority in the last 48 hours
         start_48h = datetime.combine(yesterday, datetime.min.time())
         recent_skips = MedicationLog.query.filter(
             MedicationLog.user_id == senior_id,
@@ -107,14 +147,19 @@ class AnalyticsService:
         for skip in recent_skips:
             if skip.medication and skip.medication.priority == 'high':
                 score += 50
-                break # Only penalty once for recent high priority skip
+                break
                 
         return int(score)
 
     @staticmethod
+    def get_fleet_analytics(caregiver_id):
+        """Alias for get_fleet_telemetry to match API route expectations"""
+        return AnalyticsService.get_fleet_telemetry(caregiver_id)
+
+    @staticmethod
     def get_fleet_telemetry(caregiver_id):
         """
-        Get detailed high-density telemetry for the War Room.
+        Get detailed high-density telemetry for Care Overview.
         Includes 7-day sparkline data and 24-hr dose status (heat map).
         """
         from app.models.relationship import CaregiverSenior
@@ -143,7 +188,6 @@ class AnalyticsService:
             ).all()
             
             heatmap = []
-            # Calculate all dosages for today
             all_scheduled = []
             for med in meds:
                 if med.created_at and med.created_at.date() > today:
@@ -155,8 +199,6 @@ class AnalyticsService:
                         h, m = map(int, time_str.split(':'))
                         scheduled_dt = datetime.combine(today, datetime.min.time().replace(hour=h, minute=m))
                         
-                        # Find if there is a log for this med around this time
-                        # (simplistic check: same day, same med)
                         log = next((l for l in today_logs if l.medication_id == med.id and abs((l.taken_at - scheduled_dt).total_seconds()) < 7200), None)
                         
                         status = 'upcoming'
@@ -174,7 +216,6 @@ class AnalyticsService:
                         })
                     except: continue
             
-            # Sort by time
             all_scheduled.sort(key=lambda x: (x['hour'], x['minute']))
             
             telemetry.append({
@@ -182,64 +223,132 @@ class AnalyticsService:
                 'senior_name': senior.username,
                 'risk_score': risk_score,
                 'status': 'Critical' if risk_score > 100 else 'Attention' if risk_score > 40 else 'Stable',
-                'sparkline': [d['adherence'] for d in history],
+                'sparkline': [d['adherence'] if d['adherence'] is not None else 0 for d in history],
                 'heatmap': all_scheduled,
                 'last_updated': now.isoformat()
             })
+            
+        return telemetry
             
     @staticmethod
     def analyze_risk_anomalies(user_id):
         """
         Analyze historical patterns to detect behavioral anomalies.
         Returns a list of detected patterns and a forecasted risk percentage.
+        
+        NOTE: ML prediction temporarily disabled to fix feature mismatch error.
         """
-        history = AnalyticsService.get_adherence_history(user_id, 14) # Check last 2 weeks
-        now = datetime.now()
-        
-        anomalies = []
-        risk_score = 0
-        
-        # 1. Pattern: Specific Time-of-Day consistent misses
-        time_miss_map = {}
-        for day in history:
-            # We need to look at specific logs for these days to find time patterns
-            # But get_adherence_history only returns daily sums
-            pass # Placeholder for more complex log analysis if needed
+        try:
+            history = AnalyticsService.get_adherence_history(user_id, 14)
+            now = datetime.now()
             
-        # Simplified: Check if adherence has been declining over the last 3 days
-        if len(history) >= 3:
-            recent_trend = [d['adherence'] for d in history[-3:]]
-            if recent_trend[0] > recent_trend[1] > recent_trend[2]:
-                anomalies.append({
-                    'type': 'negative_trend',
-                    'message': 'Downward adherence trend detected over last 72 hours.',
-                    'severity': 'high'
-                })
-                risk_score += 40
-
-        # 2. Check for "Weekend Lapse Syndrome"
-        weekends = [d for d in history if datetime.fromisoformat(d['full_date']).weekday() >= 5]
-        if weekends:
-            avg_weekend = sum(d['adherence'] for d in weekends) / len(weekends)
-            weekdays = [d for d in history if datetime.fromisoformat(d['full_date']).weekday() < 5]
-            avg_weekday = sum(d['adherence'] for d in weekdays) / len(weekdays) if weekdays else 100
+            anomalies = []
+            bonus_risk = 0
             
-            if avg_weekday - avg_weekend > 20:
-                anomalies.append({
-                    'type': 'weekend_lapse',
-                    'message': 'Statistical probability of weekend adherence lapse is high (20%+ delta).',
-                    'severity': 'attention'
-                })
-                risk_score += 30
+            def safe_avg(values):
+                valid = [v for v in values if v is not None and isinstance(v, (int, float))]
+                return sum(valid) / len(valid) if valid else 100
 
-        # 3. Forecasted risk for the next 24 hours
-        # Base risk is current risk score divided by max reasonable score
-        forecasted_risk = min(int(risk_score + (100 - (sum(d['adherence'] for d in history[-3:]) / 3 if len(history) >=3 else 100))), 100)
-        
-        return {
-            'anomalies': anomalies,
-            'forecasted_risk': forecasted_risk,
-            'confidence': 85 if len(history) >= 7 else 50
-        }
+            # 1. Check if adherence has been declining over the last 3 valid days
+            recent_trend = [d['adherence'] for d in history[-7:] if d['adherence'] is not None]
+            if len(recent_trend) >= 3:
+                v1, v2, v3 = recent_trend[-3], recent_trend[-2], recent_trend[-1]
+                if v1 > v2 > v3:
+                    anomalies.append({
+                        'type': 'negative_trend',
+                        'message': 'Downward adherence trend detected over last 72 hours.',
+                        'severity': 'high'
+                    })
+                    bonus_risk += 40
+
+            # 2. Check for "Weekend Lapse Syndrome"
+            weekends = [d['adherence'] for d in history if d['adherence'] is not None and datetime.fromisoformat(d['full_date']).weekday() >= 5]
+            weekdays = [d['adherence'] for d in history if d['adherence'] is not None and datetime.fromisoformat(d['full_date']).weekday() < 5]
+            
+            if weekends and weekdays:
+                avg_weekend = safe_avg(weekends)
+                avg_weekday = safe_avg(weekdays)
+                
+                if avg_weekday - avg_weekend > 20:
+                    anomalies.append({
+                        'type': 'weekend_lapse',
+                        'message': 'Statistical probability of weekend adherence lapse is high (20%+ delta).',
+                        'severity': 'attention'
+                    })
+                    bonus_risk += 30
+
+            # 3. Forecasted risk for the next 24 hours
+            recent_stats = [d['adherence'] for d in history[-3:] if d['adherence'] is not None]
+            current_avg = safe_avg(recent_stats)
+            forecasted_risk = min(int((100 - current_avg) + bonus_risk), 100)
+            
+            # --- PK Engine Integration (Plasma Concentration Alerts) ---
+            pk_alerts = []
+            try:
+                from app.services.pk_engine import pk_engine
+                active_meds = Medication.query.filter_by(user_id=user_id, priority='high').all()
+                for med in active_meds:
+                    pk_data = pk_engine.get_state(user_id, med.id)
+                    if pk_data and 'plasma_concentration' in pk_data:
+                        conc = pk_data['plasma_concentration']
+                        if conc > 0.85:
+                            pk_alerts.append({
+                                'medication': med.name,
+                                'type': 'toxicity_risk',
+                                'message': f'Elevated plasma levels for {med.name}. Risk of toxicity.',
+                                'severity': 'high'
+                            })
+                        elif conc < 0.15:
+                            pk_alerts.append({
+                                'medication': med.name,
+                                'type': 'sub_therapeutic',
+                                'message': f'Sub-therapeutic levels for {med.name}. Effectiveness reduced.',
+                                'severity': 'attention'
+                            })
+            except Exception as pk_err:
+                print(f"⚠️ [ANALYTICS] PK engine error (non-critical): {pk_err}")
+            
+            # --- ML-Based Prediction (TEMPORARILY DISABLED) ---
+            # The ML model has a feature mismatch (priority vs priority_encoded).
+            # Returning empty forecast until the model is retrained.
+            ml_forecast = []
+            # try:
+            #     from app.services.prediction_service import prediction_service
+            #     upcoming_meds = Medication.query.filter_by(user_id=user_id).all()
+            #     for med in upcoming_meds:
+            #         times = med.get_reminder_times()
+            #         for t in times:
+            #             h, m = map(int, t.split(':'))
+            #             next_dt = datetime.combine(datetime.now().date(), datetime.min.time().replace(hour=h, minute=m))
+            #             if next_dt < datetime.now():
+            #                 next_dt += timedelta(days=1)
+            #             prediction = prediction_service.predict_next_dose(med.id, next_dt)
+            #             ml_forecast.append({
+            #                 'medication': med.name,
+            #                 'time': t,
+            #                 'probability': prediction['probability'],
+            #                 'risk_level': prediction.get('risk_level', 'Unknown')
+            #             })
+            # except Exception as ml_err:
+            #     print(f"⚠️ [ANALYTICS] ML prediction error (non-critical): {ml_err}")
+            
+            return {
+                'anomalies': anomalies,
+                'pk_alerts': pk_alerts,
+                'forecasted_risk': max(0, forecasted_risk),
+                'ml_forecast': ml_forecast[:5],
+                'confidence': 85 if len(history) >= 7 else 50
+            }
+        except Exception as e:
+            import traceback
+            import sys
+            print(f"❌ [ANALYTICS] Error in analyze_risk_anomalies for user {user_id}: {str(e)}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            return {
+                'anomalies': [],
+                'forecasted_risk': 0,
+                'confidence': 0,
+                'error': str(e)
+            }
 
 analytics_service = AnalyticsService()

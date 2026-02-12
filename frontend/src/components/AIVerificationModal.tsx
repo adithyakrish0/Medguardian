@@ -10,6 +10,7 @@ interface VerificationResult {
     verified: boolean;
     message?: string;
     confidence: number;
+    cognitive_emergency?: boolean;
     details?: any;
 }
 
@@ -212,7 +213,11 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
             });
 
             setResult(data);
-            setStep('result');
+            if (data.cognitive_emergency) {
+                setStep('result');
+            } else {
+                setStep('result');
+            }
         } catch (err: any) {
             console.error(err);
             setErrorMsg(err.message || 'Verification system offline');
@@ -371,83 +376,115 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
 
                     {step === 'result' && result && (
                         <div className="text-center space-y-6 w-full animate-in fade-in zoom-in duration-300">
-                            <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto shadow-2xl ${result.verified ? 'bg-primary text-white' :
-                                result.message?.includes('PLEASE SHOW LABEL') ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
-                                }`}>
-                                {result.verified ? <CheckCircle2 className="w-12 h-12" /> :
-                                    result.message?.includes('PLEASE SHOW LABEL') ? <AlertCircle className="w-12 h-12 animate-pulse" /> : <AlertCircle className="w-12 h-12" />}
-                            </div>
-
-                            <div className="space-y-1">
-                                <h3 className={`text-2xl font-black ${result.verified ? 'text-primary' :
-                                    result.message?.includes('PLEASE SHOW LABEL') ? 'text-yellow-500' : 'text-red-500'}`}>
-                                    {result.verified ? 'Verification Confirmed' :
-                                        result.message?.includes('PLEASE SHOW LABEL') ? 'Visual Match Only' : 'Mismatch Detected!'}
-                                </h3>
-                                <p className="opacity-70 font-medium">{result.message}</p>
-
-                                {/* Auto-close countdown for verified medications */}
-                                {result.verified && autoCloseCountdown !== null && (
-                                    <div className="mt-4 p-4 bg-primary/10 rounded-2xl border border-primary/30 animate-pulse">
-                                        <p className="text-lg font-black text-primary">
-                                            ✓ Auto-closing in {autoCloseCountdown}...
-                                        </p>
+                            {result.cognitive_emergency ? (
+                                <div className="space-y-6">
+                                    <div className="w-24 h-24 bg-red-600 text-white rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(220,38,38,0.5)] animate-pulse">
+                                        <AlertTriangle className="w-12 h-12" />
                                     </div>
-                                )}
-                            </div>
-
-
-                            <div className="grid grid-cols-2 gap-4 w-full pt-4">
-                                <div className={`p-4 rounded-2xl border transition-all ${result.verified ? 'bg-primary/5 border-white/5' : 'bg-red-500/5 border-white/5'
-                                    }`}>
-                                    <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">DNA Match</p>
-                                    <p className={`text-2xl font-black ${result.verified ? 'text-primary' : 'text-red-500'}`}>
-                                        {Math.round(result.confidence * 100)}%
-                                    </p>
-                                </div>
-                                <div className="p-4 bg-card/50 rounded-2xl border border-white/5">
-                                    <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">Stage 4 Lock</p>
-                                    <div className="flex flex-col gap-1 mt-1">
-                                        <div className="flex items-center gap-2 text-xs font-bold">
-                                            <span className={result.details?.layer1_detection ? "text-green-500" : "text-red-500"}>
-                                                {result.details?.layer1_detection ? "✅" : "❌"} Shape
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs font-bold">
-                                            <span className={result.details?.layer2_features ? "text-green-500" : "text-red-500"}>
-                                                {result.details?.layer2_features ? "✅" : "❌"} Texture
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs font-bold">
-                                            <span className={result.details?.layer3_histogram ? "text-green-500" : "text-red-500"}>
-                                                {result.details?.layer3_histogram ? "✅" : "❌"} Color
-                                            </span>
-                                        </div>
+                                    <div className="space-y-2">
+                                        <h3 className="text-3xl font-black text-red-600 uppercase tracking-tighter">Safety Lockdown</h3>
+                                        <p className="text-lg font-bold opacity-80">{result.message || "Unusual activity detected. Access restricted for safety."}</p>
+                                    </div>
+                                    <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl text-sm font-medium text-red-700">
+                                        Your caregiver has been notified. Please stay calm and wait for assistance.
+                                    </div>
+                                    <div className="flex flex-col gap-3">
+                                        <button
+                                            onClick={() => window.location.href = '/emergency'}
+                                            className="w-full py-5 bg-red-600 text-white rounded-[24px] font-black text-xl shadow-2xl hover:bg-red-700 transition-all flex items-center justify-center gap-3"
+                                        >
+                                            <AlertCircle className="w-6 h-6" />
+                                            EMERGENCY HELP
+                                        </button>
+                                        <button
+                                            onClick={onClose}
+                                            className="w-full py-4 text-foreground/40 font-bold hover:text-foreground transition-colors"
+                                        >
+                                            Close & Reset
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <>
+                                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto shadow-2xl ${result.verified ? 'bg-primary text-white' :
+                                        result.message?.includes('PLEASE SHOW LABEL') ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
+                                        }`}>
+                                        {result.verified ? <CheckCircle2 className="w-12 h-12" /> :
+                                            result.message?.includes('PLEASE SHOW LABEL') ? <AlertCircle className="w-12 h-12 animate-pulse" /> : <AlertCircle className="w-12 h-12" />}
+                                    </div>
 
-                            <div className="pt-6 w-full flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        setStep('scanning');
-                                        setScanProgress(0);
-                                        setResult(null);
-                                        setHandDetected(false); // Reset hand detection state
-                                    }}
-                                    className="flex-1 py-4 border border-white/10 bg-white/5 rounded-2xl font-bold hover:bg-white/10 transition-all"
-                                >
-                                    Retry Radar
-                                </button>
-                                {result.verified && (
-                                    <button
-                                        onClick={onVerified}
-                                        className="flex-1 py-4 bg-primary text-white rounded-2xl font-bold shadow-lg hover:bg-primary/80 transition-all"
-                                    >
-                                        Seal Dose
-                                    </button>
-                                )}
-                            </div>
+                                    <div className="space-y-1">
+                                        <h3 className={`text-2xl font-black ${result.verified ? 'text-primary' :
+                                            result.message?.includes('PLEASE SHOW LABEL') ? 'text-yellow-500' : 'text-red-500'}`}>
+                                            {result.verified ? 'Verification Confirmed' :
+                                                result.message?.includes('PLEASE SHOW LABEL') ? 'Visual Match Only' : 'Mismatch Detected!'}
+                                        </h3>
+                                        <p className="opacity-70 font-medium">{result.message}</p>
+
+                                        {/* Auto-close countdown for verified medications */}
+                                        {result.verified && autoCloseCountdown !== null && (
+                                            <div className="mt-4 p-4 bg-primary/10 rounded-2xl border border-primary/30 animate-pulse">
+                                                <p className="text-lg font-black text-primary">
+                                                    ✓ Auto-closing in {autoCloseCountdown}...
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+
+                                    <div className="grid grid-cols-2 gap-4 w-full pt-4">
+                                        <div className={`p-4 rounded-2xl border transition-all ${result.verified ? 'bg-primary/5 border-white/5' : 'bg-red-500/5 border-white/5'
+                                            }`}>
+                                            <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">DNA Match</p>
+                                            <p className={`text-2xl font-black ${result.verified ? 'text-primary' : 'text-red-500'}`}>
+                                                {Math.round(result.confidence * 100)}%
+                                            </p>
+                                        </div>
+                                        <div className="p-4 bg-card/50 rounded-2xl border border-white/5">
+                                            <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">Stage 4 Lock</p>
+                                            <div className="flex flex-col gap-1 mt-1">
+                                                <div className="flex items-center gap-2 text-xs font-bold">
+                                                    <span className={result.details?.layer1_detection ? "text-green-500" : "text-red-500"}>
+                                                        {result.details?.layer1_detection ? "✅" : "❌"} Shape
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs font-bold">
+                                                    <span className={result.details?.layer2_features ? "text-green-500" : "text-red-500"}>
+                                                        {result.details?.layer2_features ? "✅" : "❌"} Texture
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs font-bold">
+                                                    <span className={result.details?.layer3_histogram ? "text-green-500" : "text-red-500"}>
+                                                        {result.details?.layer3_histogram ? "✅" : "❌"} Color
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-6 w-full flex gap-3">
+                                        <button
+                                            onClick={() => {
+                                                setStep('scanning');
+                                                setScanProgress(0);
+                                                setResult(null);
+                                                setHandDetected(false); // Reset hand detection state
+                                            }}
+                                            className="flex-1 py-4 border border-white/10 bg-white/5 rounded-2xl font-bold hover:bg-white/10 transition-all"
+                                        >
+                                            Retry Radar
+                                        </button>
+                                        {result.verified && (
+                                            <button
+                                                onClick={onVerified}
+                                                className="flex-1 py-4 bg-primary text-white rounded-2xl font-bold shadow-lg hover:bg-primary/80 transition-all"
+                                            >
+                                                Seal Dose
+                                            </button>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>

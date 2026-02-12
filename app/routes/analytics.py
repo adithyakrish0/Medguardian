@@ -172,7 +172,54 @@ def get_trends():
         else:
             compliance_data.append(0)
     
+
+# ... (existing imports)
+from app.services.pk_service import PKService
+
+@analytics.route('/api/bio-twin')
+@login_required
+def get_bio_twin():
+    """Get Pharmacokinetic Simulation Data (Bio-Twin)"""
+    user_id = current_user.id
+    if current_user.role == 'caregiver':
+        from app.models.relationship import CaregiverSenior
+        rel = CaregiverSenior.query.filter_by(caregiver_id=user_id).first()
+        if rel:
+            user_id = rel.senior_id
+            
+    # Real-time calculation - get per-medication results
+    med_results = PKService.calculate_current_concentration(user_id)
+    forecast = PKService.generate_24h_forecast(user_id)
+    
+    # Aggregate current_status for the frontend
+    if med_results:
+        total_cp = sum(r.get('concentration_mg_l', 0) for r in med_results)
+        # Determine overall status based on aggregate
+        if total_cp < 5:
+            status = 'Sub-therapeutic'
+        elif total_cp > 20:
+            status = 'Toxicity Risk'
+        elif total_cp > 15:
+            status = 'High'
+        else:
+            status = 'Therapeutic'
+        
+        current_status = {
+            'current_cp': round(total_cp, 2),
+            'plasma_concentration': round(total_cp, 2),
+            'status': status,
+            'last_dose': 'Recent',
+            'medications': med_results  # Include detailed per-med data
+        }
+    else:
+        current_status = {
+            'current_cp': 0,
+            'plasma_concentration': 0,
+            'status': 'No Data',
+            'last_dose': 'N/A'
+        }
+    
     return jsonify({
-        'labels': labels,
-        'compliance': compliance_data
+        'current_status': current_status,
+        'forecast': forecast
     })

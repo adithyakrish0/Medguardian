@@ -24,7 +24,7 @@ function AnalyticsContent() {
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center gap-6">
                     <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/30">Analyzing Fleet Telemetry...</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/30">Loading analytics...</p>
                 </div>
             </div>
         );
@@ -50,10 +50,10 @@ function AnalyticsContent() {
                         className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:gap-3 transition-all mb-4"
                     >
                         <ChevronLeft className="w-4 h-4" />
-                        Back to Command Center
+                        Back to Dashboard
                     </button>
                     <h1 className="text-5xl font-black text-foreground tracking-tighter">
-                        Analytics <span className="text-primary italic">Intelligence</span>
+                        Analytics <span className="text-primary italic">Report</span>
                     </h1>
                 </div>
                 <div className="flex gap-4">
@@ -62,7 +62,7 @@ function AnalyticsContent() {
                         className="px-8 py-4 bg-primary text-white rounded-[24px] font-black text-sm uppercase tracking-widest shadow-2xl shadow-primary/40 hover:scale-[1.02] transition-all flex items-center gap-2"
                     >
                         <Download className="w-5 h-5" />
-                        Export Fleet Report
+                        Export Report
                     </button>
                 </div>
             </header>
@@ -72,7 +72,7 @@ function AnalyticsContent() {
                 {[
                     { label: "Avg Compliance", value: `${data?.stats?.adherence || 0}%`, icon: Activity, color: "primary" },
                     { label: "Active Tracking", value: "30 Days", icon: Calendar, color: "accent" },
-                    { label: "Fleet Stability", value: data?.stats?.adherence > 80 ? "Optimal" : "Attention", icon: TrendingUp, color: "emerald" }
+                    { label: "Health Status", value: data?.stats?.adherence > 80 ? "Good" : "Needs Attention", icon: TrendingUp, color: "emerald" }
                 ].map((stat, i) => (
                     <motion.div
                         key={i}

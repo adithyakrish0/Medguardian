@@ -43,8 +43,10 @@ export default function WarRoomPage() {
         try {
             setLoading(true);
             const res = await apiFetch('/caregiver/telemetry-fleet');
-            if (res.success) {
+            if (res.success && res.data) {
                 setData(res.data);
+            } else {
+                setData([]);
             }
         } catch (err) {
             console.error('Failed to fetch fleet telemetry:', err);
@@ -59,7 +61,7 @@ export default function WarRoomPage() {
         return () => clearInterval(interval);
     }, [fetchTelemetry]);
 
-    const filteredData = data.filter(s =>
+    const filteredData = (data || []).filter(s =>
         s.senior_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -80,10 +82,10 @@ export default function WarRoomPage() {
                         <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
                             <Shield className="w-5 h-5 text-primary" />
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Fleet Surveillance</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Patient Monitoring</span>
                     </div>
                     <h1 className="text-5xl font-black text-foreground tracking-tighter">
-                        Clinical <span className="text-primary italic">War Room</span>
+                        Care <span className="text-primary italic">Overview</span>
                     </h1>
                 </div>
 
@@ -92,7 +94,7 @@ export default function WarRoomPage() {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-focus-within:text-primary transition-colors" />
                         <input
                             type="text"
-                            placeholder="Search Fleet..."
+                            placeholder="Search Patients..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="bg-card/40 border border-card-border rounded-[20px] pl-12 pr-6 py-3 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/20 transition-all min-w-[280px]"
@@ -110,7 +112,7 @@ export default function WarRoomPage() {
             {loading && data.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 gap-6">
                     <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30">Synchronizing Telemetry Channels...</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30">Loading patient data...</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -182,8 +184,8 @@ export default function WarRoomPage() {
                                                     <div
                                                         key={i}
                                                         className={`flex-1 rounded-[6px] border transition-all hover:scale-110 hover:z-10 ${dose.status === 'taken' ? 'bg-emerald-500 border-emerald-600/20 shadow-lg shadow-emerald-500/20' :
-                                                                dose.status === 'missed' ? 'bg-red-500 border-red-600/20 shadow-lg shadow-red-500/20' :
-                                                                    'bg-slate-200 dark:bg-slate-800 border-card-border opacity-50'
+                                                            dose.status === 'missed' ? 'bg-red-500 border-red-600/20 shadow-lg shadow-red-500/20' :
+                                                                'bg-slate-200 dark:bg-slate-800 border-card-border opacity-50'
                                                             }`}
                                                         title={`${dose.time} - ${dose.med_name} (${dose.status})`}
                                                     />
@@ -221,8 +223,8 @@ export default function WarRoomPage() {
             {filteredData.length === 0 && !loading && (
                 <div className="text-center py-32 medical-card bg-card/60">
                     <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-6 opacity-30" />
-                    <h3 className="text-2xl font-black tracking-tight text-foreground/40">No Fleet Telemetry Detected</h3>
-                    <p className="text-sm font-bold opacity-30 uppercase tracking-widest mt-2 px-12">Search parameters returned zero operational drones</p>
+                    <h3 className="text-2xl font-black tracking-tight text-foreground/40">No Patients Found</h3>
+                    <p className="text-sm font-bold opacity-30 uppercase tracking-widest mt-2 px-12">Your search returned no matching patients</p>
                 </div>
             )}
         </div>

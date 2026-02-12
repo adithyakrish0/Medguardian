@@ -70,7 +70,8 @@ def senior_pdf_report(senior_id):
     
     # Audit log
     from app.services.audit_service import audit_service
-    audit_service.log_event(
+    audit_service.log_action(
+        user_id=current_user.id,
         action='export_senior_pdf',
         target_id=senior_id,
         details=f"Caregiver exported PDF report for senior ID {senior_id}"
@@ -109,7 +110,8 @@ def fleet_pdf_report():
         
     # Audit log
     from app.services.audit_service import audit_service
-    audit_service.log_event(
+    audit_service.log_action(
+        user_id=current_user.id,
         action='export_fleet_pdf',
         details=f"Caregiver exported fleet-wide PDF report"
     )

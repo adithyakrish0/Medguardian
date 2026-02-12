@@ -717,3 +717,40 @@ def api_medication_count():
     count = Medication.query.filter_by(user_id=current_user.id).count()
     return jsonify({'count': count})
 
+@main.route('/api/caregiver/trigger-panic/<int:senior_id>', methods=['POST'])
+@login_required
+def trigger_panic(senior_id):
+    """Allows a caregiver to trigger a loud alert on senior's dashboard"""
+    if current_user.role != 'caregiver':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        
+    from app.extensions import socketio
+    socketio.emit('panic_alert', {
+        'caregiver_name': current_user.username,
+        'timestamp': datetime.now().strftime('%H:%M')
+    }, room=f"user_{senior_id}")
+    
+    return jsonify({'success': True})
+
+@main.route('/debug/iot-sim')
+@login_required
+def iot_simulator():
+    """Hidden debug page for hardware simulation"""
+    from app.services.iot_service import virtual_iot_service
+    status = virtual_iot_service.get_device_status(current_user.id)
+    return render_template('debug/iot_sim.html', status=status)
+
+@main.route('/api/iot/trigger', methods=['POST'])
+@login_required
+def iot_trigger():
+    """Trigger a virtual hardware event"""
+    from app.services.iot_service import virtual_iot_service
+    data = request.get_json()
+    event_type = data.get('event')
+    med_name = data.get('medication', 'Metformin')
+    
+    if event_type == 'LID_OPENED':
+        virtual_iot_service.trigger_lid_open(current_user.id, med_name)
+        return jsonify({'success': True, 'message': 'Lid open signal sent'})
+    
+    return jsonify({'success': False, 'message': 'Unknown event'})

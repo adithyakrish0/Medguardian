@@ -50,26 +50,25 @@ export default function DashboardLayout({
         }
     };
 
-    const navItems = [
-        { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        { label: "Medications", href: "/medications", icon: Pill },
-    ];
-
-    if (user?.role === 'caregiver') {
-        navItems.push(
-            { label: "Managed Fleet", href: "/caregiver", icon: Users },
-            { label: "War Room", href: "/war-room", icon: Shield },
-            { label: "Analytics", href: "/analytics", icon: LineChart }
-        );
-    }
-
-    navItems.push(
-        { label: "Governance & Privacy", href: "/governance", icon: Lock }
-    );
+    // Role-based navigation - seniors and caregivers see different menus
+    // NOTE: /war-room and /governance routes still exist but hidden from nav for cleaner demo
+    const navItems = user?.role === 'caregiver'
+        ? [
+            // Caregiver navigation
+            { label: "Care Dashboard", href: "/dashboard", icon: LayoutDashboard },
+            { label: "My Patients", href: "/caregiver", icon: Users },
+            { label: "Analytics", href: "/analytics", icon: LineChart },
+        ]
+        : [
+            // Senior navigation
+            { label: "My Dashboard", href: "/dashboard", icon: LayoutDashboard },
+            { label: "My Medications", href: "/medications", icon: Pill },
+            { label: "AI Health Insights", href: "/insights", icon: LineChart },
+        ];
 
     const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
         <div className="flex flex-col h-full relative">
-            <div className={`p-10 pb-16 flex items-center ${isCollapsed && !mobile ? 'justify-center' : 'gap-6'} shrink-0`}>
+            <div className={`p-6 pb-8 flex items-center ${isCollapsed && !mobile ? 'justify-center' : 'gap-4'} shrink-0`}>
                 <div className="w-12 h-12 rounded-[18px] bg-primary flex items-center justify-center text-white font-black shadow-2xl shadow-primary/40 text-xl shrink-0">
                     M
                 </div>
@@ -80,12 +79,12 @@ export default function DashboardLayout({
                         className="whitespace-nowrap"
                     >
                         <span className="text-2xl font-black tracking-tight text-foreground block">MedGuardian</span>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30">Executive Health</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30">Smart Health Assistant</span>
                     </motion.div>
                 )}
             </div>
 
-            <nav className={`mt-6 flex-1 ${isCollapsed && !mobile ? 'px-4' : 'px-8'} space-y-3 overflow-y-auto custom-scrollbar pb-10`}>
+            <nav className={`mt-2 flex-1 ${isCollapsed && !mobile ? 'px-3' : 'px-5'} space-y-1 overflow-y-auto custom-scrollbar pb-4`}>
                 {navItems.map((item) => {
                     const isActive = pathname === item.href;
                     return (
@@ -93,7 +92,7 @@ export default function DashboardLayout({
                             key={item.href}
                             href={item.href}
                             onClick={() => mobile && setIsMobileOpen(false)}
-                            className={`flex items-center ${isCollapsed && !mobile ? 'justify-center' : 'justify-between'} px-5 py-4 rounded-[20px] font-black transition-all group ${isActive
+                            className={`flex items-center ${isCollapsed && !mobile ? 'justify-center' : 'justify-between'} px-4 py-3 rounded-[16px] font-bold transition-all group ${isActive
                                 ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
                                 : 'text-foreground/50 hover:bg-secondary/5 hover:text-foreground'
                                 }`}
@@ -118,13 +117,13 @@ export default function DashboardLayout({
                 })}
             </nav>
 
-            <div className={`p-10 relative shrink-0 bg-card/80 backdrop-blur-md ${isCollapsed && !mobile ? 'flex justify-center' : ''}`}>
+            <div className={`p-5 relative shrink-0 bg-card/80 backdrop-blur-md ${isCollapsed && !mobile ? 'flex justify-center' : ''}`}>
                 <div
                     onClick={() => setIsProfileOpen(true)}
-                    className={`rounded-[28px] bg-background border border-card-border shadow-sm flex items-center relative overflow-hidden group cursor-pointer transition-all ${isProfileOpen ? 'border-primary/40 ring-4 ring-primary/10' : 'hover:border-primary/20'} ${isCollapsed && !mobile ? 'p-3' : 'p-6 gap-4'}`}
+                    className={`rounded-[20px] bg-background border border-card-border shadow-sm flex items-center relative overflow-hidden group cursor-pointer transition-all ${isProfileOpen ? 'border-primary/40 ring-4 ring-primary/10' : 'hover:border-primary/20'} ${isCollapsed && !mobile ? 'p-2' : 'p-4 gap-3'}`}
                 >
                     <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 blur-2xl" />
-                    <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center font-black text-secondary shrink-0 overflow-hidden relative border border-card-border">
+                    <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center font-black text-secondary shrink-0 overflow-hidden relative border border-card-border text-sm">
                         {user?.username?.slice(0, 2).toUpperCase() || 'U'}
                     </div>
                     {(!isCollapsed || mobile) && (
@@ -212,12 +211,14 @@ export default function DashboardLayout({
                     <Menu className="w-6 h-6 text-primary group-hover:rotate-12 transition-transform" />
                 </button>
 
-                <main className="flex-1 py-12 lg:py-24 overflow-y-auto">
-                    <div className="max-w-6xl mx-auto px-12 lg:px-24 pb-24 lg:pb-0">
+                <main className="flex-1 py-8 lg:py-12 overflow-y-auto">
+                    <div className="max-w-7xl mx-auto px-6 lg:px-12 pb-12 lg:pb-0">
                         {children}
                     </div>
                 </main>
+                {/* HIDDEN FOR DEMO - VoiceAssistant (re-enable when stable)
                 <VoiceAssistant />
+                */}
             </div>
 
             {/* Global Background Glows */}

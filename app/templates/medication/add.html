@@ -293,7 +293,8 @@
 
                 <!-- Submit Actions -->
                 <div class="d-grid gap-3 mb-5">
-                    <button type="submit" class="btn btn-primary btn-lg rounded-pill py-3 fw-bold shadow-sm">
+                    <button type="submit" id="submitBtn"
+                        class="btn btn-primary btn-lg rounded-pill py-3 fw-bold shadow-sm">
                         <i class="fas fa-check-circle me-2"></i>Save Medication
                     </button>
                     <a href="{{ url_for('medication.list_medications') }}"
@@ -302,6 +303,41 @@
                     </a>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bio-Safety Safety Modal -->
+<div class="modal fade" id="interactionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white border-0 py-3">
+                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>CLINICAL SAFETY ALERT
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center mb-4">
+                    <div class="display-1 text-danger mb-3">
+                        <i class="fas fa-biohazard"></i>
+                    </div>
+                    <h4 id="conflictTitle" class="fw-bold">Drug Interaction Detected</h4>
+                </div>
+                <div id="interactionDetails" class="alert alert-warning border-start border-4 border-warning">
+                    <!-- Dynamic message goes here -->
+                </div>
+                <p class="text-muted small">
+                    <strong>Warning:</strong> This system uses a curated clinical database. Always consult your
+                    physician before changing medication schedules.
+                </p>
+            </div>
+            <div class="modal-footer border-0 p-3">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">I'll change
+                    it</button>
+                <button type="button" class="btn btn-danger rounded-pill px-4" onclick="bypassWarning()">Proceed (At own
+                    risk)</button>
+            </div>
         </div>
     </div>
 </div>
@@ -561,13 +597,51 @@
         }
     }
 
-    // Clear training data
-    function clearTraining() {
-        document.getElementById('referenceImagesField').value = '';
-        document.getElementById('aiTrainedField').value = 'false';
-        document.getElementById('trainButtonArea').style.display = 'block';
-        document.getElementById('trainingPreviewArea').style.display = 'none';
-        document.getElementById('trainingThumbnails').innerHTML = '';
+    // ==============================================
+    // BIO-SAFETY: DRUG INTERACTION CHECK
+    // ==============================================
+    let interactionModal;
+    document.addEventListener('DOMContentLoaded', function () {
+        interactionModal = new bootstrap.Modal(document.getElementById('interactionModal'));
+        const nameInput = document.getElementById('name');
+
+        let timeout = null;
+        nameInput.addEventListener('input', function () {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                const name = this.value.trim();
+                if (name.length > 2) checkInteractions(name);
+            }, 800);
+        });
+    });
+
+    async function checkInteractions(name) {
+        try {
+            const response = await fetch('/medication/check-interaction', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({ name: name })
+            });
+            const data = await response.json();
+
+            if (data.interactions && data.interactions.length > 0) {
+                const first = data.interactions[0];
+                document.getElementById('conflictTitle').textContent = `Interaction: ${first.med_a} + ${first.med_b}`;
+                document.getElementById('interactionDetails').innerHTML = `<strong>${first.severity} Risk:</strong> ${first.message}`;
+                interactionModal.show();
+            }
+        } catch (error) {
+            console.error('Interaction check failed:', error);
+        }
+    }
+
+    function bypassWarning() {
+        interactionModal.hide();
+        // Optional: change button color to warn
+        document.getElementById('submitBtn').classList.replace('btn-primary', 'btn-warning');
     }
 </script>
 

@@ -7,11 +7,13 @@ import { useUser } from '@/hooks/useUser';
 import { apiFetch } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import AIVerificationModal from '@/components/AIVerificationModal';
+import { SkeletonDashboard, SkeletonCaregiverView } from '@/components/SkeletonLoaders';
 import {
     Activity,
     Clock,
     CheckCircle2,
     AlertCircle,
+    AlertTriangle,
     Zap,
     TrendingUp,
     Calendar,
@@ -25,12 +27,15 @@ import {
     Shield,
     TrendingUp as TrendIcon,
     Calendar as CalendarIcon,
-    Camera
+    Camera,
+    Loader2
 } from 'lucide-react';
 import AdherenceChart from '@/components/AdherenceChart';
 import PhoneSetupModal from '@/components/PhoneSetupModal';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { useToast } from '@/components/NiceToast';
+import BioDigitalTwin from '@/components/BioDigitalTwin';
+
 
 function DashboardContent() {
     const searchParams = useSearchParams();
@@ -41,18 +46,11 @@ function DashboardContent() {
     const { data, loading: dataLoading, error, refresh } = useDashboardData(selectedSeniorId);
     const { user, loading: userLoading, refresh: refreshUser } = useUser();
     const { showToast } = useToast();
+    const [skippingId, setSkippingId] = useState<number | null>(null);
+    const [verifyingMed, setVerifyingMed] = useState<{ id: number, name: string } | null>(null);
 
     if (userLoading) {
-        return (
-            <div className="space-y-12">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="h-44 bg-card/20 border border-card-border rounded-[28px] animate-pulse"></div>
-                    ))}
-                </div>
-                <div className="h-96 bg-card/20 border border-card-border rounded-[32px] animate-pulse"></div>
-            </div>
-        );
+        return <SkeletonDashboard />;
     }
 
     if (error && !dataLoading) {
@@ -80,6 +78,8 @@ function DashboardContent() {
                     user={user}
                     onRefresh={refresh}
                     onRefreshUser={refreshUser}
+                    skippingId={skippingId}
+                    setSkippingId={setSkippingId}
                 />
             )}
         </div>
@@ -92,13 +92,40 @@ function SeniorDashboardView({
     data,
     user,
     onRefresh,
-    onRefreshUser
+    onRefreshUser,
+    skippingId,
+    setSkippingId
 }: {
     data: any;
     user: any;
     onRefresh: () => void;
     onRefreshUser: () => Promise<void>;
+    skippingId: number | null;
+    setSkippingId: (id: number | null) => void;
 }) {
+    // Clear skippingId when the medication is no longer in the list after refresh
+    useEffect(() => {
+        if (skippingId && data?.schedule) {
+            const allMeds = [
+                ...(data.schedule.missed || []),
+                ...(data.schedule.upcoming || []),
+                ...(data.schedule.taken || []),
+                ...(data.schedule.skipped || [])
+            ];
+            const stillInList = allMeds.some((m: any) => m.id === skippingId);
+
+            // If it's a skip, we specifically check if it's still in 'missed' or 'upcoming'
+            // because once skipped, it moves to 'skipped' section (if visible)
+            const isPending = [
+                ...(data.schedule.missed || []),
+                ...(data.schedule.upcoming || [])
+            ].some((m: any) => m.id === skippingId);
+
+            if (!isPending) {
+                setSkippingId(null);
+            }
+        }
+    }, [data, skippingId, setSkippingId]);
     const nextMed = data?.schedule?.upcoming?.[0];
     const takenToday = data?.schedule?.taken?.length ?? 0;
     const { showToast } = useToast();
@@ -110,11 +137,9 @@ function SeniorDashboardView({
     useEffect(() => {
         if (!user?.id) return;
 
-        console.log('🔗 Connecting to Live Sync Relay for senior:', user.id);
         const socket = connectSocket(user.id);
 
         socket.on('medication_reminder', (payload: any) => {
-            console.log('💊 REMINDER RECEIVED:', payload);
             if (payload.type === 'caregiver_nudge') {
                 setNudge(payload);
                 onRefresh();
@@ -125,7 +150,6 @@ function SeniorDashboardView({
         });
 
         socket.on('camera_request', (payload: any) => {
-            console.log('🚨 CAMERA REQUEST RECEIVED:', payload);
             if (user?.camera_auto_accept) {
                 setVerifyingMed({ id: 0, name: 'Caregiver Checkup' });
                 showToast('Camera session starting automatically...');
@@ -172,7 +196,7 @@ function SeniorDashboardView({
     const totalDosesToday = (data?.schedule?.taken?.length || 0) + (data?.schedule?.missed?.length || 0);
     const realAdherence = totalDosesToday > 0
         ? Math.round(((data?.schedule?.taken?.length || 0) / totalDosesToday) * 100)
-        : 100;
+        : (data?.stats?.total > 0 ? 100 : null);
 
     // Build realistic history based on account creation
     const generateRealisticHistory = (range: string) => {
@@ -198,8 +222,9 @@ function SeniorDashboardView({
                 if (i === 0) d.setDate(now.getDate()); // Last point is today
             }
 
-            const checkDate = new Date(d.setHours(23, 59, 59, 999));
-            const isLocked = accountCreatedAt ? checkDate < new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : false;
+            const checkDateStartOfDay = new Date(d.setHours(0, 0, 0, 0));
+            const accountCreatedDate = accountCreatedAt ? new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : null;
+            const isLocked = accountCreatedDate ? checkDateStartOfDay < accountCreatedDate : false;
 
             // Mark as establishment if this is the transition point from Locked to Unlocked
             let isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
@@ -207,7 +232,7 @@ function SeniorDashboardView({
             // Special Case: If the very FIRST point in the chart is NOT locked, but account was created RECENTLY
             // (within this point's window), it might be the establishment point.
             if (i === points - 1 && !isLocked && accountCreatedAt) {
-                const startOfRange = new Date(checkDate);
+                const startOfRange = new Date(d); // Already start of day from line 202
                 if (unit === 'day') startOfRange.setDate(startOfRange.getDate() - 1);
                 else startOfRange.setMonth(startOfRange.getMonth() - 1);
 
@@ -215,7 +240,7 @@ function SeniorDashboardView({
             }
 
             const isToday = i === 0 && unit === 'day';
-            let adherence: number;
+            let adherence: number | null;
 
             if (isToday) {
                 adherence = realAdherence;
@@ -262,7 +287,7 @@ function SeniorDashboardView({
                 date: unit === 'day'
                     ? (range === '1M' ? d.toLocaleDateString([], { day: 'numeric', month: 'short' }) : d.toLocaleDateString([], { weekday: 'short' }))
                     : d.toLocaleDateString([], { month: 'short' }),
-                adherence: Math.max(0, Math.min(100, adherence)),
+                adherence: isLocked ? 0 : Math.max(0, Math.min(100, (adherence ?? 0))),
                 isLocked,
                 isEstablishment
             });
@@ -275,14 +300,17 @@ function SeniorDashboardView({
     return (
         <div className="space-y-12 py-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
             {/* Phone Setup Modal */}
+            {/* HIDDEN FOR DEMO - PhoneSetupModal
             <PhoneSetupModal
                 isOpen={isPhoneModalOpen}
                 onClose={() => setIsPhoneModalOpen(false)}
                 currentPhone={user?.phone}
                 onSuccess={handleUpdatePhone}
             />
-            {/* Connection Requests */}
+            */}
+            {/* HIDDEN FOR DEMO - Connection Requests
             <ConnectionRequests />
+            */}
 
             {/* Greeting */}
             <header className="mb-16">
@@ -394,35 +422,63 @@ function SeniorDashboardView({
                                 </span>
                             </div>
 
-                            {data.schedule.missed.map((med: any) => (
-                                <div key={med.id} className="flex flex-col md:flex-row justify-between items-center gap-6 bg-white/10 rounded-3xl p-6">
-                                    <div className="text-center md:text-left">
-                                        <h3 className="text-4xl md:text-5xl font-black tracking-tight">{med.name}</h3>
-                                        <p className="text-lg font-bold opacity-80">
-                                            Was due at {med.scheduled_time || 'earlier today'} • {med.dosage}
-                                        </p>
-                                    </div>
+                            <AnimatePresence mode="popLayout">
+                                {data.schedule.missed.map((med: any) => (
+                                    <motion.div
+                                        key={`${med.id}-${med.scheduled_time || 'missed'}`}
+                                        layout
+                                        initial={false}
+                                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                                        exit={{
+                                            opacity: 0,
+                                            x: -100,
+                                            scale: 0.9,
+                                            transition: { duration: 0.4, ease: "easeOut" }
+                                        }}
+                                        className="flex flex-col md:flex-row justify-between items-center gap-6 bg-white/10 rounded-3xl p-6"
+                                    >
+                                        <div className="text-center md:text-left">
+                                            <h3 className="text-4xl md:text-5xl font-black tracking-tight">{med.name}</h3>
+                                            <p className="text-lg font-bold opacity-80">
+                                                Was due at {med.scheduled_time || 'earlier today'} • {med.dosage}
+                                            </p>
+                                        </div>
 
-                                    <div className="flex gap-4">
-                                        <button
-                                            onClick={() => setVerifyingMed({ id: med.id, name: med.name })}
-                                            className="px-8 py-4 bg-white text-red-600 rounded-2xl text-lg font-black shadow-xl hover:scale-105 transition-all flex items-center gap-2"
-                                        >
-                                            <Play className="w-5 h-5 fill-current" />
-                                            Take Now
-                                        </button>
-                                        <button
-                                            onClick={async () => {
-                                                await apiFetch(`/medications/${med.id}/skip`, { method: 'POST' });
-                                                onRefresh();
-                                            }}
-                                            className="px-6 py-4 bg-white/20 text-white rounded-2xl text-lg font-bold hover:bg-white/30 transition-all"
-                                        >
-                                            Skip Today
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                                        <div className="flex gap-4">
+                                            <button
+                                                onClick={() => setVerifyingMed({ id: med.id, name: med.name })}
+                                                className="px-8 py-4 bg-white text-red-600 rounded-2xl text-lg font-black shadow-xl hover:scale-105 transition-all flex items-center gap-2"
+                                            >
+                                                <Play className="w-5 h-5 fill-current" />
+                                                Take Now
+                                            </button>
+                                            <motion.button
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                disabled={skippingId === med.id}
+                                                onClick={async () => {
+                                                    setSkippingId(med.id);
+                                                    try {
+                                                        await apiFetch(`/medications/${med.id}/skip`, { method: 'POST' });
+                                                        onRefresh();
+                                                        // Don't clear skippingId here anymore
+                                                        // Let the useEffect below handle it when the med is gone from data
+                                                    } catch (err) {
+                                                        console.error('Error skipping:', err);
+                                                        setSkippingId(null); // Clear only on error
+                                                    }
+                                                }}
+                                                className="px-6 py-4 bg-white/20 text-white rounded-2xl text-lg font-bold hover:bg-white/30 transition-all flex items-center gap-2 disabled:opacity-50"
+                                            >
+                                                {skippingId === med.id ? (
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                ) : null}
+                                                Skip Today
+                                            </motion.button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
                         </div>
                     </motion.div>
                 )}
@@ -487,11 +543,23 @@ function SeniorDashboardView({
                             <Heart className="w-12 h-12 fill-current" />
                         </div>
                         <div>
-                            <p className="text-5xl font-black text-foreground">{data?.stats?.adherence ?? 100}%</p>
+                            <p className="text-5xl font-black text-foreground">{realAdherence !== null ? `${realAdherence}%` : "---"}</p>
                             <p className="text-xl font-bold opacity-50 italic">Health Score</p>
                         </div>
                     </div>
                 </div>
+
+                {/* Bio-Digital Twin (PK Model) */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="medical-card p-10 bg-card/40 backdrop-blur-xl border border-card-border/50 overflow-hidden relative"
+                >
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+                    <BioDigitalTwin />
+                </motion.div>
+
 
                 {/* Encouraging Message */}
                 <motion.div
@@ -712,7 +780,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
     const takenCount = recentLogs.filter((log: any) => log.taken_correctly).length;
     const missedCount = alerts.length; // Alerts are missed doses
     const totalDoses = takenCount + missedCount;
-    const realAdherence = totalDoses > 0 ? Math.round((takenCount / totalDoses) * 100) : 100;
+    const realAdherence = totalDoses > 0 ? Math.round((takenCount / totalDoses) * 100) : null;
 
     // Build realistic history based on logs and selected time range
     const generateRealisticHistory = (range: string) => {
@@ -739,15 +807,16 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
             }
 
             // Normalize time to start of day for accurate comparison
-            const checkDate = new Date(d.setHours(23, 59, 59, 999));
-            const isLocked = accountCreatedAt ? checkDate < new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : false;
+            const startOfDay = new Date(d.setHours(0, 0, 0, 0));
+            const accountCreatedDate = accountCreatedAt ? new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : null;
+            let isLocked = accountCreatedDate ? startOfDay < accountCreatedDate : false;
 
             // Mark as establishment if this is the transition point from Locked to Unlocked
             let isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
 
             // Special Case: If the very FIRST point in the chart is NOT locked, but account was created RECENTLY
             if (i === points - 1 && !isLocked && accountCreatedAt) {
-                const startOfRange = new Date(checkDate);
+                const startOfRange = new Date(startOfDay);
                 if (unit === 'day') startOfRange.setDate(startOfRange.getDate() - 1);
                 else startOfRange.setMonth(startOfRange.getMonth() - 1);
 
@@ -755,43 +824,41 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
             }
 
             const isToday = i === 0 && unit === 'day';
-            let adherence: number;
+            let adherence: number | null;
 
             if (isToday) {
                 adherence = realAdherence;
             } else if (isLocked) {
-                adherence = 0;
+                adherence = null; // Locked days should be null, not 0
             } else {
                 if (unit === 'month') {
                     // Average all real history points for this month
-                    const monthYear = d.toISOString().substring(0, 7); // "YYYY-MM"
+                    const monthYear = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
                     const monthPoints = data?.stats?.history?.filter((h: any) => h.full_date.startsWith(monthYear));
 
                     if (monthPoints && monthPoints.length > 0) {
                         const activeDays = monthPoints.filter((h: any) => h.expected > 0);
                         const sourcePoints = activeDays.length > 0 ? activeDays : monthPoints;
-                        const sum = sourcePoints.reduce((acc: number, cur: any) => acc + cur.adherence, 0);
+                        const sum = sourcePoints.reduce((acc: number, cur: any) => acc + (cur.adherence || 0), 0);
                         adherence = Math.round(sum / sourcePoints.length);
                     } else {
-                        const seed = d.getDate() + d.getMonth() * 31;
-                        const variance = (seed % 15);
-                        adherence = 98 - variance;
+                        adherence = null;
                     }
                 } else {
-                    // Day unit - check specific date
-                    const checkString = d.toISOString().split('T')[0];
+                    // Day unit - check specific date using local YYYY-MM-DD
+                    const checkString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                     const realPoint = data?.stats?.history?.find((h: any) => h.full_date === checkString);
 
                     if (realPoint) {
                         adherence = realPoint.adherence;
+                        if (realPoint.isLocked) isLocked = true;
                     } else {
-                        const seed = d.getDate() + d.getMonth() * 31;
-                        const variance = (seed % 15);
-                        adherence = 98 - variance;
+                        adherence = null;
+                        isLocked = true;
                     }
                 }
             }
-            if (alerts.length > 0 && i > 0 && i < 3 && unit === 'day' && range === '7D') {
+            if (adherence !== null && alerts.length > 0 && i > 0 && i < 3 && unit === 'day' && range === '7D') {
                 adherence -= (10 * (3 - i));
             }
 
@@ -800,7 +867,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                     ? (range === '1M' ? d.toLocaleDateString([], { day: 'numeric', month: 'short' }) : d.toLocaleDateString([], { weekday: 'short' }))
                     : d.toLocaleDateString([], { month: 'short' }),
                 fullDate: d.setHours(0, 0, 0, 0),
-                adherence: Math.max(0, Math.min(100, adherence)),
+                adherence: isLocked ? 0 : Math.max(0, Math.min(100, (adherence ?? 0))),
                 isLocked,
                 isEstablishment
             });
@@ -813,10 +880,15 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
     const stats = [
         {
             label: "Adherence Precision",
-            value: `${realAdherence}%`,
+            value: realAdherence !== null ? `${realAdherence}%` : "---",
             trend: data?.stats?.history?.length > 0
-                ? `${Math.round(data.stats.history.reduce((a: any, b: any) => a + b.adherence, 0) / data.stats.history.length)}% 7-Day Average`
-                : "Optimal Range",
+                ? (() => {
+                    const validPoints = data.stats.history.filter((h: any) => h.adherence !== null);
+                    if (validPoints.length === 0) return "No History Found";
+                    const avg = Math.round(validPoints.reduce((a: number, b: any) => a + b.adherence, 0) / validPoints.length);
+                    return `${avg}% 7-Day Average`;
+                })()
+                : (realAdherence === null ? "Profile Newly Created" : "Optimal Range"),
             icon: Activity,
             color: alerts.length > 0 ? "text-red-500" : "text-accent",
             bg: alerts.length > 0 ? "bg-red-500/10" : "bg-accent/10"
@@ -824,13 +896,13 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
         {
             label: "Active Protocols",
             value: (data?.stats?.total ?? 0).toString(),
-            trend: data?.schedule?.upcoming?.[0] ? `Next: ${data.schedule.upcoming[0].name}` : "Verified",
+            trend: data?.schedule?.upcoming?.[0] ? `Next: ${data.schedule.upcoming[0].name}` : (data?.stats?.total > 0 ? "(Shift Complete)" : "No Active Meds"),
             icon: Clock,
             color: "text-primary",
             bg: "bg-primary/10"
         },
         {
-            label: "Fleet Health",
+            label: "Patients",
             value: seniors.length.toString(),
             trend: `${data?.schedule?.taken?.length ?? 0} Logs Finalized`,
             icon: Zap,
@@ -848,8 +920,8 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                         <Users className="w-6 h-6" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-black tracking-tight">Active Surveillance</h3>
-                        <p className="text-[10px] font-black opacity-30 uppercase tracking-widest">Linked Senior Accounts</p>
+                        <h3 className="text-lg font-black tracking-tight">Patient View</h3>
+                        <p className="text-[10px] font-black opacity-30 uppercase tracking-widest">Linked Patient Accounts</p>
                     </div>
                 </div>
 
@@ -898,7 +970,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
 
                         <div className="flex flex-wrap gap-2">
                             {alerts.slice(0, 3).map((alert, i) => (
-                                <div key={i} className="bg-white/10 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 flex items-center gap-3">
+                                <div key={`${alert.senior_id}-${alert.medication_id}-${i}`} className="bg-white/10 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 flex items-center gap-3">
                                     <span>{alert.senior_name}: {alert.medication_name}</span>
                                     <button
                                         onClick={() => sendReminder(alert.senior_id, alert.medication_id)}
@@ -933,7 +1005,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                         </div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 mb-1">{stat.label}</p>
                         <p className="text-4xl font-black text-foreground tracking-tight leading-none mb-4">{stat.value}</p>
-                        <p className={`text-xs font-black uppercase tracking-widest ${stat.color} opacity-80 flex items-center gap-2`}>
+                        <p className={`text-xs font-black uppercase tracking-widest ${stat.color} flex items-center gap-2`}>
                             {stat.trend}
                         </p>
                     </motion.div>
@@ -985,13 +1057,18 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                         {
                             label: `${timeRange} Avg Compliance`,
                             value: (() => {
-                                const activePoints = chartHistory.filter(h => !h.isLocked);
+                                const activePoints = chartHistory.filter(h => h.adherence !== null && !h.isLocked);
                                 if (activePoints.length === 0) return '---';
-                                const sum = activePoints.reduce((acc, curr) => acc + curr.adherence, 0);
+                                const sum = activePoints.reduce((acc, curr) => acc + (curr.adherence || 0), 0);
                                 return `${Math.round(sum / activePoints.length)}%`;
                             })()
                         },
-                        { label: `${timeRange} Peak`, value: `${Math.max(...chartHistory.map(h => h.adherence))}%` },
+                        {
+                            label: `${timeRange} Peak`, value: (() => {
+                                const validAdherence = chartHistory.filter(h => h.adherence !== null).map(h => h.adherence);
+                                return validAdherence.length > 0 ? `${Math.max(...validAdherence)}%` : '---';
+                            })()
+                        },
                         { label: 'Consistency', value: alerts.length > 2 ? 'Low' : alerts.length > 0 ? 'Medium' : 'High' },
                         { label: 'Trend Phase', value: alerts.length > 0 ? 'Declining' : 'Ascending' }
                     ].map((stat, i) => (
@@ -1013,27 +1090,38 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                     <div className="flex justify-between items-center mb-10">
                         <div className="flex items-center gap-3">
                             <Calendar className="w-6 h-6 text-primary" />
-                            <h3 className="text-2xl font-black text-foreground tracking-tight">Fleet activity</h3>
+                            <h3 className="text-2xl font-black text-foreground tracking-tight">Recent Activity</h3>
                         </div>
                     </div>
 
                     <div className="space-y-4">
-                        {recentLogs.map((log) => (
-                            <div key={log.id} className="flex items-center gap-5 p-5 rounded-[24px] border border-card-border bg-background/30 hover:bg-card transition-all group">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${log.taken_correctly ? 'bg-accent/10 text-accent' : 'bg-red-500/10 text-red-500'}`}>
-                                    {log.taken_correctly ? <CheckCircle2 className="w-7 h-7" /> : <AlertCircle className="w-7 h-7" />}
+                        {recentLogs.map((log) => {
+                            const status = log.status || (log.taken_correctly ? 'verified' : 'skipped');
+                            const statusConfigs: Record<string, { bg: string, icon: any, label: string }> = {
+                                verified: { bg: 'bg-accent/10 text-accent', icon: CheckCircle2, label: 'Verified' },
+                                skipped: { bg: 'bg-red-500/10 text-red-500', icon: AlertCircle, label: 'Skipped' },
+                                missed: { bg: 'bg-amber-500/10 text-amber-500', icon: AlertTriangle, label: 'Missed' }
+                            };
+                            const statusConfig = statusConfigs[status] || statusConfigs.skipped;
+                            const StatusIcon = statusConfig.icon;
+
+                            return (
+                                <div key={log.id} className="flex items-center gap-5 p-5 rounded-[24px] border border-card-border bg-background/30 hover:bg-card transition-all group">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${statusConfig.bg}`}>
+                                        <StatusIcon className="w-7 h-7" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-black text-foreground tracking-tight text-lg leading-tight">
+                                            {log.senior_name}: {log.medication_name}
+                                        </p>
+                                        <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mt-1">
+                                            {statusConfig.label} • {log.scheduled_time || new Date(log.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 opacity-10 group-hover:opacity-100 transition-opacity" />
                                 </div>
-                                <div className="flex-1">
-                                    <p className="font-black text-foreground tracking-tight text-lg leading-tight">
-                                        {log.senior_name}: {log.medication_name}
-                                    </p>
-                                    <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mt-1">
-                                        {log.taken_correctly ? 'Verified' : 'Skipped'} • {new Date(log.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                </div>
-                                <ChevronRight className="w-4 h-4 opacity-10 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                        ))}
+                            );
+                        })}
 
                         {recentLogs.length === 0 && (
                             <div className="py-20 text-center opacity-30">
@@ -1051,10 +1139,10 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
                     className={`medical-card p-10 shadow-2xl relative overflow-hidden flex flex-col justify-between transition-colors duration-500 ${(data?.stats?.predictive?.anomalies?.some((a: any) => a.severity === 'high'))
-                            ? 'bg-red-600 text-white shadow-red-500/40'
-                            : (data?.stats?.predictive?.anomalies?.length > 0)
-                                ? 'bg-amber-600 text-white shadow-amber-500/40'
-                                : 'bg-primary/95 text-white shadow-primary/40'
+                        ? 'bg-red-600 text-white shadow-red-500/40'
+                        : (data?.stats?.predictive?.anomalies?.length > 0)
+                            ? 'bg-amber-600 text-white shadow-amber-500/40'
+                            : 'bg-primary/95 text-white shadow-primary/40'
                         }`}
                 >
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
@@ -1086,7 +1174,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                                     ? data.stats.predictive.anomalies[0].message
                                     : alerts.length > 0
                                         ? `Protocol deviation detected. ${alerts[0].senior_name} has missed a dosage sequence. Proactive reminder suggested.`
-                                        : "Fleet stability optimized. Adherence precision remains within expected parameters."}&quot;
+                                        : "All patients on track. Adherence levels are healthy."}&quot;
                             </p>
 
                             {data?.stats?.predictive?.anomalies?.length > 1 && (
@@ -1110,7 +1198,7 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }
                             onClick={() => window.location.href = '/api/v1/caregiver/export/fleet/pdf'}
                             className="flex-1 py-4 bg-white text-primary rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-black/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
                         >
-                            Export Fleet Report
+                            Export Report
                             <ArrowRight className="w-4 h-4" />
                         </button>
                         {data?.stats?.predictive?.anomalies?.length > 0 && (

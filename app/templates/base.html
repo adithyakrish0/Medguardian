@@ -277,6 +277,7 @@
     <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
     <script src="{{ url_for('static', filename='js/confirmations.js') }}"></script>
 
+    <script src="{{ url_for('static', filename='js/modules/accessibility_engine.js') }}"></script>
     {% if current_user.is_authenticated %}
     <!-- Camera & Verification Modules -->
     <script src="{{ url_for('static', filename='js/modules/camera_capture.js') }}"></script>
@@ -285,7 +286,7 @@
 
     <!-- CRITICAL: Set currentUserId BEFORE loading reminder_system.js -->
     <script>
-        const currentUserId = {{ current_user.id|default (0) | tojson }};
+        const currentUserId = {{ current_user.id|default (0) | tojson | safe }};
         window.currentUserId = currentUserId;
         console.log('✅ User ID set:', window.currentUserId);
     </script>

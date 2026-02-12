@@ -57,8 +57,10 @@ class NotificationService:
         
         try:
             if room:
+                logger.info(f"[SocketIO] Emitting '{event}' to room '{room}' | Data: {data}")
                 self.socketio.emit(event, data, room=room, namespace=namespace)
             else:
+                logger.info(f"[SocketIO] Emitting '{event}' globally | Data: {data}")
                 self.socketio.emit(event, data, namespace=namespace)
             
             logger.info(f"SocketIO event sent: {event}")

@@ -1,4 +1,5 @@
 """API v1 - Verification endpoints"""
+import traceback
 from flask import jsonify, request
 from flask_login import login_required, current_user
 from . import api_v1
@@ -107,7 +108,6 @@ def detect_hand():
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response, 200
     
-    import traceback
     try:
         data = request.json
         

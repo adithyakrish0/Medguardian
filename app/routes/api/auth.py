@@ -1,6 +1,7 @@
 """API v1 - Auth endpoints"""
 import os
 import sys
+import traceback
 from flask import jsonify, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from . import api_v1
@@ -53,7 +54,6 @@ def api_login():
             }
         }), 200
     except Exception as e:
-        import traceback
         traceback.print_exc()
         print(f"[CRITICAL] Login error: {e}", file=sys.stderr, flush=True)
         return jsonify({'success': False, 'message': 'Login failed', 'error': str(e)}), 500

@@ -52,11 +52,11 @@ export default function CaregiverPage() {
                 setSeniors(response.data);
             }
         } catch (err) {
-            console.error('Failed to fetch seniors:', err);
+            // Silently handle error - loading state will show empty
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, []);;
 
     const handleRemoveSenior = (seniorId: number, seniorName: string) => {
         setSeniorToDisconnect({ id: seniorId, name: seniorName });
@@ -77,7 +77,6 @@ export default function CaregiverPage() {
                 setShowDisconnectModal(false);
             }
         } catch (err) {
-            console.error('Failed to remove senior:', err);
             showToast('Failed to disconnect senior', 'error');
         } finally {
             setIsDisconnecting(false);
@@ -108,7 +107,7 @@ export default function CaregiverPage() {
 
     return (
         <div className="max-w-6xl mx-auto px-12 lg:px-24 space-y-12 py-12">
-            {/* Command Center Header */}
+            {/* Care Dashboard Header */}
             <header className="relative py-8 px-10 medical-card bg-primary text-white overflow-hidden rounded-[40px] shadow-3xl shadow-primary/20">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50" />
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/20 rounded-full -ml-32 -mb-32 blur-3xl opacity-30" />
@@ -125,14 +124,14 @@ export default function CaregiverPage() {
                             </button>
                             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full text-[9px] font-black uppercase tracking-[0.2em] border border-white/10">
                                 <ShieldCheck className="w-3 h-3 text-accent" />
-                                Live Surveillance System
+                                Live Monitoring
                             </div>
                         </div>
                         <h1 className="text-4xl lg:text-6xl font-black tracking-tighter italic leading-none">
-                            Caregiver <span className="text-accent underline decoration-white/20 underline-offset-8">Command</span>
+                            Caregiver <span className="text-accent underline decoration-white/20 underline-offset-8">Dashboard</span>
                         </h1>
                         <p className="text-lg font-medium text-white/60 max-w-xl">
-                            Real-time health telemetry & compliance monitoring.
+                            Real-time health monitoring & adherence tracking.
                         </p>
                     </div>
 
@@ -149,9 +148,9 @@ export default function CaregiverPage() {
             {/* Global Telemetry Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {[
-                    { label: "Fleet Adherence", value: seniors.length > 0 ? "94.2%" : "---", icon: Activity, color: "text-accent", bg: "bg-accent/10" },
-                    { label: "Active Sensors", value: seniors.length > 0 ? (seniors.length * 3).toString() : "0", icon: Zap, color: "text-primary", bg: "bg-primary/10" },
-                    { label: "Alert Severity", value: "NOMINAL", icon: ShieldCheck, color: "text-secondary", bg: "bg-secondary/10" }
+                    { label: "Patient Adherence", value: seniors.length > 0 ? "94.2%" : "---", icon: Activity, color: "text-accent", bg: "bg-accent/10" },
+                    { label: "Active Patients", value: seniors.length > 0 ? seniors.length.toString() : "0", icon: Zap, color: "text-primary", bg: "bg-primary/10" },
+                    { label: "Status", value: "All Good", icon: ShieldCheck, color: "text-secondary", bg: "bg-secondary/10" }
                 ].map((stat, i) => (
                     <motion.div
                         key={i}
@@ -183,7 +182,7 @@ export default function CaregiverPage() {
             <div className="space-y-8">
                 <div className="flex items-center justify-between px-4">
                     <h2 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-4">
-                        Patient Fleet
+                        My Patients
                         <span className="text-xs font-black px-3 py-1 bg-primary/10 text-primary rounded-full uppercase tracking-widest">{seniors.length} Registered</span>
                     </h2>
                 </div>
@@ -192,7 +191,7 @@ export default function CaregiverPage() {
                     {loading ? (
                         <div className="md:col-span-3 py-32 flex flex-col items-center justify-center medical-card bg-card/20 backdrop-blur-sm rounded-[48px] border-dashed border-4 border-card-border">
                             <Loader2 className="w-16 h-16 text-primary animate-spin mb-6" />
-                            <p className="font-black text-foreground/40 uppercase tracking-[0.3em] text-sm">Syncing Neural Health Feed...</p>
+                            <p className="font-black text-foreground/40 uppercase tracking-[0.3em] text-sm">Loading patient data...</p>
                         </div>
                     ) : (
                         <>
@@ -247,19 +246,23 @@ export default function CaregiverPage() {
                                         </div>
 
                                         <div className="flex-1 space-y-6">
-                                            <div className="bg-background/40 border border-card-border/50 p-6 rounded-[32px] group-hover:bg-white/5 transition-all">
+                                            <div className="bg-background/40 border border-card-border/50 p-4 rounded-[28px] group-hover:bg-white/5 transition-all">
                                                 <div className="flex justify-between items-center mb-4">
                                                     <p className="text-[9px] opacity-30 font-black uppercase tracking-widest flex items-center gap-2">
                                                         <TrendingUp className="w-3 h-3 text-primary" />
                                                         Daily Progress
                                                     </p>
                                                     <span className={`text-xs font-black ${senior.status === 'Critical' ? 'text-red-500' : 'text-primary'}`}>
-                                                        {senior.connection_status === 'accepted' ? `${senior.adherence_history[senior.adherence_history.length - 1].adherence}%` : '---'}
+                                                        {senior.connection_status === 'accepted' && senior.adherence_history?.length > 0
+                                                            ? (senior.adherence_history[senior.adherence_history.length - 1]?.adherence !== null
+                                                                ? `${senior.adherence_history[senior.adherence_history.length - 1].adherence}%`
+                                                                : '---')
+                                                            : '---'}
                                                     </span>
                                                 </div>
                                                 {senior.connection_status === 'accepted' && (
-                                                    <div className="h-32 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                        <AdherenceChart data={senior.adherence_history} />
+                                                    <div className="h-24 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                        <AdherenceChart data={senior.adherence_history} variant="mini" />
                                                     </div>
                                                 )}
                                             </div>
@@ -285,16 +288,16 @@ export default function CaregiverPage() {
                                                 <>
                                                     <button
                                                         onClick={() => handleReport(senior.id)}
-                                                        className="py-4 bg-primary text-white rounded-[20px] font-black shadow-lg shadow-primary/20 hover:scale-[1.05] transition-all flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest"
+                                                        className="py-3 bg-primary text-white rounded-[16px] font-black shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2 text-[9px] uppercase tracking-widest whitespace-nowrap"
                                                     >
-                                                        <Activity className="w-4 h-4" />
-                                                        Deep Audit
+                                                        <Activity className="w-3.5 h-3.5" />
+                                                        View Details
                                                     </button>
                                                     <button
                                                         onClick={() => handleContact(senior)}
-                                                        className="py-4 bg-background border border-card-border text-foreground/50 rounded-[20px] font-black hover:text-foreground hover:bg-card transition-all flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest"
+                                                        className="py-3 bg-background border border-card-border text-foreground/50 rounded-[16px] font-black hover:text-foreground hover:bg-card transition-all flex items-center justify-center gap-2 text-[9px] uppercase tracking-widest"
                                                     >
-                                                        <MessageSquare className="w-4 h-4" />
+                                                        <MessageSquare className="w-3.5 h-3.5" />
                                                         Contact
                                                     </button>
                                                 </>
@@ -320,8 +323,8 @@ export default function CaregiverPage() {
                                 <div className="w-24 h-24 rounded-[32px] bg-primary/10 flex items-center justify-center mb-6 group-hover:rotate-12 transition-transform duration-500">
                                     <Plus className="w-12 h-12 text-primary" />
                                 </div>
-                                <h3 className="text-3xl font-black tracking-tight text-foreground/40 group-hover:text-primary transition-colors italic">Attach Fleet</h3>
-                                <p className="text-[10px] mt-4 font-black uppercase tracking-[0.2em] opacity-30 max-w-[180px]">Synchronize new patient telemetry via secure token exchange</p>
+                                <h3 className="text-3xl font-black tracking-tight text-foreground/40 group-hover:text-primary transition-colors italic">Add Patient</h3>
+                                <p className="text-[10px] mt-4 font-black uppercase tracking-[0.2em] opacity-30 max-w-[180px]">Connect a new patient using their share code</p>
                             </motion.div>
                         </>
                     )}

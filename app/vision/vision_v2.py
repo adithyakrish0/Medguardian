@@ -240,14 +240,15 @@ class VisionEngineV2:
             logger.error(f"Hand detection error: {e}")
             return {'success': False, 'hand_detected': False, 'error': str(e)}
 
-    def process_frame(self, image_base64, expected_features=None, reference_histogram=None):
+    def process_frame(self, image_base64, expected_features=None, reference_histogram=None, reference_embedding=None):
         """
-        Triple-Layer Verification Pipeline.
+        Quad-Layer Verification Pipeline with Multi-Angle Robustness.
         
         Args:
             image_base64: Base64 encoded camera frame
-            expected_features: Stored ORB descriptors for Layer 2 (np.ndarray)
-            reference_histogram: Stored color histogram for Layer 3 (np.ndarray)
+            expected_features: Stored ORB descriptors
+            reference_histogram: Stored color histogram
+            reference_embedding: List of stored deep embeddings (one per angle)
             
         Returns:
             Dict with verification results for all three layers
@@ -326,7 +327,27 @@ class VisionEngineV2:
                 
                 # Layer 3 passes if correlation >= threshold
                 layer3_pass = histogram_score >= self.HISTOGRAM_CORRELATION_THRESHOLD
-                logger.info(f"Layer 3 (Histogram): {'PASS' if layer3_pass else 'FAIL'} - Correlation: {histogram_score:.3f} (need {self.HISTOGRAM_CORRELATION_THRESHOLD})")
+                logger.info(f"Layer 3 (Histogram): {'PASS' if layer3_pass else 'FAIL'} - Correlation: {histogram_score:.3f}")
+
+        # ===== LAYER 4: Deep Embedding Matching (Personalized AI) =====
+        layer4_pass = False
+        similarity_score = 0.0
+        
+        if reference_embedding is not None:
+            # Ensure it's handled as a list of embeddings (Multi-Angle)
+            target_list = reference_embedding if isinstance(reference_embedding[0], list) else [reference_embedding]
+            
+            from app.services.embedding_service import embedding_service
+            live_embedding = embedding_service.extract_embedding(image_base64)
+            
+            if live_embedding is not None:
+                # Perform Max-Pooling Similarity across all trained angles
+                similarities = [embedding_service.cosine_similarity(ref, live_embedding) for ref in target_list]
+                similarity_score = max(similarities)
+                
+                # Similarity Threshold: 0.88 (Increased slightly for deep features)
+                layer4_pass = similarity_score >= 0.88
+                logger.info(f"Layer 4 (Embedding): {'PASS' if layer4_pass else 'FAIL'} - Max Similarity: {similarity_score:.3f} across {len(target_list)} angles")
 
         # ===== FINAL VERIFICATION =====
         # All three layers must pass for full verification
@@ -348,6 +369,11 @@ class VisionEngineV2:
             layers_checked.append('histogram')
             if layer3_pass:
                 layers_passed.append('histogram')
+
+        if reference_embedding is not None:
+            layers_checked.append('embedding')
+            if layer4_pass:
+                layers_passed.append('embedding')
         
         
         # FINAL VERIFICATION LOGIC (Majority Vote)
@@ -381,14 +407,18 @@ class VisionEngineV2:
         if is_verified:
             if 'features' in layers_passed:
                 message = "✅ Verified by Label Scan (Trusted)"
+            elif 'embedding' in layers_passed:
+                message = "✅ Verified by Deep Visual Identity"
             elif passed_count == checked_count:
                 message = "✅ Perfect Match (100%)"
             else:
                 message = f"✅ Verified (Majority Match: {passed_count}/{checked_count})"
         else:
-            # Special Feedback: Shape+Color pass, but Label fail
-            if 'detection' in layers_passed and 'histogram' in layers_passed and 'features' not in layers_passed:
-                message = "⚠️ Visual Match - PLEASE SHOW LABEL"
+            # Orientation Guidance Logic
+            if 'detection' in layers_passed and 'histogram' in layers_passed and 'embedding' not in layers_passed:
+                message = "🔄 Rotate bottle to show the front/label"
+            elif 'detection' in layers_passed and 'histogram' not in layers_passed:
+                message = "💡 Please improve lighting or centering"
             else:
                 failed_layers = [l for l in layers_checked if l not in layers_passed]
                 message = f"⏳ Mismatch ({', '.join(failed_layers)} failed)"
@@ -438,6 +468,11 @@ class VisionEngineV2:
         except Exception as e:
             logger.error(f"Histogram extraction failed: {e}")
         return None
+
+    def get_embedding_fingerprint(self, image_base64):
+        """Extract deep embedding for a new medicine to save in DB (Layer 4 reference)."""
+        from app.services.embedding_service import embedding_service
+        return embedding_service.extract_embedding(image_base64)
 
     def decode_histogram_fingerprint(self, histogram_b64: str) -> np.ndarray:
         """Decode a stored histogram fingerprint from base64."""

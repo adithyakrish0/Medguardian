@@ -4,10 +4,20 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 
 interface AdherenceChartProps {
     data: any[];
+    variant?: 'full' | 'mini';
 }
 
-export default function AdherenceChart({ data }: AdherenceChartProps) {
-    if (!data || data.length === 0) return null;
+export default function AdherenceChart({ data, variant = 'full' }: AdherenceChartProps) {
+    if (!data || data.length === 0) {
+        return (
+            <div className="h-full w-full flex items-center justify-center opacity-20">
+                <p className="text-[10px] font-black uppercase tracking-widest">No Intelligence Data Streamed</p>
+            </div>
+        );
+    }
+
+
+    const isMini = variant === 'mini';
 
     // Find the point where account was established
     const establishmentPoint = data.find(p => p.isEstablishment);
@@ -16,7 +26,10 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
     return (
         <div className="h-full w-full relative">
             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 40, right: 10, left: -20, bottom: 30 }}>
+                <AreaChart
+                    data={data}
+                    margin={isMini ? { top: 10, right: 10, left: 10, bottom: 5 } : { top: 40, right: 10, left: -20, bottom: 30 }}
+                >
                     <defs>
                         <linearGradient id="colorAdherence" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#2D60FF" stopOpacity={0.3} />
@@ -38,7 +51,7 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                             </feMerge>
                         </filter>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
+                    {!isMini && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />}
 
                     {/* Locked Background Area */}
                     {(establishmentPoint || lockedPoints.length > 0) && (
@@ -51,20 +64,25 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                         />
                     )}
 
-                    <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: '#ffffff40', fontSize: 10, fontWeight: 'bold' }}
-                        dy={10}
-                    />
-                    <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: '#ffffff40', fontSize: 10, fontWeight: 'bold' }}
-                        domain={[0, 100]}
-                        ticks={[0, 50, 100]}
-                    />
+                    {!isMini && (
+                        <>
+                            <XAxis
+                                dataKey="date"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#ffffff40', fontSize: 10, fontWeight: 'bold' }}
+                                dy={10}
+                                interval={data.length > 7 ? (data.length > 15 ? 4 : 2) : 0}
+                            />
+                            <YAxis
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#ffffff40', fontSize: 10, fontWeight: 'bold' }}
+                                domain={[0, 100]}
+                                ticks={[0, 50, 100]}
+                            />
+                        </>
+                    )}
 
                     <Tooltip
                         content={({ active, payload }) => {
@@ -76,7 +94,7 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                                         <div className="flex items-center gap-3">
                                             <div className={`w-2 h-2 rounded-full ${data.isLocked ? 'bg-white/20' : 'bg-primary'}`} />
                                             <p className="text-sm font-black text-white">
-                                                {data.isLocked ? 'SURVEILLANCE INACTIVE' : `ADHERENCE: ${data.adherence}%`}
+                                                {data.isLocked ? 'DATA LOCKED' : `ADHERENCE: ${data.adherence}%`}
                                             </p>
                                         </div>
                                         {data.isEstablishment && (
@@ -106,14 +124,17 @@ export default function AdherenceChart({ data }: AdherenceChartProps) {
                         type="monotone"
                         dataKey="adherence"
                         stroke="#2D60FF"
-                        strokeWidth={4}
-                        fillOpacity={1}
+                        strokeWidth={isMini ? 2 : 4}
+                        fillOpacity={isMini ? 0.1 : 1}
                         fill="url(#colorAdherence)"
                         filter="url(#shadow)"
                         isAnimationActive={true}
                         animationDuration={1500}
                         dot={({ cx, cy, payload }) => {
-                            if (payload.isEstablishment) {
+                            if (isMini) {
+                                return <circle cx={cx} cy={cy} r={2} fill="#2D60FF" stroke="none" className="opacity-40" />;
+                            }
+                            if (!isMini && payload.isEstablishment) {
                                 return (
                                     <circle
                                         cx={cx}

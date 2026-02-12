@@ -76,8 +76,8 @@ export default function ConnectSeniorModal({ onClose, onConnected }: ConnectSeni
                     <div className="w-20 h-20 rounded-[28px] bg-primary/10 flex items-center justify-center mb-6 text-primary border border-primary/20">
                         <UserPlus className="w-10 h-10" />
                     </div>
-                    <h2 className="text-4xl font-black text-foreground tracking-tight mb-3">Attach Patient Fleet</h2>
-                    <p className="text-foreground/40 font-medium">Enter the senior&apos;s username to synchronize their telemetry feed.</p>
+                    <h2 className="text-4xl font-black text-foreground tracking-tight mb-3">Add Patient</h2>
+                    <p className="text-foreground/40 font-medium">Enter the senior&apos;s username to connect with them.</p>
                 </div>
 
                 <form onSubmit={handleConnect} className="space-y-6">
@@ -141,7 +141,7 @@ export default function ConnectSeniorModal({ onClose, onConnected }: ConnectSeni
 
                 <div className="mt-10 pt-10 border-t border-card-border/50 text-center">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30">
-                        Secure End-to-End Medical Telemetry Connection
+                        Secure Healthcare Connection
                     </p>
                 </div>
             </motion.div>

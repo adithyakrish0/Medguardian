@@ -217,15 +217,19 @@ def send_realtime_reminders():
 
 
 def check_missed_doses():
-    """Check for missed medication doses and send alerts"""
+    """
+    Check for missed medication doses:
+    1. Create MedicationLog entries for missed doses (taken_correctly=False, notes='Auto-marked as missed')
+    2. Send alerts to user and caregivers
+    """
     debug_log('Scheduler', 'check_missed_doses', 'START', f"now={datetime.now().strftime('%H:%M:%S')}")
     
     now = datetime.now()
-    missed_threshold_minutes = 30  # Consider missed if 30 min past scheduled time
+    missed_threshold_minutes = 60  # Consider missed if 60 min past scheduled time
     
-    # Cache to avoid duplicate alerts
-    if not hasattr(check_missed_doses, '_alerted_cache'):
-        check_missed_doses._alerted_cache = {}
+    # Cache to avoid duplicate processing within the same hour
+    if not hasattr(check_missed_doses, '_processed_cache'):
+        check_missed_doses._processed_cache = {}
     
     try:
         # Get all active medications
@@ -237,37 +241,64 @@ def check_missed_doses():
         
         debug_log('Scheduler', 'check_missed_doses', 'CHECKING', f"meds_count={len(medications)}")
         
+        missed_count = 0
+        
         for med in medications:
             scheduled_times = get_scheduled_times(med, now.date())
             
             for scheduled_time in scheduled_times:
                 diff_minutes = (now - scheduled_time).total_seconds() / 60
                 
-                # Check if missed (30+ minutes past due)
-                if diff_minutes >= missed_threshold_minutes and diff_minutes <= 180:  # Within 3 hours
-                    # Check if already taken
-                    today_start = datetime.combine(now.date(), datetime.min.time())
-                    today_end = datetime.combine(now.date(), datetime.max.time())
+                # Check if missed (60+ minutes past due, but within same day)
+                if diff_minutes >= missed_threshold_minutes:
                     
-                    log = MedicationLog.query.filter_by(
+                    # Create unique cache key for this dose
+                    cache_key = (med.id, scheduled_time.strftime("%Y-%m-%d-%H:%M"))
+                    
+                    if cache_key in check_missed_doses._processed_cache:
+                        continue  # Already processed this dose
+                    
+                    # Check if there's already a log for this dose window (within 2 hours)
+                    window_start = scheduled_time - timedelta(hours=1)
+                    window_end = scheduled_time + timedelta(hours=2)
+                    
+                    existing_log = MedicationLog.query.filter_by(
                         medication_id=med.id,
-                        user_id=med.user_id,
-                        taken_correctly=True
+                        user_id=med.user_id
                     ).filter(
-                        MedicationLog.taken_at >= today_start,
-                        MedicationLog.taken_at <= today_end
+                        MedicationLog.taken_at >= window_start,
+                        MedicationLog.taken_at <= window_end
                     ).first()
                     
-                    if log:
-                        continue  # Already taken, not missed
-                    
-                    # Check if already alerted
-                    cache_key = (med.id, scheduled_time.strftime("%H:%M"), now.date().isoformat())
-                    if cache_key in check_missed_doses._alerted_cache:
-                        continue  # Already alerted
+                    if existing_log:
+                        # Already have a log for this dose (taken, skipped, or already marked missed)
+                        check_missed_doses._processed_cache[cache_key] = True
+                        continue
                     
                     debug_log('Scheduler', 'check_missed_doses', 'MISSED_DETECTED', 
                         f"med={med.id}, name={med.name}, scheduled={scheduled_time.strftime('%H:%M')}")
+                    
+                    # CREATE A MISSED DOSE LOG ENTRY IN DATABASE
+                    try:
+                        missed_log = MedicationLog(
+                            medication_id=med.id,
+                            user_id=med.user_id,
+                            taken_at=scheduled_time,  # Use scheduled time as the log time
+                            scheduled_time=scheduled_time,
+                            taken_correctly=False,
+                            status='missed',  # Proper status field
+                            notes='Auto-marked as missed - no response within time window'
+                        )
+                        db.session.add(missed_log)
+                        db.session.commit()
+                        missed_count += 1
+                        
+                        debug_log('Scheduler', 'check_missed_doses', 'MISSED_LOG_CREATED', 
+                            f"med={med.id}, log_id={missed_log.id}, scheduled={scheduled_time.strftime('%H:%M')}")
+                        
+                    except Exception as db_err:
+                        db.session.rollback()
+                        debug_log('Scheduler', 'check_missed_doses', 'DB_ERROR', f"error={str(db_err)}")
                     
                     # Send Telegram alert to user
                     try:
@@ -302,10 +333,10 @@ def check_missed_doses():
                     except Exception as tg_err:
                         debug_log('Scheduler', 'check_missed_doses', 'TELEGRAM_ERROR', f"error={str(tg_err)}")
                     
-                    # Mark as alerted
-                    check_missed_doses._alerted_cache[cache_key] = True
+                    # Mark as processed
+                    check_missed_doses._processed_cache[cache_key] = True
         
-        debug_log('Scheduler', 'check_missed_doses', 'END', 'completed')
+        debug_log('Scheduler', 'check_missed_doses', 'END', f"completed, created {missed_count} missed logs")
         
     except Exception as e:
         debug_log('Scheduler', 'check_missed_doses', 'EXCEPTION', f"error={str(e)}")

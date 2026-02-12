@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}IoT Hardware Simulator - MedGuardian{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0 bg-dark text-white rounded-4 overflow-hidden">
+                <div class="card-header bg-primary border-0 py-3">
+                    <h5 class="mb-0"><i class="fas fa-broadcast-tower me-2"></i>Virtual IoT Simulator</h5>
+                </div>
+                <div class="card-body p-4 text-center">
+                    <div class="mb-4">
+                        <div class="display-4 text-info mb-2">
+                            <i class="fas fa-box-open"></i>
+                        </div>
+                        <h3 class="fw-bold">Smart Pill Box Prototype</h3>
+                        <p class="text-muted">This page simulates hardware signals from a physical ESP32 device.</p>
+                    </div>
+
+                    <div class="list-group list-group-flush mb-4 text-start">
+                        <div
+                            class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between">
+                            <span>Device ID</span>
+                            <span class="fw-mono">GUARDIAN-VBOX-001</span>
+                        </div>
+                        <div
+                            class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between">
+                            <span>Status</span>
+                            <span class="text-success"><i class="fas fa-circle me-1 small"></i> Online</span>
+                        </div>
+                        <div
+                            class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between">
+                            <span>Battery</span>
+                            <span class="text-info"><i class="fas fa-battery-three-quarters me-1"></i> 88%</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-3">
+                        <button class="btn btn-outline-info btn-lg rounded-pill"
+                            onclick="sendSignal('LID_OPENED', 'Metformin')">
+                            <i class="fas fa-sign-out-alt me-2"></i>Simulate: LID OPENED
+                        </button>
+                        <button class="btn btn-outline-warning btn-lg rounded-pill"
+                            onclick="sendSignal('BATTERY_LOW', '')">
+                            <i class="fas fa-bolt me-2"></i>Simulate: BATTERY LOW
+                        </button>
+                    </div>
+                </div>
+                <div class="card-footer bg-black bg-opacity-50 py-2 text-center">
+                    <small class="x-small text-muted">Open Dashboard in another tab to see live sync</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function sendSignal(event, med) {
+        try {
+            const response = await fetch('/api/iot/trigger', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ event: event, medication: med })
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert('IoT Signal Sent Successfully!');
+            }
+        } catch (e) {
+            console.error('Signal failed:', e);
+        }
+    }
+</script>
+{% endblock %}

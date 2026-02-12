@@ -4,11 +4,21 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Activity, Users, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import MagnetLines from './animations/MagnetLines';
 
 export default function Hero() {
     return (
         <section className="relative pt-32 pb-24 overflow-hidden">
             {/* Background Decorative Elements */}
+            <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+                <MagnetLines
+                    rows={12}
+                    columns={24}
+                    lineColor="var(--primary)"
+                    lineHeight="15px"
+                    lineWidth="2px"
+                />
+            </div>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
             <div className="absolute top-20 right-[10%] w-72 h-72 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
 
@@ -34,16 +44,24 @@ export default function Hero() {
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-5">
-                            <Link href="/signup" className="group px-8 py-4 bg-primary text-white rounded-2xl font-black shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
-                                Initialize Monitor
-                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                            <Link href="/signup">
+                                <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="group px-8 py-4 bg-primary text-white rounded-2xl font-black shadow-2xl shadow-primary/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                    Initialize Monitor
+                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                </motion.div>
                             </Link>
-                            <button
+                            <motion.button
+                                whileHover={{ scale: 1.05, backgroundColor: "rgba(var(--secondary-rgb), 0.05)" }}
+                                whileTap={{ scale: 0.95 }}
                                 onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                                className="px-8 py-4 border-2 border-secondary/20 text-foreground rounded-2xl font-black hover:bg-secondary/5 transition-all"
+                                className="px-8 py-4 border-2 border-secondary/20 text-foreground rounded-2xl font-black transition-all"
                             >
                                 Platform Overview
-                            </button>
+                            </motion.button>
                         </div>
 
                         <div className="mt-12 pt-12 border-t border-card-border flex items-center gap-8">

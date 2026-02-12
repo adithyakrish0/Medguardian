@@ -23,7 +23,15 @@ class MedicationInteractionService:
             "clarithromycin": {"severity": "High", "message": "Significant increase in statin levels; risk of rhabdomyolysis."}
         },
         "metformin": {
-            "furosemide": {"severity": "Moderate", "message": "May increase metformin levels; monitor blood glucose closely."}
+            "furosemide": {"severity": "Moderate", "message": "May increase metformin levels; monitor blood glucose closely."},
+            "contrast": {"severity": "High", "message": "Risk of lactic acidosis if taken with iodine-based contrast (X-rays)."}
+        },
+        "ibuprofen": {
+            "prednisone": {"severity": "High", "message": "Increased risk of gastrointestinal bleeding and ulcers."},
+            "aspirin": {"severity": "Moderate", "message": "Ibuprofen can decrease the heart-protection benefit of low-dose aspirin."}
+        },
+        "amlodipine": {
+            "grapefruit": {"severity": "Moderate", "message": "Grapefruit juice can significantly increase drug levels in your blood."}
         }
     }
 

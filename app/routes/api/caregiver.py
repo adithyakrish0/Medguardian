@@ -1,4 +1,6 @@
 """API v1 - Caregiver endpoints"""
+import sys
+import traceback
 from flask import jsonify, request, current_app
 from flask_login import login_required, current_user
 from . import api_v1
@@ -17,43 +19,48 @@ def get_seniors():
     if current_user.role != 'caregiver':
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
-    from app.services.analytics_service import analytics_service
-    
-    relationships = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
-    seniors_data = []
-    
-    for rel in relationships:
-        senior = rel.senior
-        meds = Medication.query.filter_by(user_id=senior.id).all()
+    try:
+        from app.services.analytics_service import analytics_service
         
-        # Calculate risk score and status
-        risk_score = analytics_service.calculate_risk_score(senior.id)
-        status = 'Stable'
-        if risk_score > 100:
-            status = 'Critical'
-        elif risk_score > 40:
-            status = 'Attention'
+        relationships = CaregiverSenior.query.filter_by(caregiver_id=current_user.id).all()
+        seniors_data = []
+        
+        for rel in relationships:
+            senior = rel.senior
+            meds = Medication.query.filter_by(user_id=senior.id).all()
             
-        seniors_data.append({
-            'id': senior.id,
-            'name': senior.username,
-            'phone': senior.phone,
-            'medication_count': len(meds),
-            'role': senior.role,
-            'connection_status': rel.status,
-            'status': status,
-            'risk_score': risk_score,
-            'created_at': senior.created_at.isoformat(),
-            'adherence_history': analytics_service.get_7_day_adherence(senior.id)
-        })
-    
-    # Sort by risk score descending
-    seniors_data.sort(key=lambda x: x['risk_score'], reverse=True)
+            # Calculate risk score and status
+            risk_score = analytics_service.calculate_risk_score(senior.id)
+            status = 'Stable'
+            if risk_score > 100:
+                status = 'Critical'
+            elif risk_score > 40:
+                status = 'Attention'
+                
+            seniors_data.append({
+                'id': senior.id,
+                'name': senior.username,
+                'phone': senior.phone,
+                'medication_count': len(meds),
+                'role': senior.role,
+                'connection_status': rel.status,
+                'status': status,
+                'risk_score': risk_score,
+                'created_at': senior.created_at.isoformat(),
+                'adherence_history': analytics_service.get_7_day_adherence(senior.id)
+            })
         
-    return jsonify({
-        'success': True,
-        'data': seniors_data
-    }), 200
+        # Sort by risk score descending
+        seniors_data.sort(key=lambda x: x['risk_score'], reverse=True)
+            
+        return jsonify({
+            'success': True,
+            'data': seniors_data
+        }), 200
+    except Exception as e:
+        print(f"❌ [CAREGIVER] Critical error in get_seniors: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_v1.route('/caregiver/add-senior', methods=['POST'])
 @login_required
@@ -95,7 +102,8 @@ def add_senior():
     
     # Audit log
     from app.services.audit_service import audit_service
-    audit_service.log_event(
+    audit_service.log_action(
+        user_id=current_user.id,
         action='add_senior_request',
         target_id=senior.id,
         details=f"Caregiver requested connection with senior {senior.username}"
@@ -144,8 +152,11 @@ def get_alerts():
                 try:
                     hour, minute = map(int, time_str.split(':'))
                     scheduled_time = datetime(now.year, now.month, now.day, hour, minute)
-                    if now > scheduled_time + timedelta(minutes=30):
-                        if med.id not in handled_med_ids:
+                    if now > scheduled_time + timedelta(minutes=60): # Consistent with scheduler's 60m window
+                        # Check if there is a 'missed' log for this med today
+                        is_missed = any(l.medication_id == med.id and l.get_status() == 'missed' for l in today_logs)
+                        # An alert is needed if no log exists OR if the log is a 'missed' dose
+                        if med.id not in handled_med_ids or is_missed:
                             missed_times.append(time_str)
                 except: continue
             
@@ -173,7 +184,9 @@ def get_alerts():
 @api_v1.route('/caregiver/recent-logs', methods=['GET'])
 @login_required
 def get_recent_logs():
-    """Get recent medication logs across all linked seniors"""
+    """Get today's medication schedule with status (TAKEN, SKIPPED, or MISSED) for all linked seniors"""
+    from datetime import datetime, timedelta
+    
     if current_user.role != 'caregiver':
         return jsonify({'error': 'Access denied'}), 403
     
@@ -186,24 +199,73 @@ def get_recent_logs():
     if not senior_ids:
         return jsonify({'success': True, 'logs': []})
     
-    recent_logs = MedicationLog.query.filter(
-        MedicationLog.user_id.in_(senior_ids)
-    ).order_by(MedicationLog.taken_at.desc()).limit(15).all()
+    now = datetime.now()
+    today_start = datetime.combine(now.date(), datetime.min.time())
     
     logs_data = []
-    for log in recent_logs:
-        logs_data.append({
-            'id': log.id,
-            'senior_name': log.user.username,
-            'medication_name': log.medication.name,
-            'taken_at': log.taken_at.isoformat(),
-            'taken_correctly': log.taken_correctly,
-            'notes': log.notes
-        })
+    
+    # Get all seniors and their medications
+    for senior_id in senior_ids:
+        senior = User.query.get(senior_id)
+        if not senior:
+            continue
+            
+        medications = Medication.query.filter_by(user_id=senior_id).all()
         
+        for med in medications:
+            reminder_times = med.get_reminder_times()
+            
+            for time_str in reminder_times:
+                try:
+                    h, m = map(int, time_str.split(':'))
+                    scheduled_dt = datetime.combine(now.date(), datetime.min.time().replace(hour=h, minute=m))
+                    
+                    # Skip future doses
+                    if scheduled_dt > now:
+                        continue
+                    
+                    # Check if there's a log for this specific dose
+                    # A log is considered matching if it's within 2 hours of the scheduled time
+                    window_start = scheduled_dt - timedelta(hours=1)
+                    window_end = scheduled_dt + timedelta(hours=2)
+                    
+                    log = MedicationLog.query.filter(
+                        MedicationLog.user_id == senior_id,
+                        MedicationLog.medication_id == med.id,
+                        MedicationLog.taken_at >= window_start,
+                        MedicationLog.taken_at <= window_end
+                    ).first()
+                    
+                    if log:
+                        # Dose exists in DB (verified, skipped, or missed)
+                        status = log.get_status()
+                        actual_time = log.taken_at
+                    else:
+                        # No log = MISSED (time has passed with no action and not yet backfilled/processed)
+                        status = 'missed'
+                        actual_time = scheduled_dt
+                    
+                    logs_data.append({
+                        'id': f"{med.id}-{time_str}",
+                        'senior_id': senior_id,
+                        'senior_name': senior.username,
+                        'medication_id': med.id,
+                        'medication_name': med.name,
+                        'scheduled_time': time_str,
+                        'taken_at': actual_time.isoformat(),
+                        'taken_correctly': status == 'verified',
+                        'status': status,  # 'verified', 'skipped', or 'missed'
+                        'notes': log.notes if log else None
+                    })
+                except (ValueError, AttributeError):
+                    continue
+    
+    # Sort by time (most recent first)
+    logs_data.sort(key=lambda x: x['taken_at'], reverse=True)
+    
     return jsonify({
         'success': True,
-        'logs': logs_data
+        'logs': logs_data[:20]  # Limit to 20 most recent
     })
 
 @api_v1.route('/caregiver/send-reminder/<int:senior_id>/<int:medication_id>', methods=['POST'])
@@ -313,6 +375,11 @@ def request_camera(senior_id):
         'caregiver_name': current_user.username,
         'timestamp': datetime.now().isoformat()
     }, room=f'user_{senior_id}')
+
+    return jsonify({
+        'success': True,
+        'message': 'Camera request sent successfully'
+    })
     
 @api_v1.route('/caregiver/export/fleet/pdf', methods=['GET'])
 @login_required

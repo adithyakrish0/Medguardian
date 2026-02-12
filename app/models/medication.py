@@ -44,7 +44,15 @@ class Medication(BaseModel):
     background_image = db.Column(db.Text, nullable=True)  # Background-only capture for subtraction
     visual_fingerprint = db.Column(db.Text, nullable=True) # Layer 2: ORB descriptors (Base64)
     histogram_fingerprint = db.Column(db.Text, nullable=True)  # Layer 3: Color histogram (Base64)
+    embedding_data = db.Column(db.Text, nullable=True)  # Deep Feature Vector (JSON array)
     ai_trained = db.Column(db.Boolean, default=False)  # True if user completed AI training
+    
+    # REFILL TRACKING: Quantity management for refill prediction
+    quantity_remaining = db.Column(db.Integer, nullable=True)  # Pills left in bottle
+    initial_quantity = db.Column(db.Integer, nullable=True)  # Starting amount when refilled
+    refill_threshold_days = db.Column(db.Integer, default=3)  # Days before depletion to alert
+    last_refill_date = db.Column(db.Date, nullable=True)  # When last refilled
+    is_prn = db.Column(db.Boolean, default=False)  # As-needed medications (irregular patterns)
 
     def __repr__(self):
         return f'<Medication {self.name} for User {self.user_id}>'

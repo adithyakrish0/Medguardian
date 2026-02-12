@@ -67,7 +67,7 @@ def register_handlers(socketio_instance):
             return
         
         join_room(room)
-        logger.info(f"✅ User joined room: {room}, sid={request.sid}")
+        logger.info(f"✅ User joined room: {room}, sid={request.sid}, user_id={current_user.id if current_user.is_authenticated else 'ANON'}")
         emit('joined', {'room': room, 'message': f'Joined room {room}'})
     
     

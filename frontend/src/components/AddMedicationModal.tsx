@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Loader2, Bell, Clock, Plus, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { X, Save, Loader2, Bell, Clock, Plus, AlertTriangle, ShieldAlert, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { quickCheckNewMedication, QuickCheckResult, getSeverityClasses, DrugInteraction } from '@/lib/api/interactions';
 
 interface AddMedicationModalProps {
     isOpen: boolean;
@@ -37,26 +38,25 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [newCustomTime, setNewCustomTime] = useState('');
-    const [conflicts, setConflicts] = useState<any[]>([]);
+    const [interactionCheck, setInteractionCheck] = useState<QuickCheckResult | null>(null);
     const [checkingInteractions, setCheckingInteractions] = useState(false);
 
     const checkConflicts = async (name: string) => {
         if (!name || name.length < 3) {
-            setConflicts([]);
+            setInteractionCheck(null);
             return;
         }
 
         try {
             setCheckingInteractions(true);
-            const res = await apiFetch('/medications/check-interactions', {
-                method: 'POST',
-                body: JSON.stringify({ name, senior_id: seniorId })
+            const result = await quickCheckNewMedication({
+                newMedication: name,
+                seniorId: seniorId
             });
-            if (res.success) {
-                setConflicts(res.conflicts);
-            }
+            setInteractionCheck(result);
         } catch (err) {
             console.error('Interaction check failed:', err);
+            setInteractionCheck(null);
         } finally {
             setCheckingInteractions(false);
         }
@@ -173,34 +173,85 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                 </div>
                             )}
 
-                            {conflicts.length > 0 && (
+                            {/* Enhanced Interaction Warning */}
+                            {interactionCheck && interactionCheck.has_interactions && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="bg-red-600 p-6 rounded-2xl border border-red-500/50 shadow-2xl shadow-red-500/20 relative overflow-hidden"
+                                    className={`p-6 rounded-2xl border-2 shadow-2xl relative overflow-hidden ${interactionCheck.risk_level === 'critical' ? 'bg-red-600 border-red-500/50 shadow-red-500/20' :
+                                            interactionCheck.risk_level === 'high' ? 'bg-orange-600 border-orange-500/50 shadow-orange-500/20' :
+                                                interactionCheck.risk_level === 'moderate' ? 'bg-yellow-600 border-yellow-500/50 shadow-yellow-500/20' :
+                                                    'bg-blue-600 border-blue-500/50 shadow-blue-500/20'
+                                        }`}
                                 >
                                     <div className="absolute top-0 right-0 p-4 opacity-10">
-                                        <ShieldAlert className="w-12 h-12" />
+                                        <ShieldAlert className="w-16 h-16" />
                                     </div>
                                     <div className="flex items-start gap-4 relative z-10">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                                            <AlertTriangle className="w-6 h-6 text-white" />
+                                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                                            <AlertTriangle className="w-7 h-7 text-white" />
                                         </div>
-                                        <div>
-                                            <h4 className="text-white font-black uppercase text-xs tracking-widest mb-1">Critical Interaction Warning</h4>
-                                            <p className="text-white/90 text-sm font-bold leading-relaxed">
-                                                Potential hazard detected with existing fleet protocol:
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <h4 className="text-white font-black uppercase text-xs tracking-widest">
+                                                    {interactionCheck.risk_level === 'critical' ? '🚨 Critical' :
+                                                        interactionCheck.risk_level === 'high' ? '⚠️ High Risk' :
+                                                            interactionCheck.risk_level === 'moderate' ? '⚡ Moderate Risk' :
+                                                                'ℹ️ Low Risk'} Interaction
+                                                </h4>
+                                                <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-black text-white">
+                                                    Risk Score: {interactionCheck.risk_score}/100
+                                                </span>
+                                            </div>
+                                            <p className="text-white/90 text-sm font-bold leading-relaxed mb-3">
+                                                Found {interactionCheck.interaction_count} potential interaction(s) with your existing medications
                                             </p>
-                                            <ul className="mt-3 space-y-2">
-                                                {conflicts.map((c, i) => (
-                                                    <li key={i} className="text-xs font-black bg-white/10 p-3 rounded-xl border border-white/5">
-                                                        <span className="text-white underline">{c.med_a}</span> conflicts with <span className="text-white underline">{c.med_b}</span>:
-                                                        <p className="mt-1 font-bold opacity-80 normal-case">{c.message}</p>
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                            <div className="space-y-2">
+                                                {interactionCheck.interactions.slice(0, 3).map((c: DrugInteraction, i: number) => {
+                                                    const classes = getSeverityClasses(c.severity);
+                                                    return (
+                                                        <div key={i} className="text-xs font-black bg-white/10 p-3 rounded-xl border border-white/10">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={`px-2 py-0.5 rounded text-[10px] uppercase ${classes.bg} ${classes.text}`}>
+                                                                    {c.severity}
+                                                                </span>
+                                                                <span className="text-white">
+                                                                    {c.medication1} + {c.medication2}
+                                                                </span>
+                                                            </div>
+                                                            <p className="mt-1 font-medium opacity-80 text-white">{c.description}</p>
+                                                            {c.recommendation && (
+                                                                <p className="mt-2 text-white/70 italic">💡 {c.recommendation}</p>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                                {interactionCheck.interaction_count > 3 && (
+                                                    <p className="text-xs text-white/70 text-center">
+                                                        + {interactionCheck.interaction_count - 3} more interactions
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {interactionCheck.risk_level === 'critical' && (
+                                                <div className="mt-4 p-3 bg-white/20 rounded-xl flex items-center gap-2">
+                                                    <AlertCircle className="w-5 h-5 text-white" />
+                                                    <span className="text-sm font-bold text-white">Consult your doctor before adding this medication</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
+                                </motion.div>
+                            )}
+
+                            {/* Safe Indicator */}
+                            {interactionCheck && !interactionCheck.has_interactions && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-3"
+                                >
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                    <span className="text-sm font-bold text-emerald-400">No interactions detected with your current medications ✓</span>
                                 </motion.div>
                             )}
 
@@ -219,7 +270,7 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             onBlur={(e) => checkConflicts(e.target.value)}
-                                            className={`w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 text-white text-sm placeholder-white/30 transition-all ${conflicts.length > 0 ? 'ring-2 ring-red-500/50' : 'focus:ring-primary/50'
+                                            className={`w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 text-white text-sm placeholder-white/30 transition-all ${interactionCheck?.has_interactions ? 'ring-2 ring-red-500/50' : 'focus:ring-primary/50'
                                                 }`}
                                             placeholder="e.g., Aspirin"
                                             required
