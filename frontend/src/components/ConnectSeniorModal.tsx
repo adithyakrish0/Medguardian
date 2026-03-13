@@ -112,7 +112,7 @@ export default function ConnectSeniorModal({ onClose, onConnected }: ConnectSeni
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="p-5 bg-red-500/10 border border-red-500/20 rounded-[22px] flex items-center gap-4 text-red-500"
+                                className="p-5 bg-red-50 dark:bg-red-900/10 border border-red-500/20 rounded-[22px] flex items-center gap-4 text-red-500"
                             >
                                 <AlertCircle className="w-6 h-6 shrink-0" />
                                 <p className="font-bold text-sm tracking-tight">{message}</p>

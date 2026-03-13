@@ -160,12 +160,12 @@ export async function getInteractionStats(): Promise<InteractionStats> {
  */
 export function getSeverityColor(severity: SeverityLevel): string {
     const colors: Record<SeverityLevel, string> = {
-        critical: '#ef4444', // red-500
-        major: '#f97316',    // orange-500
-        moderate: '#eab308', // yellow-500
-        minor: '#22c55e'     // green-500
+        critical: '#EF4444', // critical
+        major: '#F59E0B',    // warning
+        moderate: '#F97316', // orange-500
+        minor: '#10B981'     // success
     };
-    return colors[severity] || '#6b7280';
+    return colors[severity] || '#6B7280';
 }
 
 /**
@@ -178,27 +178,27 @@ export function getSeverityClasses(severity: SeverityLevel): {
 } {
     const classes: Record<SeverityLevel, { bg: string; text: string; border: string }> = {
         critical: {
-            bg: 'bg-red-500/20',
-            text: 'text-red-500',
-            border: 'border-red-500'
+            bg: 'bg-critical/10',
+            text: 'text-critical',
+            border: 'border-critical/30'
         },
         major: {
-            bg: 'bg-orange-500/20',
-            text: 'text-orange-500',
-            border: 'border-orange-500'
+            bg: 'bg-warning/10',
+            text: 'text-warning',
+            border: 'border-warning/30'
         },
         moderate: {
-            bg: 'bg-yellow-500/20',
-            text: 'text-yellow-500',
-            border: 'border-yellow-500'
+            bg: 'bg-orange-500/10',
+            text: 'text-orange-500',
+            border: 'border-orange-500/30'
         },
         minor: {
-            bg: 'bg-green-500/20',
-            text: 'text-green-500',
-            border: 'border-green-500'
+            bg: 'bg-success/10',
+            text: 'text-success',
+            border: 'border-success/30'
         }
     };
-    return classes[severity] || { bg: 'bg-gray-500/20', text: 'text-gray-500', border: 'border-gray-500' };
+    return classes[severity] || { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-gray-200 dark:border-gray-700' };
 }
 
 /**
@@ -206,40 +206,40 @@ export function getSeverityClasses(severity: SeverityLevel): {
  */
 export function getRiskLevelInfo(riskLevel: RiskLevel): {
     label: string;
-    emoji: string;
+    icon: string;
     description: string;
     color: string;
 } {
-    const info: Record<RiskLevel, { label: string; emoji: string; description: string; color: string }> = {
+    const info: Record<RiskLevel, { label: string; icon: string; description: string; color: string }> = {
         critical: {
             label: 'Critical Risk',
-            emoji: '🚨',
+            icon: 'AlertCircle',
             description: 'Contact your doctor immediately',
-            color: 'text-red-500'
+            color: 'text-critical'
         },
         high: {
             label: 'High Risk',
-            emoji: '⚠️',
+            icon: 'AlertTriangle',
             description: 'Schedule an urgent appointment',
-            color: 'text-orange-500'
+            color: 'text-warning'
         },
         moderate: {
             label: 'Moderate Risk',
-            emoji: '⚡',
+            icon: 'Zap',
             description: 'Discuss at next visit',
-            color: 'text-yellow-500'
+            color: 'text-orange-600'
         },
         low: {
             label: 'Low Risk',
-            emoji: 'ℹ️',
+            icon: 'Info',
             description: 'Be aware, no action needed',
-            color: 'text-blue-500'
+            color: 'text-primary-600'
         },
         safe: {
             label: 'Safe',
-            emoji: '✅',
+            icon: 'CheckCircle',
             description: 'No interactions detected',
-            color: 'text-green-500'
+            color: 'text-success'
         }
     };
     return info[riskLevel] || info.safe;

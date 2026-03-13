@@ -28,9 +28,9 @@ export function useDashboardData(seniorId?: number) {
 
             // PARALLEL FETCHING - All requests fire simultaneously
             const [statusData, userData, analyticsData, anomaliesData] = await Promise.all([
-                perfLog.measure('fetch-medication-status', () => apiFetch(statusUrl)),
+                perfLog.measure('fetch-medication-status', () => apiFetch(statusUrl).catch(() => ({ success: false, taken: [], missed: [], upcoming: [], skipped: [], total_today: 0 }))),
                 perfLog.measure('fetch-user-data', () => apiFetch(userUrl).catch(() => ({ data: { username: 'Senior' } }))),
-                perfLog.measure('fetch-analytics', () => apiFetch(analyticsUrl)),
+                perfLog.measure('fetch-analytics', () => apiFetch(analyticsUrl).catch(() => ({ data: [] }))),
                 perfLog.measure('fetch-anomalies', () => apiFetch(anomaliesUrl).catch(() => ({ data: { anomalies: [], forecasted_risk: 0 } })))
             ]);
 

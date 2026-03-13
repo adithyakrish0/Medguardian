@@ -36,43 +36,63 @@ def _verify_access(patient_id: int) -> bool:
 
 def _get_patient_features(patient_id: int) -> dict:
     """
-    Extract representative features for a patient based on their medication schedule.
-    Uses the most common dosing time and medication priority.
+    Extract expanded features for a patient based on their medication schedule and history.
     """
+    now = datetime.utcnow()
+    cutoff = now - timedelta(days=30)
+    
     # Get recent medication logs
-    cutoff = datetime.utcnow() - timedelta(days=30)
     logs = MedicationLog.query.filter(
         MedicationLog.user_id == patient_id,
         MedicationLog.scheduled_time >= cutoff
-    ).order_by(MedicationLog.scheduled_time.desc()).limit(50).all()
+    ).order_by(MedicationLog.scheduled_time.desc()).all()
     
-    if not logs:
-        # Default features
-        return {
-            'hour': 9,
-            'day_of_week': datetime.utcnow().weekday(),
-            'is_weekend': 1 if datetime.utcnow().weekday() >= 5 else 0,
-            'priority': 0
-        }
+    # 1. Basic Time Features
+    if logs:
+        hours = [log.scheduled_time.hour for log in logs if log.scheduled_time]
+        avg_hour = round(sum(hours) / len(hours)) if hours else 9
+    else:
+        avg_hour = 9
+
+    # 2. History Features
+    all_logs = MedicationLog.query.filter_by(user_id=patient_id).order_by(MedicationLog.scheduled_time.asc()).all()
+    days_since_start = 0
+    if all_logs and all_logs[0].scheduled_time:
+        days_since_start = (now - all_logs[0].scheduled_time).days
+
+    # 3. Adherence Features
+    recent_logs = logs[:20] if logs else []
+    taken_count = sum(1 for log in recent_logs if log.status == 'taken')
+    rolling_adherence = taken_count / len(recent_logs) if recent_logs else 0.85
     
-    # Calculate average hour
-    hours = [log.scheduled_time.hour for log in logs if log.scheduled_time]
-    avg_hour = round(sum(hours) / len(hours)) if hours else 9
-    
-    # Check for high priority medications
+    consecutive_missed = 0
+    for log in logs:
+        if log.status == 'missed':
+            consecutive_missed += 1
+        elif log.status == 'taken':
+            break
+
+    # 4. Response Time
+    deltas = []
+    for log in logs:
+        if log.status == 'taken' and log.taken_time and log.scheduled_time:
+            deltas.append((log.taken_time - log.scheduled_time).total_seconds() / 60)
+    avg_delta = sum(deltas) / len(deltas) if deltas else 0
+
+    # 5. Priority
     has_high_priority = any(
         log.medication and log.medication.priority == 'high' 
         for log in logs
     )
-    
-    # Current day
-    now = datetime.utcnow()
-    
+
     return {
-        'hour': avg_hour,
+        'hour_of_day': avg_hour,
         'day_of_week': now.weekday(),
-        'is_weekend': 1 if now.weekday() >= 5 else 0,
-        'priority': 1 if has_high_priority else 0
+        'days_since_start': days_since_start,
+        'consecutive_missed': consecutive_missed,
+        'rolling_7day_adherence': rolling_adherence,
+        'time_delta_minutes': avg_delta,
+        'priority_encoded': 1 if has_high_priority else 0
     }
 
 
@@ -115,6 +135,7 @@ def explain_prediction(patient_id: int):
         return jsonify({
             'success': True,
             'patient_id': patient_id,
+            'model_type': 'Ensemble (RF+XGBoost+LightGBM)',
             'features_used': features,
             **explanation.to_dict()
         }), 200
@@ -173,6 +194,7 @@ def explain_medication_prediction(medication_id: int):
             'success': True,
             'medication_id': medication_id,
             'medication_name': medication.name,
+            'model_type': 'Ensemble (RF+XGBoost+LightGBM)',
             'features_used': features,
             **explanation.to_dict()
         }), 200
@@ -279,7 +301,7 @@ def get_explainer_status():
             'success': True,
             'model_loaded': explainer.model is not None,
             'explainer_ready': explainer.explainer is not None,
-            'features': explainer.FEATURE_NAMES if explainer.model else [],
+            'features': explainer.feature_names if explainer.model else [],
             'model_type': type(explainer.model).__name__ if explainer.model else None
         }), 200
         

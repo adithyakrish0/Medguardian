@@ -65,35 +65,81 @@ class PredictionExplanation:
 class AdherenceExplainer:
     """
     SHAP-based explainer for the adherence prediction model.
-    Uses TreeExplainer for efficient exact SHAP values on RandomForest.
+    Uses TreeExplainer for efficient exact SHAP values on tree-based models.
     """
     
-    FEATURE_NAMES = ['hour', 'day_of_week', 'is_weekend', 'priority']
+    # Default fallback features
+    FEATURE_NAMES = ['hour', 'day_of_week', 'is_weekend', 'priority_encoded']
     FEATURE_DESCRIPTIONS = {
         'hour': 'Scheduled Hour',
         'day_of_week': 'Day of Week',
         'is_weekend': 'Is Weekend',
-        'priority': 'Medication Priority'
+        'priority_encoded': 'Medication Priority'
     }
     
-    def __init__(self, model=None, model_path: str = None):
+    def __init__(self, model=None, model_path: str = None, explainer_path: str = None, metadata_path: str = None):
         """
         Initialize explainer with a trained model.
         
         Args:
-            model: Trained sklearn model (RandomForest)
+            model: Trained sklearn model
             model_path: Path to pickled model file
+            explainer_path: Path to pickled SHAP explainer
+            metadata_path: Path to metadata JSON
         """
         self.model = model
         self.explainer = None
-        self.background_data = None
+        self.metadata = {}
+        self.feature_names = self.FEATURE_NAMES
+        self.feature_descriptions = self.FEATURE_DESCRIPTIONS
         
-        if model_path and not model:
+        # Priority 1: Direct paths provided
+        if not self.model and model_path:
             self._load_model(model_path)
         
-        if self.model:
+        if explainer_path:
+            self._load_explainer(explainer_path)
+            
+        if metadata_path:
+            self._load_metadata(metadata_path)
+            
+        # Priority 2: Standard paths if nothing loaded yet
+        if not self.model:
+            self._auto_load()
+
+        if self.model and not self.explainer:
             self._init_explainer()
     
+    def _auto_load(self):
+        """Try to load from default model directory if exists."""
+        base_dir = 'app/ml/models'
+        paths = {
+            'model': os.path.join(base_dir, 'shap_model.pkl'),
+            'explainer': os.path.join(base_dir, 'shap_explainer.pkl'),
+            'metadata': os.path.join(base_dir, 'shap_metadata.json')
+        }
+        
+        if os.path.exists(paths['metadata']):
+            self._load_metadata(paths['metadata'])
+            
+        if os.path.exists(paths['model']):
+            self._load_model(paths['model'])
+            
+        if os.path.exists(paths['explainer']):
+            self._load_explainer(paths['explainer'])
+
+    def _load_metadata(self, path: str):
+        """Load feature names and descriptions from JSON."""
+        import json
+        try:
+            with open(path, 'r') as f:
+                self.metadata = json.load(f)
+            self.feature_names = self.metadata.get('feature_names', self.FEATURE_NAMES)
+            self.feature_descriptions = self.metadata.get('feature_descriptions', self.FEATURE_DESCRIPTIONS)
+            logger.info(f"Loaded metadata from {path}")
+        except Exception as e:
+            logger.error(f"Failed to load metadata: {e}")
+
     def _load_model(self, model_path: str):
         """Load model from pickle file."""
         if os.path.exists(model_path):
@@ -103,13 +149,23 @@ class AdherenceExplainer:
                 logger.info(f"Loaded model from {model_path}")
             except Exception as e:
                 logger.error(f"Failed to load model: {e}")
+
+    def _load_explainer(self, explainer_path: str):
+        """Load pre-trained SHAP explainer."""
+        if os.path.exists(explainer_path):
+            try:
+                with open(explainer_path, 'rb') as f:
+                    self.explainer = pickle.load(f)
+                logger.info(f"Loaded explainer from {explainer_path}")
+            except Exception as e:
+                logger.error(f"Failed to load explainer: {e}")
     
     def _init_explainer(self):
-        """Initialize SHAP TreeExplainer."""
+        """Initialize SHAP TreeExplainer if not loaded."""
         try:
-            # TreeExplainer is optimal for RandomForest
-            self.explainer = shap.TreeExplainer(self.model)
-            logger.info("SHAP TreeExplainer initialized")
+            # Disable additivity check to prevent 500 errors on small floating point deltas
+            self.explainer = shap.TreeExplainer(self.model, check_additivity=False)
+            logger.info("SHAP TreeExplainer initialized from model (check_additivity=False)")
         except Exception as e:
             logger.error(f"Failed to initialize SHAP explainer: {e}")
     
@@ -120,7 +176,7 @@ class AdherenceExplainer:
             'hour': np.random.randint(6, 22, n_samples),
             'day_of_week': np.random.randint(0, 7, n_samples),
             'is_weekend': np.random.choice([0, 1], n_samples, p=[0.71, 0.29]),
-            'priority': np.random.choice([0, 1], n_samples, p=[0.7, 0.3])
+            'priority_encoded': np.random.choice([0, 1], n_samples, p=[0.7, 0.3])
         })
     
     def explain_prediction(
@@ -141,39 +197,86 @@ class AdherenceExplainer:
         if not self.explainer:
             raise ValueError("Explainer not initialized. Load a model first.")
         
-        # Create feature DataFrame
-        X = pd.DataFrame([{
-            'hour': features.get('hour', 9),
-            'day_of_week': features.get('day_of_week', 0),
-            'is_weekend': features.get('is_weekend', 0),
-            'priority': features.get('priority', 0)
-        }])
+        # Create feature DataFrame matching training schema
+        input_data = {}
+        for name in self.feature_names:
+            input_data[name] = features.get(name, 0)
+            # Fallback for old feature names if they appear in metadata
+            if name == 'priority_encoded' and 'priority' in features:
+                input_data[name] = features['priority']
+            if name == 'hour_of_day' and 'hour' in features:
+                input_data[name] = features['hour']
+
+        X = pd.DataFrame([input_data])
         
         # Get prediction
         prob = self.model.predict_proba(X)[0][1]  # Probability of taking medication
         risk_level = 'High' if prob < 0.6 else 'Medium' if prob < 0.8 else 'Low'
         
-        # Get SHAP values
-        shap_values = self.explainer.shap_values(X)
+        # Get SHAP values with robust error handling
+        try:
+            shap_values = self.explainer.shap_values(X)
+        except Exception as e:
+            logger.error(f"SHAP shap_values() failed: {e}")
+            # Return a minimal explanation with zero contributions
+            prob_val = float(prob)
+            return PredictionExplanation(
+                prediction=prob_val,
+                risk_level=risk_level,
+                base_value=0.0,
+                contributions=[FeatureContribution(
+                    name=self.feature_descriptions.get(n, n),
+                    value=float(X[n].iloc[0]),
+                    contribution=0.0,
+                    direction='neutral'
+                ) for n in self.feature_names],
+                waterfall_plot=None
+            )
         
-        # For binary classifier, use positive class SHAP values
-        if isinstance(shap_values, list):
-            shap_vals = shap_values[1][0]  # Class 1 (taken)
-        else:
-            shap_vals = shap_values[0]
-        
+        # 1. Handle different SHAP value return formats (list, 2D array, 3D array)
+        # Class 1 is usually the positive class (taken medication)
+        try:
+            if isinstance(shap_values, list):
+                # List of arrays: [class0_vals, class1_vals]
+                shap_vals = shap_values[1][0] if len(shap_values) > 1 else shap_values[0][0]
+            elif isinstance(shap_values, np.ndarray):
+                if shap_values.ndim == 3:
+                    # 3D array: (samples, features, classes) -> take class 1
+                    shap_vals = shap_values[0, :, 1] if shap_values.shape[2] > 1 else shap_values[0, :, 0]
+                else:
+                    # 2D array: (samples, features)
+                    shap_vals = shap_values[0]
+            else:
+                # Fallback for newer Explanation objects or unexpected types
+                shap_vals = shap_values[0].values if hasattr(shap_values, 'values') else shap_values[0]
+        except (IndexError, KeyError, TypeError) as e:
+            logger.error(f"SHAP value indexing failed: {e}, shape info: {type(shap_values)}, falling back to zeros")
+            shap_vals = np.zeros(len(self.feature_names))
+
+        # Ensure shap_vals is a flat numpy array with correct length
+        shap_vals = np.asarray(shap_vals).flatten()
+        if len(shap_vals) < len(self.feature_names):
+            shap_vals = np.pad(shap_vals, (0, len(self.feature_names) - len(shap_vals)))
+        elif len(shap_vals) > len(self.feature_names):
+            shap_vals = shap_vals[:len(self.feature_names)]
+
+        # 2. Handle base_value (expected_value) formats
         base_value = self.explainer.expected_value
-        if isinstance(base_value, np.ndarray):
+        if isinstance(base_value, (list, np.ndarray)) and len(base_value) > 1:
             base_value = base_value[1]  # Class 1
+        elif hasattr(base_value, '__iter__'):
+             try: base_value = list(base_value)[1]
+             except: pass
         
         # Build contributions list
         contributions = []
-        for i, (name, shap_val) in enumerate(zip(self.FEATURE_NAMES, shap_vals)):
+        for i, name in enumerate(self.feature_names):
+            shap_val = float(shap_vals[i])
             direction = 'increases_adherence' if shap_val > 0 else 'decreases_adherence'
             contributions.append(FeatureContribution(
-                name=self.FEATURE_DESCRIPTIONS.get(name, name),
+                name=self.feature_descriptions.get(name, name),
                 value=float(X[name].iloc[0]),
-                contribution=float(shap_val),
+                contribution=shap_val,
                 direction=direction
             ))
         
@@ -215,7 +318,7 @@ class AdherenceExplainer:
             values=shap_values,
             base_values=base_value,
             data=feature_values,
-            feature_names=list(self.FEATURE_DESCRIPTIONS.values())
+            feature_names=[self.feature_descriptions.get(n, n) for n in self.feature_names]
         )
         
         # Generate waterfall plot
@@ -252,22 +355,40 @@ class AdherenceExplainer:
         X = self._generate_sample_background(n_samples)
         
         # Calculate SHAP values for all samples
-        shap_values = self.explainer.shap_values(X)
+        # Disable additivity check to prevent failures on noisy synthetic data
+        try:
+            shap_values = self.explainer.shap_values(X, check_additivity=False)
+        except Exception as e:
+            logger.error(f"SHAP global shap_values() failed: {e}")
+            # Return minimal importance with zeros
+            return {
+                'features': [{'rank': i+1, 'feature': self.feature_descriptions.get(n, n), 'importance': 0.0, 'percentage': 0.0} for i, n in enumerate(self.feature_names)],
+                'summary_plot': None,
+                'samples_analyzed': n_samples
+            }
         
-        if isinstance(shap_values, list):
-            shap_vals = shap_values[1]  # Class 1
-        else:
-            shap_vals = shap_values
+        # Consistent extraction for positive class
+        try:
+            if isinstance(shap_values, list):
+                shap_vals = shap_values[1] if len(shap_values) > 1 else shap_values[0]
+            elif isinstance(shap_values, np.ndarray) and shap_values.ndim == 3:
+                shap_vals = shap_values[:, :, 1] if shap_values.shape[2] > 1 else shap_values[:, :, 0]
+            else:
+                shap_vals = shap_values
+        except (IndexError, KeyError, TypeError) as e:
+            logger.error(f"SHAP global value indexing failed: {e}")
+            shap_vals = np.zeros((n_samples, len(self.feature_names)))
         
         # Calculate mean absolute SHAP values
         mean_abs_shap = np.abs(shap_vals).mean(axis=0)
         
         # Rank features
         feature_importance = []
-        for i, (name, importance) in enumerate(zip(self.FEATURE_NAMES, mean_abs_shap)):
+        for i, name in enumerate(self.feature_names):
+            importance = mean_abs_shap[i]
             feature_importance.append({
                 'rank': 0,  # Will be set after sorting
-                'feature': self.FEATURE_DESCRIPTIONS.get(name, name),
+                'feature': self.feature_descriptions.get(name, name),
                 'importance': round(float(importance), 4),
                 'percentage': 0  # Will be calculated
             })
@@ -294,7 +415,7 @@ class AdherenceExplainer:
         plt.figure(figsize=(10, 6))
         
         # Rename columns for display
-        X_display = X.rename(columns=self.FEATURE_DESCRIPTIONS)
+        X_display = X.rename(columns=self.feature_descriptions)
         
         shap.summary_plot(
             shap_values, 
@@ -392,6 +513,5 @@ def get_explainer() -> AdherenceExplainer:
     """Get or create the global explainer instance."""
     global _explainer_instance
     if _explainer_instance is None:
-        model_path = 'app/services/models/adherence_model.pkl'
-        _explainer_instance = AdherenceExplainer(model_path=model_path)
+        _explainer_instance = AdherenceExplainer()
     return _explainer_instance

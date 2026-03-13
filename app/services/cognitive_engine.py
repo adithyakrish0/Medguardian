@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from app.extensions import db
 from app.models.medication_log import MedicationLog
 
@@ -31,7 +31,7 @@ class CognitiveEngine:
         # 2. Repeated Failure Tracking
         if not is_success:
             # Check last 15 minutes of logs for this med
-            fifteen_mins_ago = now.replace(minute=now.minute - 15) if now.minute >= 15 else now.replace(hour=now.hour-1, minute=45)
+            fifteen_mins_ago = now - timedelta(minutes=15)
             
             recent_fails = MedicationLog.query.filter(
                 MedicationLog.user_id == user_id,

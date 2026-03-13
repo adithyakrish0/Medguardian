@@ -80,7 +80,7 @@ export default function ContactChoiceModal({ isOpen, onClose, senior }: ContactC
 
                     <button
                         onClick={onClose}
-                        className="w-full py-5 bg-background border border-card-border text-foreground/40 rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-white/5 transition-all mt-2"
+                        className="w-full py-5 bg-background border border-card-border text-foreground/40 rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-white dark:bg-gray-800/5 transition-all mt-2"
                     >
                         Cancel
                     </button>

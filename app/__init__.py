@@ -91,6 +91,34 @@ def create_app(config_name=None):
     CORS(app, supports_credentials=True, origins=cors_origins, 
          expose_headers=["Content-Type", "Authorization"],
          allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
+    
+    
+    # Explicitly enable CORS for API v1 to ensure Chat works even if global config is strict
+    CORS(api_v1, supports_credentials=True, origins=cors_origins)
+    
+    # Import and register blueprints
+    from .routes.main import main
+    from .routes.auth import auth
+    from .routes.medication import medication
+    from .routes.snooze import snooze
+    from .routes.interaction import interaction
+    from .routes.caregiver import caregiver
+    from .routes.analytics import analytics
+    from .routes.emergency import emergency
+    from .routes.export import export_bp
+    from .routes.contacts import contacts
+    from .routes.telegram import telegram
+    from .routes.prescription import prescription
+    from .routes.insights import insights
+    from .routes.print_schedule import print_schedule
+    from .routes.api import api_v1  # REST API
+    from .routes.health import health  # Health check
+    from .routes.safety import safety  # Safety monitoring
+    
+    # Enable CORS for other key blueprints accessed via API
+    for bp in [analytics, medication, caregiver, interaction, emergency, contacts, prescription, insights, api_v1]:
+        CORS(bp, supports_credentials=True, origins=cors_origins)
+    
     app.logger.info("CORS: Initialized with explicit origins and credentials support")
     
     # Initialize SocketIO with proper configuration
@@ -156,23 +184,7 @@ def create_app(config_name=None):
         return redirect(url_for('auth.login', next=request.full_path))
     
     # Import and register blueprints
-    from .routes.main import main
-    from .routes.auth import auth
-    from .routes.medication import medication
-    from .routes.snooze import snooze
-    from .routes.interaction import interaction
-    from .routes.caregiver import caregiver
-    from .routes.analytics import analytics
-    from .routes.emergency import emergency
-    from .routes.export import export_bp
-    from .routes.contacts import contacts
-    from .routes.telegram import telegram
-    from .routes.prescription import prescription
-    from .routes.insights import insights
-    from .routes.print_schedule import print_schedule
-    from .routes.api import api_v1  # REST API
-    from .routes.health import health  # Health check
-    from .routes.safety import safety  # Safety monitoring
+
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
@@ -188,14 +200,14 @@ def create_app(config_name=None):
     app.register_blueprint(prescription, url_prefix='/prescription')
     app.register_blueprint(insights, url_prefix='/insights')
     app.register_blueprint(print_schedule, url_prefix='/print')
-    app.register_blueprint(api_v1)  # API already has /api/v1 prefix
+    app.register_blueprint(api_v1, url_prefix='/api/v1')  # API already has /api/v1 prefix
     # Only register debug routes in development mode
     if app.config.get('DEBUG', False):
         from .routes.debug import debug_bp
         app.register_blueprint(debug_bp)
         app.logger.info('Debug routes enabled (development mode)')
-    app.register_blueprint(health)  # Health check endpoints
-    app.register_blueprint(safety)  # Safety monitoring (fall detection, etc.)
+    app.register_blueprint(health, url_prefix='/health')  # Health check endpoints
+    app.register_blueprint(safety, url_prefix='/safety')  # Safety monitoring (fall detection, etc.)
     
     # Import all models to register with SQLAlchemy
     from .models.auth import User
@@ -205,6 +217,7 @@ def create_app(config_name=None):
     from .models.medication_interaction import MedicationInteraction, InteractionCheckResult
     from .models.snooze_log import SnoozeLog
     from .models.security_audit import SecurityAudit
+    from .models.refill_alert import RefillAlert
     
     @app.before_request
     def log_request_info():
@@ -212,7 +225,7 @@ def create_app(config_name=None):
         import time
         g.request_start_time = time.time()
         if request.path.startswith('/api/'):
-            print(f'🟢 START: {request.method} {request.path}')
+            app.logger.info(f'[Request] START: {request.method} {request.path}')
             app.logger.debug(f'Headers: {dict(request.headers)}')
     
     @app.after_request
@@ -221,7 +234,7 @@ def create_app(config_name=None):
         import time
         if hasattr(g, 'request_start_time') and request.path.startswith('/api/'):
             duration = (time.time() - g.request_start_time) * 1000
-            print(f'🔴 END: {request.method} {request.path} - {duration:.2f}ms ({duration/1000:.2f}s)')
+            app.logger.info(f'[Request] END: {request.method} {request.path} - {duration:.2f}ms ({duration/1000:.2f}s)')
         return response
     
     # Error handlers
@@ -251,7 +264,7 @@ def create_app(config_name=None):
         from datetime import datetime
         
         # Log to stderr
-        print(f"🔥 [GLOBAL] Internal Server Error: {error}", file=sys.stderr)
+        app.logger.error(f"[GLOBAL] Internal Server Error: {error}")
         traceback.print_exc(file=sys.stderr)
         
         # Log to file for diagnostics

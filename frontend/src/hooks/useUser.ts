@@ -27,9 +27,14 @@ export function useUser() {
                 setUser(response.data);
             }
         } catch (err: any) {
-            setError(err.message || 'Failed to fetch user profile');
-            // If fetching user fails, assume guest or senior for safety (but usually redirect to login)
-            setUser({ id: 0, username: 'Senior', email: '', role: 'senior' } as User);
+            const msg = err.message || 'Failed to fetch user profile';
+            // If session expired / not authenticated, redirect to login
+            if (msg.includes('401') || msg.includes('Unauthorized') || msg.includes('unauthenticated')) {
+                window.location.href = '/login';
+                return;
+            }
+            setError(msg);
+            setUser(null);
         } finally {
             setLoading(false);
         }

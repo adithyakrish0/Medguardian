@@ -8,7 +8,9 @@ export {
     SkeletonGraph,
     SkeletonCard,
     SkeletonStat,
-    SkeletonPatientCard
+    SkeletonPatientCard,
+    SkeletonWaterfall,
+    SkeletonChat
 } from './SkeletonLoaders';
 
 // Empty States - For when there's no data

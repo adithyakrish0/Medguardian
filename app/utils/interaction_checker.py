@@ -17,6 +17,7 @@ import logging
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
+from app.ml.gnn_interaction_detector import gnn_detector
 
 logger = logging.getLogger(__name__)
 
@@ -727,20 +728,51 @@ class InteractionChecker:
         # Normalize names
         normalized_names = [name.lower().strip() for name in medication_names]
         
-        # Check all pairs
+        # 1. Rule-based checks (Hardcoded guidelines)
         for i, drug1 in enumerate(normalized_names):
             for drug2 in normalized_names[i+1:]:
-                # Create canonical pair key to avoid duplicates
                 pair_key = tuple(sorted([drug1, drug2]))
                 if pair_key in seen_pairs:
                     continue
                 seen_pairs.add(pair_key)
                 
-                # Check for interaction
                 interaction = self._find_interaction(drug1, drug2)
                 if interaction:
                     interactions_found.append(interaction.copy())
         
+        # 2. GNN AI checks (Pattern-based prediction)
+        try:
+            gnn_results = gnn_detector.predict(medication_names)
+            for g_res in gnn_results:
+                pair_key = tuple(sorted([g_res['medication1'].lower(), g_res['medication2'].lower()]))
+                
+                # If we already have a hardcoded rule, we prefer it but maybe add GNN confidence
+                # If no hardcoded rule, this is a new AI discovery!
+                exists = False
+                for existing in interactions_found:
+                    if tuple(sorted([existing['medication1'].lower(), existing['medication2'].lower()])) == pair_key:
+                        existing['gnn_confidence'] = g_res.get('confidence', 0)
+                        exists = True
+                        break
+                
+                if not exists:
+                    # New interaction found by the Neural Network
+                    discovery = {
+                        'medication1': g_res['medication1'],
+                        'medication2': g_res['medication2'],
+                        'severity': g_res['severity'],
+                        'category': 'ai_inference',
+                        'description': f"AI PREDICTION: Potential interaction detected by Graph Neural Network with {g_res['confidence']*100:.1f}% confidence.",
+                        'recommendation': "Consult a healthcare professional to verify this potential interaction.",
+                        'source': 'MedGuardian GNN',
+                        'gnn_confidence': g_res['confidence'],
+                        'reasoning': g_res.get('reasoning', ''),
+                        'is_ai_prediction': True
+                    }
+                    interactions_found.append(discovery)
+        except Exception as e:
+            logger.error(f"GNN Prediction failed: {e}")
+
         # Sort by severity (critical first)
         severity_order = {'critical': 0, 'major': 1, 'moderate': 2, 'minor': 3}
         interactions_found.sort(key=lambda x: severity_order.get(x['severity'], 4))
@@ -849,13 +881,13 @@ class InteractionChecker:
     def _generate_recommendation(self, risk_level: str, interactions: List[Dict]) -> str:
         """Generate overall recommendation based on risk analysis"""
         if risk_level == 'safe':
-            return "✅ No drug interactions detected. Your medication regimen appears safe."
+            return "No drug interactions detected. Your medication regimen appears safe."
         
         recommendations = {
-            'critical': "🚨 CRITICAL RISK: Contact your doctor or pharmacist IMMEDIATELY. Some of these interactions may be life-threatening.",
-            'high': "⚠️ HIGH RISK: Schedule an urgent appointment with your healthcare provider to review your medications.",
-            'moderate': "⚡ MODERATE RISK: Discuss these interactions with your doctor at your next visit. Monitor for any unusual symptoms.",
-            'low': "ℹ️ LOW RISK: Minor interactions found. Be aware of possible effects but no immediate action needed."
+            'critical': "CRITICAL RISK: Contact your doctor or pharmacist IMMEDIATELY. Some of these interactions may be life-threatening.",
+            'high': "HIGH RISK: Schedule an urgent appointment with your healthcare provider to review your medications.",
+            'moderate': "MODERATE RISK: Discuss these interactions with your doctor at your next visit. Monitor for any unusual symptoms.",
+            'low': "LOW RISK: Minor interactions found. Be aware of possible effects but no immediate action needed."
         }
         
         base_rec = recommendations.get(risk_level, "Review with your healthcare provider.")
@@ -907,7 +939,10 @@ class InteractionChecker:
                     'source': source_id,
                     'target': target_id,
                     'severity': interaction['severity'],
-                    'description': interaction['description'][:100] + '...' if len(interaction['description']) > 100 else interaction['description']
+                    'description': interaction['description'][:100] + '...' if len(interaction['description']) > 100 else interaction['description'],
+                    'gnn_confidence': interaction.get('gnn_confidence', 0),
+                    'reasoning': interaction.get('reasoning', ''),
+                    'is_ai_prediction': interaction.get('is_ai_prediction', False)
                 })
                 
                 # Mark nodes as having interactions

@@ -35,13 +35,7 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
             # Fallback to console
-            print(f"\n{'='*60}")
-            print(f"📧 NOTIFICATION (EMAIL FAILED - printed instead)")
-            print(f"{'='*60}")
-            print(f"To: {user_email}")
-            print(f"Subject: Missed Medication Alert - {medication_name}")
-            print(f"Time: {scheduled_time}")
-            print(f"{'='*60}\n")
+            logger.warning(f"Draft Email Content - To: {user_email}, Subject: Missed Medication Alert - {medication_name}, Time: {scheduled_time}")
         
         return True
     
@@ -67,14 +61,7 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
             # Fallback to console
-            print(f"\n{'='*60}")
-            print(f"👨‍⚕️ CAREGIVER ALERT (EMAIL FAILED - printed instead)")
-            print(f"{'='*60}")
-            print(f"To: {caregiver_email}")
-            print(f"Senior: {senior_name}")
-            print(f"Alert Type: {alert_type}")
-            print(f"Details: {details}")
-            print(f"{'='*60}\n")
+            logger.warning(f"Draft Caregiver Alert Content - To: {caregiver_email}, Senior: {senior_name}, Type: {alert_type}, Details: {details}")
         
         return True
     

@@ -44,7 +44,7 @@ def send_email(subject, recipient, body, html_body=None):
 
 def send_missed_dose_email(user_email, medication_name, scheduled_time):
     """Send email alert for missed medication dose"""
-    subject = f"⚠️ Missed Medication Alert - {medication_name}"
+    subject = f"[Alert] Missed Medication - {medication_name}"
     
     body = f"""
     Hello,
@@ -61,7 +61,7 @@ def send_missed_dose_email(user_email, medication_name, scheduled_time):
     <html>
     <body style="font-family: Arial, sans-serif; line-height: 1.6;">
         <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 20px; margin: 20px 0;">
-            <h2 style="color: #721c24; margin-top: 0;">⚠️ Missed Medication Alert</h2>
+            <h2 style="color: #721c24; margin-top: 0;">Missed Medication Alert</h2>
             <p>You missed your scheduled dose of <strong>{medication_name}</strong> at <strong>{scheduled_time}</strong>.</p>
             <p>Please take your medication as soon as possible, or contact your healthcare provider if you have concerns.</p>
         </div>
@@ -77,7 +77,7 @@ def send_missed_dose_email(user_email, medication_name, scheduled_time):
 
 def send_caregiver_alert_email(caregiver_email, senior_name, alert_type, details):
     """Send alert email to caregiver"""
-    subject = f"🔔 Alert for {senior_name} - {alert_type}"
+    subject = f"[Alert] {senior_name} - {alert_type}"
     
     body = f"""
     Hello Caregiver,
@@ -97,7 +97,7 @@ def send_caregiver_alert_email(caregiver_email, senior_name, alert_type, details
     <html>
     <body style="font-family: Arial, sans-serif; line-height: 1.6;">
         <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 20px; margin: 20px 0;">
-            <h2 style="color: #856404; margin-top: 0;">🔔 Caregiver Alert</h2>
+            <h2 style="color: #856404; margin-top: 0;">Caregiver Alert</h2>
             <p><strong>Senior:</strong> {senior_name}</p>
             <p><strong>Alert Type:</strong> {alert_type}</p>
             <p><strong>Details:</strong> {details}</p>
@@ -115,7 +115,7 @@ def send_caregiver_alert_email(caregiver_email, senior_name, alert_type, details
 
 def send_interaction_warning_email(user_email, medication1, medication2, severity):
     """Send email about medication interaction"""
-    subject = f"⚠️ Medication Interaction Warning - {severity}"
+    subject = f"[Warning] Medication Interaction - {severity}"
     
     body = f"""
     Hello,
@@ -135,7 +135,7 @@ def send_interaction_warning_email(user_email, medication1, medication2, severit
     <html>
     <body style="font-family: Arial, sans-serif; line-height: 1.6;">
         <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 20px; margin: 20px 0;">
-            <h2 style="color: #721c24; margin-top: 0;">⚠️ Medication Interaction Warning</h2>
+            <h2 style="color: #721c24; margin-top: 0;">Medication Interaction Warning</h2>
             <p>We detected a potential <strong>{severity}</strong> interaction between:</p>
             <ul>
                 <li>{medication1}</li>

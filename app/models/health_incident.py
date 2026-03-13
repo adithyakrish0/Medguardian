@@ -36,7 +36,13 @@ class HealthIncident(db.Model):
     
     # Additional data
     notes = db.Column(db.Text)
-    metadata = db.Column(db.Text)  # JSON for additional info
+    extra_data = db.Column('metadata', db.Text)  # JSON for additional info (renamed from 'metadata' — reserved by SQLAlchemy)
+    
+    # Contact tracking (caregiver follow-up on anomalies)
+    contacted = db.Column(db.Boolean, default=False)
+    contacted_at = db.Column(db.DateTime, nullable=True)
+    contact_notes = db.Column(db.String(500), nullable=True)
+    contact_method = db.Column(db.String(50), nullable=True)
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -61,5 +67,9 @@ class HealthIncident(db.Model):
             'status': self.status,
             'severity': self.severity,
             'caregiver_notified': self.caregiver_notified,
-            'notes': self.notes
+            'notes': self.notes,
+            'contacted': self.contacted,
+            'contacted_at': self.contacted_at.isoformat() if self.contacted_at else None,
+            'contact_method': self.contact_method,
+            'contact_notes': self.contact_notes
         }

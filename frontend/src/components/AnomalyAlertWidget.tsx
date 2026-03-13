@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, X, Check, Phone, Clock, User, TrendingDown, Calendar, Eye } from 'lucide-react';
+import { AlertTriangle, X, Check, Phone, Clock, User, TrendingDown, Calendar, Eye, AlertCircle, Info, CheckCircle } from 'lucide-react';
 import { AnomalyAlert, getAnomalyTypeInfo, getAnomalySeverity, formatAnomalyTime } from '@/lib/api/anomaly';
 
 interface AnomalyAlertWidgetProps {
@@ -60,16 +60,16 @@ export default function AnomalyAlertWidget({
                             exit={{ opacity: 0, x: 100, scale: 0.9 }}
                             transition={{ duration: 0.3 }}
                             className={`relative overflow-hidden rounded-2xl border-2 shadow-2xl ${severity.level === 'critical'
-                                    ? 'bg-red-600 border-red-400/50 shadow-red-500/30'
-                                    : severity.level === 'high'
-                                        ? 'bg-orange-600 border-orange-400/50 shadow-orange-500/30'
-                                        : 'bg-yellow-600 border-yellow-400/50 shadow-yellow-500/30'
+                                ? 'bg-red-600 border-red-400/50 shadow-red-500/30'
+                                : severity.level === 'high'
+                                    ? 'bg-orange-600 border-orange-400/50 shadow-orange-500/30'
+                                    : 'bg-yellow-600 border-yellow-400/50 shadow-yellow-500/30'
                                 }`}
                         >
                             {/* Pulse animation for critical */}
                             {severity.level === 'critical' && (
                                 <motion.div
-                                    className="absolute inset-0 bg-white/10"
+                                    className="absolute inset-0 bg-white dark:bg-gray-800/10"
                                     animate={{ opacity: [0, 0.2, 0] }}
                                     transition={{ duration: 2, repeat: Infinity }}
                                 />
@@ -80,15 +80,25 @@ export default function AnomalyAlertWidget({
                                 {/* Header row */}
                                 <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                        <div className="w-12 h-12 bg-white dark:bg-gray-800/20 rounded-xl flex items-center justify-center">
                                             <AlertTriangle className="w-7 h-7 text-white" />
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-white font-black text-sm uppercase tracking-wider">
-                                                    {typeInfo.icon} {typeInfo.label}
+                                                <span className="text-white font-black text-sm uppercase tracking-wider flex items-center gap-1.5">
+                                                    {(() => {
+                                                        const IconMap: Record<string, any> = {
+                                                            'Clock': Clock,
+                                                            'Calendar': Calendar,
+                                                            'TrendingDown': TrendingDown,
+                                                            'CheckCircle': CheckCircle
+                                                        };
+                                                        const TypeIcon = IconMap[typeInfo.icon] || CheckCircle;
+                                                        return <TypeIcon className="w-4 h-4" />;
+                                                    })()}
+                                                    {typeInfo.label}
                                                 </span>
-                                                <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold text-white uppercase">
+                                                <span className="px-2 py-0.5 rounded-full bg-white dark:bg-gray-800/20 text-[10px] font-bold text-white uppercase">
                                                     {severity.level}
                                                 </span>
                                             </div>
@@ -103,12 +113,12 @@ export default function AnomalyAlertWidget({
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        <span className="px-3 py-1.5 bg-white/20 rounded-full text-sm font-black text-white">
+                                        <span className="px-3 py-1.5 bg-white dark:bg-gray-800/20 rounded-full text-sm font-black text-white">
                                             Score: {alert.anomaly_score.toFixed(1)}
                                         </span>
                                         <button
                                             onClick={() => handleDismiss(alert.patient_id)}
-                                            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                                            className="p-2 hover:bg-white dark:bg-gray-800/20 rounded-lg transition-colors"
                                         >
                                             <X className="w-5 h-5 text-white/80" />
                                         </button>
@@ -123,7 +133,7 @@ export default function AnomalyAlertWidget({
                                 {/* Pattern comparison (if available) */}
                                 {alert.details?.primary_anomaly?.details && (
                                     <div
-                                        className="bg-white/10 rounded-xl p-3 mb-4 cursor-pointer"
+                                        className="bg-white dark:bg-gray-800/10 rounded-xl p-3 mb-4 cursor-pointer"
                                         onClick={() => setExpandedAlert(isExpanded ? null : alert.patient_id)}
                                     >
                                         <div className="flex items-center justify-between text-xs text-white/70 mb-2">
@@ -180,14 +190,14 @@ export default function AnomalyAlertWidget({
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => handleDismiss(alert.patient_id)}
-                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl text-white font-bold text-sm transition-colors"
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800/20 hover:bg-white dark:bg-gray-800/30 rounded-xl text-white font-bold text-sm transition-colors"
                                     >
                                         <Check className="w-4 h-4" />
                                         Acknowledge
                                     </button>
                                     <button
                                         onClick={() => onContact(alert.patient_id, alert.patient_name)}
-                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-white/90 rounded-xl text-gray-900 font-bold text-sm transition-colors"
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 hover:bg-white dark:bg-gray-800/90 rounded-xl text-gray-900 dark:text-gray-100 font-bold text-sm transition-colors"
                                     >
                                         <Phone className="w-4 h-4" />
                                         Contact Patient

@@ -28,6 +28,15 @@ def login():
             return redirect(url_for('auth.login'))
         
         login_user(user, remember=remember)
+        
+        # Audit Log
+        from app.services.audit_service import audit_service
+        audit_service.log_action(
+            user_id=user.id,
+            action='LOGIN',
+            details=f"User logged in from {request.remote_addr}"
+        )
+        
         return redirect(url_for('main.dashboard'))
     
     return render_template('auth/login.html')

@@ -21,18 +21,18 @@ export const perfLog = {
     results: [] as Array<{ label: string; duration: number }>,
 
     start: (label: string) => {
-        if (ENABLE_PERF_LOGS) console.log(`🟢 START: ${label}`);
+        if (ENABLE_PERF_LOGS) console.log(`[PERF] START: ${label}`);
         perfLog.timers[label] = performance.now();
     },
 
     end: (label: string) => {
         if (!perfLog.timers[label]) {
-            if (ENABLE_PERF_LOGS) console.warn(`⚠️ No start time for: ${label}`);
+            if (ENABLE_PERF_LOGS) console.warn(`[PERF] WARNING: No start time for: ${label}`);
             return 0;
         }
         const duration = performance.now() - perfLog.timers[label];
         const seconds = (duration / 1000).toFixed(2);
-        if (ENABLE_PERF_LOGS) console.log(`🔴 END: ${label} - ${duration.toFixed(2)}ms (${seconds}s)`);
+        if (ENABLE_PERF_LOGS) console.log(`[PERF] END: ${label} - ${duration.toFixed(2)}ms (${seconds}s)`);
 
         perfLog.results.push({ label, duration });
         delete perfLog.timers[label];
@@ -53,7 +53,7 @@ export const perfLog = {
 
     getSummary: () => {
         if (ENABLE_PERF_LOGS) {
-            console.log('\n📊 PERFORMANCE SUMMARY:');
+            console.log('\nPERFORMANCE SUMMARY:');
             console.table(
                 perfLog.results.map(r => ({
                     Label: r.label,

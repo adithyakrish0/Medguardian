@@ -84,7 +84,7 @@ export default function ConnectionRequests() {
                             </button>
                             <button
                                 onClick={() => handleRespond(req.id, 'reject')}
-                                className="px-6 py-3 bg-background border border-card-border text-foreground rounded-xl font-bold hover:bg-red-500/5 hover:text-red-500 hover:border-red-500/20 transition-all flex items-center gap-2"
+                                className="px-6 py-3 bg-background border border-card-border text-foreground rounded-xl font-bold hover:bg-red-50 dark:bg-red-900/5 hover:text-red-500 hover:border-red-500/20 transition-all flex items-center gap-2"
                             >
                                 <X className="w-4 h-4" />
                                 Decline

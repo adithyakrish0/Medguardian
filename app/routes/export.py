@@ -26,6 +26,14 @@ def pdf_report():
         flash('No medication history to export.', 'warning')
         return redirect(url_for('analytics.dashboard'))
     
+    # Audit Log
+    from app.services.audit_service import audit_service
+    audit_service.log_action(
+        user_id=current_user.id,
+        action='FLEET_PDF_EXPORT', # Using generic export action or specific
+        details=f"User exported personal PDF report"
+    )
+
     return export_to_pdf(logs, medications, current_user)
 
 @export_bp.route('/csv-report')
@@ -44,6 +52,14 @@ def csv_report():
         flash('No medication history to export.', 'warning')
         return redirect(url_for('analytics.dashboard'))
     
+    # Audit Log
+    from app.services.audit_service import audit_service
+    audit_service.log_action(
+        user_id=current_user.id,
+        action='DATA_EXPORT_CSV',
+        details=f"User exported personal CSV report"
+    )
+
     return export_to_csv(logs, medications)
 
 @export_bp.route('/senior/<int:senior_id>/pdf')

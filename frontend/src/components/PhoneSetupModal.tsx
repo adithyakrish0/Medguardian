@@ -67,7 +67,7 @@ export default function PhoneSetupModal({ isOpen, onClose, currentPhone, onSucce
                         <div className="p-10 relative z-10">
                             <button
                                 onClick={onClose}
-                                className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all opacity-40 hover:opacity-100"
+                                className="absolute top-6 right-6 p-2 rounded-xl bg-white dark:bg-gray-800/5 hover:bg-white dark:bg-gray-800/10 transition-all opacity-40 hover:opacity-100"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -102,7 +102,7 @@ export default function PhoneSetupModal({ isOpen, onClose, currentPhone, onSucce
                                                 value={phone}
                                                 onChange={(e) => setPhone(e.target.value)}
                                                 placeholder="98765 43210"
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 pl-32 pr-6 font-black text-foreground placeholder:opacity-20 focus:border-primary focus:bg-white/10 outline-none transition-all text-lg"
+                                                className="w-full bg-white dark:bg-gray-800/5 border border-white/10 rounded-2xl py-5 pl-32 pr-6 font-black text-foreground placeholder:opacity-20 focus:border-primary focus:bg-white dark:bg-gray-800/10 outline-none transition-all text-lg"
                                             />
                                         </div>
 

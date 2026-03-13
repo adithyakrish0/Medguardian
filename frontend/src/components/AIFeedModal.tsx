@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/api';
-import { Camera, Scan, Brain, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
+import { Camera, Scan, Brain, CheckCircle2, ChevronRight, Loader2, X } from 'lucide-react';
 
 interface AIFeedModalProps {
     medicationId: number;
@@ -166,7 +166,9 @@ export default function AIFeedModal({ medicationId, medicationName, onClose, onC
                             <p className="text-sm opacity-60">Sealing {medicationName} DNA</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">✕</button>
+                    <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-8">
@@ -226,7 +228,7 @@ export default function AIFeedModal({ medicationId, medicationName, onClose, onC
                                             <p className="text-xs text-white font-bold">{statusMsg}</p>
                                         </div>
                                         {errorMsg && (
-                                            <div className="bg-red-500/80 backdrop-blur px-3 py-1.5 rounded-lg border border-red-500/20">
+                                            <div className="bg-red-50 dark:bg-red-900/20/80 backdrop-blur px-3 py-1.5 rounded-lg border border-red-500/20">
                                                 <p className="text-[10px] font-black text-white/50 tracking-widest uppercase mb-1">Error</p>
                                                 <p className="text-[10px] text-white font-bold">{errorMsg}</p>
                                             </div>

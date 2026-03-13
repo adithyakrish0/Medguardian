@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Loader2, Bell, Clock, Plus, AlertTriangle, ShieldAlert, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Save, Loader2, Bell, Clock, Plus, AlertTriangle, ShieldAlert, AlertCircle, CheckCircle2, Sunrise, Sun, Sunset, Moon, Zap, Info, Lightbulb } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { quickCheckNewMedication, QuickCheckResult, getSeverityClasses, DrugInteraction } from '@/lib/api/interactions';
 
@@ -14,10 +14,10 @@ interface AddMedicationModalProps {
 }
 
 const TIME_SLOTS = [
-    { key: 'morning', label: 'Morning', time: '8:00 AM', icon: '🌅' },
-    { key: 'afternoon', label: 'Afternoon', time: '2:00 PM', icon: '☀️' },
-    { key: 'evening', label: 'Evening', time: '6:00 PM', icon: '🌆' },
-    { key: 'night', label: 'Night', time: '9:00 PM', icon: '🌙' },
+    { key: 'morning', label: 'Morning', time: '8:00 AM', icon: Sunrise },
+    { key: 'afternoon', label: 'Afternoon', time: '2:00 PM', icon: Sun },
+    { key: 'evening', label: 'Evening', time: '6:00 PM', icon: Sunset },
+    { key: 'night', label: 'Night', time: '9:00 PM', icon: Moon },
 ];
 
 export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }: AddMedicationModalProps) {
@@ -149,17 +149,17 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative bg-[#0d1117] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/50"
+                        className="relative bg-white dark:bg-[#0d1117] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/50"
                     >
                         {/* Header */}
-                        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5 bg-[#0d1117] border-b border-white/5">
+                        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5 bg-white dark:bg-[#0d1117] border-b border-gray-200 dark:border-white/5">
                             <div>
-                                <h2 className="text-xl font-bold text-white">Add New Medication</h2>
-                                <p className="text-sm text-white/40 mt-0.5">Register a medication and set reminders</p>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add New Medication</h2>
+                                <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5">Register a medication and set reminders</p>
                             </div>
                             <button
                                 onClick={onClose}
-                                className="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/40 hover:text-white"
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 dark:hover:bg-white dark:bg-gray-800/5 rounded-lg transition-colors text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-gray-100 dark:text-gray-100 dark:hover:text-white"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -168,7 +168,7 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="p-6 space-y-8">
                             {error && (
-                                <div className="bg-red-500/10 text-red-400 px-4 py-3 rounded-lg text-sm font-medium">
+                                <div className="bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm font-medium">
                                     {error}
                                 </div>
                             )}
@@ -179,27 +179,34 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                     initial={{ opacity: 0, y: -10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     className={`p-6 rounded-2xl border-2 shadow-2xl relative overflow-hidden ${interactionCheck.risk_level === 'critical' ? 'bg-red-600 border-red-500/50 shadow-red-500/20' :
-                                            interactionCheck.risk_level === 'high' ? 'bg-orange-600 border-orange-500/50 shadow-orange-500/20' :
-                                                interactionCheck.risk_level === 'moderate' ? 'bg-yellow-600 border-yellow-500/50 shadow-yellow-500/20' :
-                                                    'bg-blue-600 border-blue-500/50 shadow-blue-500/20'
+                                        interactionCheck.risk_level === 'high' ? 'bg-orange-600 border-orange-500/50 shadow-orange-500/20' :
+                                            interactionCheck.risk_level === 'moderate' ? 'bg-yellow-600 border-yellow-500/50 shadow-yellow-500/20' :
+                                                'bg-blue-600 border-blue-500/50 shadow-blue-500/20'
                                         }`}
                                 >
                                     <div className="absolute top-0 right-0 p-4 opacity-10">
                                         <ShieldAlert className="w-16 h-16" />
                                     </div>
                                     <div className="flex items-start gap-4 relative z-10">
-                                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                                        <div className="w-12 h-12 bg-white dark:bg-gray-800/20 rounded-xl flex items-center justify-center shrink-0">
                                             <AlertTriangle className="w-7 h-7 text-white" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3 mb-2">
-                                                <h4 className="text-white font-black uppercase text-xs tracking-widest">
-                                                    {interactionCheck.risk_level === 'critical' ? '🚨 Critical' :
-                                                        interactionCheck.risk_level === 'high' ? '⚠️ High Risk' :
-                                                            interactionCheck.risk_level === 'moderate' ? '⚡ Moderate Risk' :
-                                                                'ℹ️ Low Risk'} Interaction
+                                                <h4 className="text-white font-black uppercase text-xs tracking-widest flex items-center gap-1.5">
+                                                    {(() => {
+                                                        const IconMap: Record<string, any> = {
+                                                            'critical': AlertCircle,
+                                                            'high': AlertTriangle,
+                                                            'moderate': Zap,
+                                                            'low': Info
+                                                        };
+                                                        const RiskIcon = IconMap[interactionCheck.risk_level] || Info;
+                                                        return <RiskIcon className="w-4 h-4" />;
+                                                    })()}
+                                                    {interactionCheck.risk_level} Risk Interaction
                                                 </h4>
-                                                <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-black text-white">
+                                                <span className="px-3 py-1 bg-white dark:bg-gray-800/20 rounded-full text-xs font-black text-white">
                                                     Risk Score: {interactionCheck.risk_score}/100
                                                 </span>
                                             </div>
@@ -210,7 +217,7 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                                 {interactionCheck.interactions.slice(0, 3).map((c: DrugInteraction, i: number) => {
                                                     const classes = getSeverityClasses(c.severity);
                                                     return (
-                                                        <div key={i} className="text-xs font-black bg-white/10 p-3 rounded-xl border border-white/10">
+                                                        <div key={i} className="text-xs font-black bg-white dark:bg-gray-800/10 p-3 rounded-xl border border-white/10">
                                                             <div className="flex items-center gap-2 mb-1">
                                                                 <span className={`px-2 py-0.5 rounded text-[10px] uppercase ${classes.bg} ${classes.text}`}>
                                                                     {c.severity}
@@ -221,7 +228,9 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                                             </div>
                                                             <p className="mt-1 font-medium opacity-80 text-white">{c.description}</p>
                                                             {c.recommendation && (
-                                                                <p className="mt-2 text-white/70 italic">💡 {c.recommendation}</p>
+                                                                <p className="mt-2 text-white/70 italic flex items-center gap-1.5">
+                                                                    <Lightbulb className="w-3.5 h-3.5" /> {c.recommendation}
+                                                                </p>
                                                             )}
                                                         </div>
                                                     );
@@ -233,7 +242,7 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                                 )}
                                             </div>
                                             {interactionCheck.risk_level === 'critical' && (
-                                                <div className="mt-4 p-3 bg-white/20 rounded-xl flex items-center gap-2">
+                                                <div className="mt-4 p-3 bg-white dark:bg-gray-800/20 rounded-xl flex items-center gap-2">
                                                     <AlertCircle className="w-5 h-5 text-white" />
                                                     <span className="text-sm font-bold text-white">Consult your doctor before adding this medication</span>
                                                 </div>
@@ -248,10 +257,10 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-3"
+                                    className="p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-xl flex items-center gap-3"
                                 >
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                    <span className="text-sm font-bold text-emerald-400">No interactions detected with your current medications ✓</span>
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
+                                    <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">No interactions detected with your current medications</span>
                                 </motion.div>
                             )}
 
@@ -259,18 +268,18 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                             <div>
                                 <div className="flex items-center gap-2 mb-4">
                                     <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">1</span>
-                                    <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wide">Basic Info</h3>
+                                    <h3 className="text-sm font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wide">Basic Info</h3>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     {/* Name */}
                                     <div>
-                                        <label className="block text-xs font-medium text-white/50 mb-2">Medication Name</label>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2">Medication Name</label>
                                         <input
                                             type="text"
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             onBlur={(e) => checkConflicts(e.target.value)}
-                                            className={`w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 text-white text-sm placeholder-white/30 transition-all ${interactionCheck?.has_interactions ? 'ring-2 ring-red-500/50' : 'focus:ring-primary/50'
+                                            className={`w-full px-4 py-3 bg-gray-50 dark:bg-white/5 rounded-lg focus:outline-none focus:ring-1 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 transition-all border border-gray-200 dark:border-transparent ${interactionCheck?.has_interactions ? 'ring-2 ring-red-500/50' : 'focus:ring-primary/50'
                                                 }`}
                                             placeholder="e.g., Aspirin"
                                             required
@@ -285,12 +294,12 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
 
                                     {/* Dosage */}
                                     <div>
-                                        <label className="block text-xs font-medium text-white/50 mb-2">Dosage</label>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2">Dosage</label>
                                         <input
                                             type="text"
                                             value={formData.dosage}
                                             onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm placeholder-white/30"
+                                            className="w-full px-4 py-3 bg-gray-50 dark:bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 border border-gray-200 dark:border-transparent"
                                             placeholder="e.g., 500mg"
                                             required
                                         />
@@ -298,14 +307,14 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
 
                                     {/* Priority */}
                                     <div>
-                                        <label className="block text-xs font-medium text-white/50 mb-2">Priority</label>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2">Priority</label>
                                         <div className="flex gap-2">
                                             <button
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, priority: 'normal' })}
                                                 className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${formData.priority === 'normal'
                                                     ? 'bg-primary text-white'
-                                                    : 'bg-white/5 text-white/50 hover:bg-white/10'
+                                                    : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-gray-600 dark:bg-gray-700 dark:hover:bg-white dark:bg-gray-800/10'
                                                     }`}
                                             >
                                                 Normal
@@ -315,7 +324,7 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                                 onClick={() => setFormData({ ...formData, priority: 'high' })}
                                                 className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${formData.priority === 'high'
                                                     ? 'bg-red-500 text-white'
-                                                    : 'bg-white/5 text-white/50 hover:bg-white/10'
+                                                    : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-gray-600 dark:bg-gray-700 dark:hover:bg-white dark:bg-gray-800/10'
                                                     }`}
                                             >
                                                 High
@@ -328,9 +337,9 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                             {/* SECTION 2: Schedule */}
                             <div>
                                 <div className="flex items-center gap-2 mb-4">
-                                    <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold">2</span>
-                                    <Clock className="w-4 h-4 text-white/40" />
-                                    <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wide">Reminder Schedule</h3>
+                                    <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 dark:text-amber-400 flex items-center justify-center text-xs font-bold">2</span>
+                                    <Clock className="w-4 h-4 text-gray-400 dark:text-white/40" />
+                                    <h3 className="text-sm font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wide">Reminder Schedule</h3>
                                 </div>
 
                                 {/* Time Slots */}
@@ -340,47 +349,49 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                             key={slot.key}
                                             type="button"
                                             onClick={() => toggleTimeSlot(slot.key)}
-                                            className={`p-4 rounded-xl transition-all text-center ${formData[slot.key as keyof typeof formData]
-                                                ? 'bg-primary/20 ring-1 ring-primary/50'
-                                                : 'bg-white/5 hover:bg-white/10'
+                                            className={`p-4 rounded-xl transition-all text-center border ${formData[slot.key as keyof typeof formData]
+                                                ? 'bg-primary/10 border-primary/50 ring-1 ring-primary/50'
+                                                : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-transparent hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 dark:hover:bg-white dark:bg-gray-800/10'
                                                 }`}
                                         >
-                                            <div className="text-2xl mb-1">{slot.icon}</div>
-                                            <div className={`font-medium text-sm ${formData[slot.key as keyof typeof formData] ? 'text-primary' : 'text-white/70'}`}>
+                                            <div className="flex justify-center mb-2">
+                                                <slot.icon className={`w-8 h-8 ${formData[slot.key as keyof typeof formData] ? 'text-primary' : 'text-gray-400 dark:text-white/40'}`} />
+                                            </div>
+                                            <div className={`font-medium text-sm ${formData[slot.key as keyof typeof formData] ? 'text-primary' : 'text-gray-700 dark:text-white/70'}`}>
                                                 {slot.label}
                                             </div>
-                                            <div className="text-xs text-white/40">{slot.time}</div>
+                                            <div className="text-xs text-gray-400 dark:text-white/40">{slot.time}</div>
                                         </button>
                                     ))}
                                 </div>
 
                                 {/* Custom Times */}
                                 <div className="flex flex-wrap items-center gap-3 mb-5">
-                                    <span className="text-xs text-white/40">Custom:</span>
+                                    <span className="text-xs text-gray-500 dark:text-white/40">Custom:</span>
                                     <input
                                         type="time"
                                         value={newCustomTime}
                                         onChange={(e) => setNewCustomTime(e.target.value)}
-                                        className="px-3 py-2 bg-white/5 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary/50"
+                                        className="px-3 py-2 bg-gray-50 dark:bg-white/5 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary/50 border border-gray-200 dark:border-transparent"
                                     />
                                     <button
                                         type="button"
                                         onClick={addCustomTime}
                                         disabled={!newCustomTime}
-                                        className="px-3 py-2 bg-primary/20 text-primary rounded-lg font-medium text-sm hover:bg-primary/30 transition-all disabled:opacity-30 flex items-center gap-1"
+                                        className="px-3 py-2 bg-primary/10 text-primary rounded-lg font-medium text-sm hover:bg-primary/20 transition-all disabled:opacity-30 flex items-center gap-1"
                                     >
                                         <Plus className="w-4 h-4" /> Add
                                     </button>
                                     {formData.custom_reminder_times.map(time => (
                                         <span
                                             key={time}
-                                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full text-sm text-white/70"
+                                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-sm text-gray-700 dark:text-white/70"
                                         >
                                             {time}
                                             <button
                                                 type="button"
                                                 onClick={() => removeCustomTime(time)}
-                                                className="text-white/30 hover:text-red-400 transition-colors"
+                                                className="text-gray-400 dark:text-white/30 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                                             >
                                                 <X className="w-3 h-3" />
                                             </button>
@@ -389,18 +400,18 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                                 </div>
 
                                 {/* Reminder Toggle */}
-                                <div className="flex items-center justify-between py-3 px-4 bg-white/5 rounded-lg">
+                                <div className="flex items-center justify-between py-3 px-4 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-transparent">
                                     <div className="flex items-center gap-3">
-                                        <Bell className="w-4 h-4 text-white/40" />
-                                        <span className="text-sm text-white/70">Enable Reminders</span>
+                                        <Bell className="w-4 h-4 text-gray-400 dark:text-white/40" />
+                                        <span className="text-sm text-gray-700 dark:text-white/70">Enable Reminders</span>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => setFormData({ ...formData, reminder_enabled: !formData.reminder_enabled })}
-                                        className={`w-11 h-6 rounded-full transition-all relative ${formData.reminder_enabled ? 'bg-primary' : 'bg-white/20'
+                                        className={`w-11 h-6 rounded-full transition-all relative ${formData.reminder_enabled ? 'bg-primary' : 'bg-gray-300 dark:bg-white/20'
                                             }`}
                                     >
-                                        <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${formData.reminder_enabled ? 'translate-x-5' : ''
+                                        <span className={`absolute top-1 left-1 w-4 h-4 bg-white dark:bg-gray-800 rounded-full shadow transition-transform ${formData.reminder_enabled ? 'translate-x-5' : ''
                                             }`} />
                                     </button>
                                 </div>
@@ -409,40 +420,40 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                             {/* SECTION 3: Additional */}
                             <div>
                                 <div className="flex items-center gap-2 mb-4">
-                                    <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">3</span>
-                                    <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wide">Additional Details</h3>
+                                    <span className="w-5 h-5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-500 dark:text-green-400 flex items-center justify-center text-xs font-bold">3</span>
+                                    <h3 className="text-sm font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wide">Additional Details</h3>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     {/* Start Date */}
                                     <div>
-                                        <label className="block text-xs font-medium text-white/50 mb-2">Start Date</label>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2">Start Date</label>
                                         <input
                                             type="date"
                                             value={formData.start_date}
                                             onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm"
+                                            className="w-full px-4 py-3 bg-gray-50 dark:bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-gray-900 dark:text-white text-sm border border-gray-200 dark:border-transparent"
                                         />
                                     </div>
 
                                     {/* End Date */}
                                     <div>
-                                        <label className="block text-xs font-medium text-white/50 mb-2">End Date</label>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2">End Date</label>
                                         <input
                                             type="date"
                                             value={formData.end_date}
                                             onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm"
+                                            className="w-full px-4 py-3 bg-gray-50 dark:bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-gray-900 dark:text-white text-sm border border-gray-200 dark:border-transparent"
                                         />
                                     </div>
 
                                     {/* Instructions */}
                                     <div>
-                                        <label className="block text-xs font-medium text-white/50 mb-2">Instructions</label>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2">Instructions</label>
                                         <input
                                             type="text"
                                             value={formData.instructions}
                                             onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-white text-sm placeholder-white/30"
+                                            className="w-full px-4 py-3 bg-gray-50 dark:bg-white/5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 border border-gray-200 dark:border-transparent"
                                             placeholder="Take with food"
                                         />
                                     </div>
@@ -450,11 +461,11 @@ export default function AddMedicationModal({ isOpen, onClose, onAdd, seniorId }:
                             </div>
 
                             {/* Actions */}
-                            <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-white/5">
                                 <button
                                     type="button"
                                     onClick={onClose}
-                                    className="px-5 py-2.5 bg-white/5 text-white/70 rounded-lg font-medium hover:bg-white/10 transition-all text-sm"
+                                    className="px-5 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/70 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 dark:bg-gray-700 dark:hover:bg-white dark:bg-gray-800/10 transition-all text-sm"
                                 >
                                     Cancel
                                 </button>

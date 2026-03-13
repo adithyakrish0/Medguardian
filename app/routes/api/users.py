@@ -1,6 +1,6 @@
 """API v1 - User endpoints"""
 import sys
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from flask_login import login_required, current_user
 from . import api_v1
 
@@ -31,24 +31,24 @@ def get_user_by_id(user_id):
     from app.models.auth import User
     from app.models.relationship import CaregiverSenior
     
-    print(f"DEBUG: get_user_by_id called for ID: {user_id}", file=sys.stderr)
+    current_app.logger.debug(f"DEBUG: get_user_by_id called for ID: {user_id}")
     try:
         # Security: Only allow self or linked caregiver/senior (accepted status)
         if user_id != current_user.id:
-            print(f"DEBUG: Checking relationship between {current_user.id} and {user_id}", file=sys.stderr)
+            current_app.logger.debug(f"DEBUG: Checking relationship between {current_user.id} and {user_id}")
             relationship = CaregiverSenior.query.filter(
                 ((CaregiverSenior.caregiver_id == current_user.id) & (CaregiverSenior.senior_id == user_id)) |
                 ((CaregiverSenior.caregiver_id == user_id) & (CaregiverSenior.senior_id == current_user.id))
             ).filter_by(status='accepted').first()
             
             if not relationship:
-                print(f"DEBUG: Access denied. No relationship found.", file=sys.stderr)
+                current_app.logger.debug(f"DEBUG: Access denied. No relationship found.")
                 return jsonify({'success': False, 'error': 'Access denied to this user profile'}), 403
                 
-        print(f"DEBUG: Querying user {user_id}", file=sys.stderr)
+        current_app.logger.debug(f"DEBUG: Querying user {user_id}")
         user = User.query.get(user_id)
         if not user:
-             print(f"DEBUG: User {user_id} NOT FOUND in database", file=sys.stderr)
+             current_app.logger.debug(f"DEBUG: User {user_id} NOT FOUND in database")
              return jsonify({'success': False, 'error': 'User not found'}), 404
              
         user_data = user.to_dict()

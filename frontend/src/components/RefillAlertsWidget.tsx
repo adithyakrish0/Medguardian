@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Pill, AlertTriangle, RefreshCw, ChevronRight } from 'lucide-react';
+import { Pill, AlertTriangle, RefreshCw, ChevronRight, AlertCircle, Info, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getRefillSummary, RefillSummary, getAlertLevelStyle } from '@/lib/api/refills';
 
@@ -40,9 +40,9 @@ export default function RefillAlertsWidget({ className = '' }: RefillAlertsWidge
 
     if (loading) {
         return (
-            <div className={`p-5 bg-white/5 border border-white/10 rounded-2xl animate-pulse ${className}`}>
-                <div className="h-6 bg-white/10 rounded w-1/2 mb-4" />
-                <div className="h-12 bg-white/10 rounded" />
+            <div className={`p-5 bg-white dark:bg-gray-800/5 border border-white/10 rounded-2xl animate-pulse ${className}`}>
+                <div className="h-6 bg-white dark:bg-gray-800/10 rounded w-1/2 mb-4" />
+                <div className="h-12 bg-white dark:bg-gray-800/10 rounded" />
             </div>
         );
     }
@@ -54,13 +54,13 @@ export default function RefillAlertsWidget({ className = '' }: RefillAlertsWidge
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className={`p-5 rounded-2xl border ${hasAlerts
-                    ? 'bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/30'
-                    : 'bg-white/5 border-white/10'
+                ? 'bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/30'
+                : 'bg-white dark:bg-gray-800/5 border-white/10'
                 } ${className}`}
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${hasAlerts ? 'bg-orange-500/20' : 'bg-white/10'
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${hasAlerts ? 'bg-orange-500/20' : 'bg-white dark:bg-gray-800/10'
                         }`}>
                         <Pill className={`w-5 h-5 ${hasAlerts ? 'text-orange-400' : 'text-gray-400'}`} />
                     </div>
@@ -74,7 +74,7 @@ export default function RefillAlertsWidget({ className = '' }: RefillAlertsWidge
 
                 <button
                     onClick={fetchSummary}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    className="p-2 hover:bg-white dark:bg-gray-800/10 rounded-lg transition-colors"
                 >
                     <RefreshCw className="w-4 h-4 text-gray-400" />
                 </button>
@@ -84,7 +84,7 @@ export default function RefillAlertsWidget({ className = '' }: RefillAlertsWidge
                 <div className="flex items-center gap-3 mb-4">
                     {data.critical > 0 && (
                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${getAlertLevelStyle('critical').bg}`}>
-                            <span className={getAlertLevelStyle('critical').text}>{getAlertLevelStyle('critical').icon}</span>
+                            <AlertCircle className={`w-3.5 h-3.5 ${getAlertLevelStyle('critical').text}`} />
                             <span className={`text-sm font-bold ${getAlertLevelStyle('critical').text}`}>
                                 {data.critical}
                             </span>
@@ -92,7 +92,7 @@ export default function RefillAlertsWidget({ className = '' }: RefillAlertsWidge
                     )}
                     {data.warning > 0 && (
                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${getAlertLevelStyle('warning').bg}`}>
-                            <span className={getAlertLevelStyle('warning').text}>{getAlertLevelStyle('warning').icon}</span>
+                            <AlertTriangle className={`w-3.5 h-3.5 ${getAlertLevelStyle('warning').text}`} />
                             <span className={`text-sm font-bold ${getAlertLevelStyle('warning').text}`}>
                                 {data.warning}
                             </span>
@@ -100,7 +100,7 @@ export default function RefillAlertsWidget({ className = '' }: RefillAlertsWidge
                     )}
                     {data.info > 0 && (
                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${getAlertLevelStyle('info').bg}`}>
-                            <span className={getAlertLevelStyle('info').text}>{getAlertLevelStyle('info').icon}</span>
+                            <Info className={`w-3.5 h-3.5 ${getAlertLevelStyle('info').text}`} />
                             <span className={`text-sm font-bold ${getAlertLevelStyle('info').text}`}>
                                 {data.info}
                             </span>
@@ -111,7 +111,7 @@ export default function RefillAlertsWidget({ className = '' }: RefillAlertsWidge
 
             <Link
                 href="/refills"
-                className="flex items-center justify-between w-full px-4 py-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors group"
+                className="flex items-center justify-between w-full px-4 py-3 bg-white dark:bg-gray-800/5 hover:bg-white dark:bg-gray-800/10 rounded-xl transition-colors group"
             >
                 <span className="text-sm font-medium text-white">View All Refills</span>
                 <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />

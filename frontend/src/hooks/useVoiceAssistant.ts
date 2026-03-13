@@ -6,7 +6,11 @@ import { apiFetch } from '@/lib/api';
 
 export function useVoiceAssistant() {
     const [isListening, setIsListening] = useState(false);
-    const [messages, setMessages] = useState<{ text: string, type: 'user' | 'system' }[]>([]);
+    const [messages, setMessages] = useState<{
+        text: string,
+        type: 'user' | 'system',
+        sources?: { content: string, score: number, id: string }[]
+    }[]>([]);
     const [supported, setSupported] = useState(false);
     const recognitionRef = useRef<any>(null);
     const router = useRouter();
@@ -53,7 +57,31 @@ export function useVoiceAssistant() {
             return;
         }
 
-        speak("I didn't quite get that. Try saying 'Dashboard' or 'Next medication'.");
+        // Fallback: Call MedGuardian AI RAG Assistant (with NER)
+        try {
+            const data = await apiFetch('/assistant/chat', {
+                method: 'POST',
+                body: JSON.stringify({ message: command })
+            });
+
+            if (data.success) {
+                // Use highlighted_response if available, fallback to response
+                const aiResponse = data.highlighted_response || data.response;
+                setMessages(prev => [...prev, {
+                    text: aiResponse,
+                    type: 'system',
+                    sources: data.sources
+                }]);
+
+                // Also speak the plain response (without markers)
+                const utterance = new SpeechSynthesisUtterance(data.response);
+                window.speechSynthesis.speak(utterance);
+            } else {
+                speak("I'm sorry, I'm having trouble connecting to my medical database.");
+            }
+        } catch (err) {
+            speak("I encountered an error while consulting my clinical guidelines.");
+        }
     }, [router, speak]);
 
     const startListening = useCallback(() => {

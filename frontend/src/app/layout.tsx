@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/NiceToast";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import ThemeProvider from "@/components/ThemeProvider";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -20,16 +22,32 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+        <script dangerouslySetInnerHTML={{
+          __html: `
+          (function() {
+            try {
+              var t = localStorage.getItem('medguardian-theme');
+              if (t === 'dark') {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-theme', 'dark');
+              }
+            } catch(e) {}
+          })();
+        `}} />
       </head>
       <body
         className={`${jakarta.variable} font-sans antialiased`}
       >
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <ThemeProvider>
+          <ErrorBoundary>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </ErrorBoundary>
+        </ThemeProvider>
       </body>
     </html>
   );

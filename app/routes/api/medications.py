@@ -1,7 +1,7 @@
 """API v1 - Medication endpoints"""
 import sys
 import traceback
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from flask_login import login_required, current_user
 from pydantic import ValidationError
 from . import api_v1
@@ -79,6 +79,14 @@ def create_medication():
         # Create medication
         medication = MedicationService.create(current_user.id, data.dict())
         
+        # Audit Log
+        from app.services.audit_service import audit_service
+        audit_service.log_action(
+            user_id=current_user.id,
+            action='MEDICATION_PROTOCOL_CHANGE',
+            details=f"Created medication: {medication.name} ({medication.dosage})"
+        )
+        
         return jsonify({
             'success': True,
             'message': 'Medication created successfully',
@@ -120,6 +128,14 @@ def update_medication(medication_id):
                 'error': 'Medication not found'
             }), 404
         
+        # Audit Log
+        from app.services.audit_service import audit_service
+        audit_service.log_action(
+            user_id=current_user.id,
+            action='MEDICATION_PROTOCOL_CHANGE',
+            details=f"Updated medication: {medication.name}"
+        )
+        
         return jsonify({
             'success': True,
             'message': 'Medication updated successfully',
@@ -145,6 +161,10 @@ def update_medication(medication_id):
 def delete_medication(medication_id):
     """Delete medication"""
     try:
+        # Get med name before deletion for log
+        medication = MedicationService.get_by_id(medication_id, current_user.id)
+        med_name = medication.name if medication else "Unknown"
+        
         success = MedicationService.delete(medication_id, current_user.id)
         
         if not success:
@@ -152,6 +172,14 @@ def delete_medication(medication_id):
                 'success': False,
                 'error': 'Medication not found'
             }), 404
+        
+        # Audit Log
+        from app.services.audit_service import audit_service
+        audit_service.log_action(
+            user_id=current_user.id,
+            action='MEDICATION_PROTOCOL_CHANGE',
+            details=f"Deleted medication: {med_name}"
+        )
         
         return jsonify({
             'success': True,
@@ -275,7 +303,7 @@ def create_quick_test():
             dosage=dosage,
             frequency='Custom',
             custom_reminder_times=json.dumps([custom_time]),
-            instructions='🧪 Quick Test',
+            instructions='Quick Test',
             priority='normal',
             start_date=date.today(),
             morning=False,
@@ -289,7 +317,7 @@ def create_quick_test():
         
         return jsonify({
             'success': True,
-            'message': f'✅ Created! Reminder at {custom_time}',
+            'message': f'Created! Reminder at {custom_time}',
             'medication_id': medication.id,
             'scheduled_time': custom_time
         }), 201
@@ -376,7 +404,7 @@ def get_medication_status():
             MedicationLog.taken_at >= datetime.combine(today, datetime.min.time())
         ).order_by(MedicationLog.taken_at.asc()).all()
         
-        print(f"DEBUG: [API] User {user_id} has {len(all_dose_slots)} slots and {len(logs_today)} logs today", file=sys.stderr)
+        current_app.logger.debug(f"DEBUG: [API] User {user_id} has {len(all_dose_slots)} slots and {len(logs_today)} logs today")
         
         # Group logs by medication for greedy matching
         logs_by_med = {}
@@ -417,7 +445,7 @@ def get_medication_status():
                     if slot['time'] == 'Anytime':
                         upcoming.append(slot)
                     elif slot['time'] <= current_time:
-                        print(f"DEBUG: [API] Marking slot {slot['name']} @ {slot['time']} as MISSED", file=sys.stderr)
+                        current_app.logger.debug(f"DEBUG: [API] Marking slot {slot['name']} @ {slot['time']} as MISSED")
                         missed.append({
                             'id': slot['id'], 'name': slot['name'],
                             'dosage': slot['dosage'], 'scheduled_time': slot['time']
@@ -425,10 +453,10 @@ def get_medication_status():
                     else:
                         upcoming.append(slot)
 
-        # Final sorting for the UI
-        upcoming.sort(key=lambda x: x['sort_time'])
-        missed.sort(key=lambda x: x['scheduled_time'], reverse=True)
-        taken.sort(key=lambda x: x['taken_at'], reverse=True)
+        # Final sorting for the UI - ensure keys exist to prevent 500s
+        upcoming.sort(key=lambda x: x.get('sort_time', ''))
+        missed.sort(key=lambda x: x.get('scheduled_time', ''), reverse=True)
+        taken.sort(key=lambda x: x.get('taken_at', ''), reverse=True)
         
         return jsonify({
             'success': True,
@@ -440,8 +468,8 @@ def get_medication_status():
         }), 200
         
     except Exception as e:
-        print(f"❌ [API] Critical error in get_medication_status: {str(e)}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
+        current_app.logger.error(f"❌ [API] Critical error in get_medication_status: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'error': str(e)

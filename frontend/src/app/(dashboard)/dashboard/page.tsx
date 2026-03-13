@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
+import Link from 'next/link';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import { apiFetch } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import AIVerificationModal from '@/components/AIVerificationModal';
-import { SkeletonDashboard, SkeletonCaregiverView } from '@/components/SkeletonLoaders';
+import { SkeletonDashboard, SkeletonCaregiverView } from '@/components/ui/SkeletonLoaders';
 import {
     Activity,
     Clock,
@@ -28,7 +29,14 @@ import {
     TrendingUp as TrendIcon,
     Calendar as CalendarIcon,
     Camera,
-    Loader2
+    Loader2,
+    FlaskConical,
+    Package,
+    Brain,
+    Pill,
+    MessageCircle,
+    Eye,
+    Radar,
 } from 'lucide-react';
 import AdherenceChart from '@/components/AdherenceChart';
 import PhoneSetupModal from '@/components/PhoneSetupModal';
@@ -48,17 +56,22 @@ function DashboardContent() {
     const { showToast } = useToast();
     const [skippingId, setSkippingId] = useState<number | null>(null);
     const [verifyingMed, setVerifyingMed] = useState<{ id: number, name: string } | null>(null);
+    const [mounted, setMounted] = useState(false);
 
-    if (userLoading) {
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted || userLoading) {
         return <SkeletonDashboard />;
     }
 
     if (error && !dataLoading) {
         return (
-            <div className="p-10 medical-card bg-red-500/5 border-red-500/20 text-red-600">
-                <AlertCircle className="w-12 h-12 mb-4" />
-                <h2 className="text-2xl font-black mb-2">Connection Issue</h2>
-                <p>{error}</p>
+            <div className="p-8 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-red-700 dark:text-red-300">
+                <AlertCircle className="w-10 h-10 mb-4 text-red-600 dark:text-red-400" />
+                <h2 className="text-xl font-bold mb-2 text-foreground">Connection Issue</h2>
+                <p className="font-medium">{error}</p>
             </div>
         );
     }
@@ -71,6 +84,7 @@ function DashboardContent() {
                     user={user}
                     onSeniorChange={(id) => setSelectedSeniorId(id)}
                     selectedSeniorId={selectedSeniorId}
+                    onRefresh={refresh}
                 />
             ) : (
                 <SeniorDashboardView
@@ -113,9 +127,6 @@ function SeniorDashboardView({
                 ...(data.schedule.skipped || [])
             ];
             const stillInList = allMeds.some((m: any) => m.id === skippingId);
-
-            // If it's a skip, we specifically check if it's still in 'missed' or 'upcoming'
-            // because once skipped, it moves to 'skipped' section (if visible)
             const isPending = [
                 ...(data.schedule.missed || []),
                 ...(data.schedule.upcoming || [])
@@ -126,43 +137,35 @@ function SeniorDashboardView({
             }
         }
     }, [data, skippingId, setSkippingId]);
+
     const nextMed = data?.schedule?.upcoming?.[0];
+    const overdueMeds = data?.schedule?.missed || [];
     const takenToday = data?.schedule?.taken?.length ?? 0;
     const { showToast } = useToast();
     const [verifyingMed, setVerifyingMed] = useState<{ id: number; name: string } | null>(null);
-    const [timeRange, setTimeRange] = useState('7D');
     const [nudge, setNudge] = useState<any>(null);
     const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
 
     useEffect(() => {
         if (!user?.id) return;
-
         const socket = connectSocket(user.id);
-
         socket.on('medication_reminder', (payload: any) => {
             if (payload.type === 'caregiver_nudge') {
                 setNudge(payload);
                 onRefresh();
-
-                // Clear nudge after 30 seconds
                 setTimeout(() => setNudge(null), 30000);
             }
         });
-
         socket.on('camera_request', (payload: any) => {
             if (user?.camera_auto_accept) {
                 setVerifyingMed({ id: 0, name: 'Caregiver Checkup' });
                 showToast('Camera session starting automatically...');
             } else {
-                setNudge({
-                    ...payload,
-                    type: 'camera_request'
-                });
+                setNudge({ ...payload, type: 'camera_request' });
                 onRefresh();
                 setTimeout(() => setNudge(null), 30000);
             }
         });
-
         return () => {
             socket.off('medication_reminder');
             socket.off('camera_request');
@@ -171,12 +174,9 @@ function SeniorDashboardView({
 
     const handleUpdatePhone = async (newPhone: string) => {
         try {
-            await apiFetch('/auth/profile', {
-                method: 'PUT',
-                body: JSON.stringify({ phone: newPhone })
-            });
-            await onRefreshUser(); // Use the passed prop
-            onRefresh(); // Use the passed prop
+            await apiFetch('/auth/profile', { method: 'PUT', body: JSON.stringify({ phone: newPhone }) });
+            await onRefreshUser();
+            onRefresh();
         } catch (err) {
             console.error("Failed to update phone", err);
             throw err;
@@ -184,457 +184,210 @@ function SeniorDashboardView({
     };
 
     const markAsTaken = async (medicationId: number, verified: boolean, method: string) => {
-        const endpoint = `/medications/${medicationId}/mark-taken`;
-        console.log('[Dashboard] markAsTaken calling:', endpoint);
-        await apiFetch(endpoint, {
+        await apiFetch(`/medications/${medicationId}/mark-taken`, {
             method: 'POST',
             body: JSON.stringify({ verified, verification_method: method })
         });
     };
 
-    // Calculate realistic adherence from actual logs
-    const totalDosesToday = (data?.schedule?.taken?.length || 0) + (data?.schedule?.missed?.length || 0);
-    const realAdherence = totalDosesToday > 0
-        ? Math.round(((data?.schedule?.taken?.length || 0) / totalDosesToday) * 100)
-        : (data?.stats?.total > 0 ? 100 : null);
-
-    // Build realistic history based on account creation
-    const generateRealisticHistory = (range: string) => {
-        const history: any[] = [];
-        const now = new Date();
-        let points = 7;
-        let unit: 'day' | 'month' = 'day';
-
-        if (range === '1M') points = 31; // One point per day for the month view
-        if (range === '6M') points = 6, unit = 'month';
-        if (range === '1Y') points = 12, unit = 'month';
-
-        const accountCreatedAt = user?.created_at ? new Date(user.created_at) : null;
-
-        for (let i = points - 1; i >= 0; i--) {
-            const d = new Date(now);
-            if (unit === 'day') {
-                if (range === '1M') d.setDate(d.getDate() - i);
-                else d.setDate(d.getDate() - i);
-            } else {
-                d.setDate(1); // Normalize to 1st first to avoid overflow/duplicates
-                d.setMonth(d.getMonth() - i);
-                if (i === 0) d.setDate(now.getDate()); // Last point is today
-            }
-
-            const checkDateStartOfDay = new Date(d.setHours(0, 0, 0, 0));
-            const accountCreatedDate = accountCreatedAt ? new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : null;
-            const isLocked = accountCreatedDate ? checkDateStartOfDay < accountCreatedDate : false;
-
-            // Mark as establishment if this is the transition point from Locked to Unlocked
-            let isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
-
-            // Special Case: If the very FIRST point in the chart is NOT locked, but account was created RECENTLY
-            // (within this point's window), it might be the establishment point.
-            if (i === points - 1 && !isLocked && accountCreatedAt) {
-                const startOfRange = new Date(d); // Already start of day from line 202
-                if (unit === 'day') startOfRange.setDate(startOfRange.getDate() - 1);
-                else startOfRange.setMonth(startOfRange.getMonth() - 1);
-
-                if (accountCreatedAt >= startOfRange) isEstablishment = true;
-            }
-
-            const isToday = i === 0 && unit === 'day';
-            let adherence: number | null;
-
-            if (isToday) {
-                adherence = realAdherence;
-            } else if (isLocked) {
-                adherence = 0;
-            } else {
-                if (unit === 'month') {
-                    // Average all real history points for this month
-                    const monthYear = d.toISOString().substring(0, 7); // "YYYY-MM"
-                    const monthPoints = data?.stats?.history?.filter((h: any) => h.full_date.startsWith(monthYear));
-
-                    if (monthPoints && monthPoints.length > 0) {
-                        // For a more honest average, we only count days that had actual scheduled doses
-                        // or at least have real historical data.
-                        const activeDays = monthPoints.filter((h: any) => h.expected > 0);
-                        const sourcePoints = activeDays.length > 0 ? activeDays : monthPoints;
-
-                        const sum = sourcePoints.reduce((acc: number, cur: any) => acc + cur.adherence, 0);
-                        adherence = Math.round(sum / sourcePoints.length);
-                    } else {
-                        // Fallback to simulation for past months where we have no data
-                        const seed = d.getDate() + d.getMonth() * 31;
-                        const variance = (seed % 15);
-                        adherence = 98 - variance;
-                    }
-                } else {
-                    // Day unit - check specific date
-                    const checkString = d.toISOString().split('T')[0];
-                    const realPoint = data?.stats?.history?.find((h: any) => h.full_date === checkString);
-                    if (realPoint) {
-                        adherence = realPoint.adherence;
-                    } else {
-                        const seed = d.getDate() + d.getMonth() * 31;
-                        const variance = (seed % 15);
-                        adherence = 98 - variance;
-                        if (data?.schedule?.missed?.length > 0 && i > 0 && i < 3 && unit === 'day' && range === '7D') {
-                            adherence -= (10 * (3 - i));
-                        }
-                    }
-                }
-            }
-
-            history.push({
-                date: unit === 'day'
-                    ? (range === '1M' ? d.toLocaleDateString([], { day: 'numeric', month: 'short' }) : d.toLocaleDateString([], { weekday: 'short' }))
-                    : d.toLocaleDateString([], { month: 'short' }),
-                adherence: isLocked ? 0 : Math.max(0, Math.min(100, (adherence ?? 0))),
-                isLocked,
-                isEstablishment
-            });
-        }
-        return history;
-    };
-
-    const chartHistory = generateRealisticHistory(timeRange);
-
     return (
-        <div className="space-y-12 py-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="max-w-4xl mx-auto space-y-12 pb-12"
+        >
             {/* Phone Setup Modal */}
-            {/* HIDDEN FOR DEMO - PhoneSetupModal
             <PhoneSetupModal
                 isOpen={isPhoneModalOpen}
                 onClose={() => setIsPhoneModalOpen(false)}
                 currentPhone={user?.phone}
                 onSuccess={handleUpdatePhone}
             />
-            */}
-            {/* HIDDEN FOR DEMO - Connection Requests
-            <ConnectionRequests />
-            */}
 
-            {/* Greeting */}
-            <header className="mb-16">
-                <h1 className="text-6xl md:text-7xl font-black text-foreground tracking-tighter mb-4 italic">
-                    Hello!
+            {/* Header: Simplified & Integrated */}
+            <header className="space-y-1 relative">
+                <div className="absolute -left-4 top-0 w-1 h-12 bg-primary-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                <h1 className="text-4xl font-black tracking-tighter text-white uppercase italic">
+                    SYSTEM_ACCESS: <span className="text-primary-400 not-italic">{user?.full_name?.split(' ')[0] || 'USER'}</span>
                 </h1>
-                <p className="text-2xl font-medium opacity-60">
-                    Here is how your day is going.
+                <p className="text-xs font-black tracking-[0.3em] text-slate-500 uppercase">
+                    AI_GUARDIAN_MODE: <span className="text-teal-400">ACTIVE_PROTECTION</span>
                 </p>
             </header>
 
-            <div className="grid gap-10">
-                {/* Real-time Caregiver Nudge */}
-                <AnimatePresence>
-                    {nudge && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0, y: -20 }}
-                            animate={{ height: 'auto', opacity: 1, y: 0 }}
-                            exit={{ height: 0, opacity: 0, y: -20 }}
-                            className={`medical-card p-10 shadow-3xl rounded-[48px] relative overflow-hidden flex items-center justify-between text-white ${nudge.type === 'camera_request'
-                                ? 'bg-red-600 shadow-red-500/40'
-                                : 'bg-accent shadow-accent/40'
-                                }`}
-                        >
-                            <div className="flex items-center gap-6 relative z-10 font-black italic w-full">
-                                <div className="p-4 bg-white/20 rounded-2xl animate-bounce shrink-0">
-                                    {nudge.type === 'camera_request' ? <Camera className="w-8 h-8" /> : <Bell className="w-8 h-8" />}
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-xl font-black">
-                                        {nudge.type === 'camera_request'
-                                            ? `${nudge.caregiver_name} is requesting camera access`
-                                            : `Reminder: ${nudge.medication_name}`}
-                                    </h3>
-                                    <p className="font-bold opacity-80">
-                                        {nudge.type === 'camera_request'
-                                            ? "They want to check in on you. Would you like to start the camera?"
-                                            : `Sent by ${nudge.caregiver_name} • ${new Date(nudge.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+            {/* Safety & Status Bar: Friendly AI Prompt */}
+            {!user?.phone && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-6 bg-blue-600/5 border border-blue-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md group hover:border-blue-500/40 transition-all shadow-xl"
+                >
+                    <div className="flex items-center gap-6">
+                        <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+                            <Shield className="w-6 h-6" />
+                        </div>
+                        <div className="text-center md:text-left">
+                            <h4 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-1">Guardian Link Required</h4>
+                            <p className="text-sm text-slate-400 font-medium">Add phone number for emergency AI override capability.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setIsPhoneModalOpen(true)}
+                        className="w-full md:w-auto px-6 py-3 bg-blue-600/10 border border-blue-500/30 text-blue-400 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all active:scale-95 whitespace-nowrap"
+                    >
+                        INITIALIZE LINK
+                    </button>
+                </motion.div>
+            )}
+
+            {/* Overdue Alert: Show ONLY if missed meds exist */}
+            {overdueMeds.length > 0 && (
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="p-8 bg-red-950/20 border-2 border-red-500/40 rounded-3xl shadow-2xl shadow-red-900/10 relative overflow-hidden backdrop-blur-xl"
+                >
+                    <div className="flex flex-col gap-6 text-center md:text-left">
+                        <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-red-500/10 text-red-400 rounded-full text-[10px] font-black uppercase tracking-[0.3em] self-center md:self-start border border-red-500/20">
+                            <AlertCircle className="w-4 h-4" />
+                            CRITICAL_OVERDUE_INTERRUPT
+                        </div>
+
+                        {overdueMeds.map((med: any) => (
+                            <div key={med.id} className="space-y-6">
+                                <div>
+                                    <h2 className="text-4xl font-black tracking-tighter text-white mb-1 uppercase">{med.name}</h2>
+                                    <p className="text-lg font-bold text-red-500 flex items-center gap-2 justify-center md:justify-start">
+                                        <Clock className="w-5 h-5" />
+                                        SCHEDULED_TIME: {med.scheduled_time || 'PRIOR_WINDOW'}
                                     </p>
                                 </div>
-                                <div className="flex gap-4">
-                                    {nudge.type === 'camera_request' ? (
-                                        <button
-                                            onClick={() => {
-                                                setVerifyingMed({ id: 0, name: 'Caregiver Checkup' });
-                                                setNudge(null);
-                                            }}
-                                            className="bg-white text-primary px-8 py-3 rounded-2xl font-black shadow-xl hover:scale-105 transition-all"
-                                        >
-                                            ACCEPT
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={() => setNudge(null)}
-                                            className="bg-white/20 text-white px-8 py-3 rounded-2xl font-black backdrop-blur-md hover:bg-white/30 transition-all"
-                                        >
-                                            DISMISS
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Profile Completion Alert */}
-                {!user?.phone && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="medical-card p-6 bg-white/5 border-dashed border-2 border-primary/20 rounded-[32px] flex items-center justify-between group hover:border-primary/40 transition-all"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                <Shield className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                                <h4 className="font-black text-sm uppercase tracking-wider">Safety Contact Profile Incomplete</h4>
-                                <p className="text-xs opacity-50 font-bold">Add your phone number so caregivers can reach you during emergencies.</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setIsPhoneModalOpen(true)}
-                            className="px-6 py-3 bg-primary text-white rounded-2xl text-xs font-black hover:scale-105 transition-all shadow-lg shadow-primary/20"
-                        >
-                            SETUP NOW
-                        </button>
-                    </motion.div>
-                )}
-
-                {/* Missed Medications Alert - Show FIRST if overdue */}
-                {data?.schedule?.missed?.length > 0 && (
-                    <motion.div
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="medical-card p-10 bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-3xl shadow-red-500/40 rounded-[48px] relative overflow-hidden"
-                    >
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-
-                        <div className="flex flex-col gap-6 relative z-10">
-                            <div className="flex items-center justify-between">
-                                <div className="inline-flex items-center gap-3 px-5 py-2 bg-white/20 rounded-full text-sm font-black uppercase tracking-widest">
-                                    <AlertCircle className="w-5 h-5 animate-pulse" />
-                                    Overdue Medication
-                                </div>
-                                <span className="text-white/70 font-bold">
-                                    {data.schedule.missed.length} medication{data.schedule.missed.length > 1 ? 's' : ''} late
-                                </span>
-                            </div>
-
-                            <AnimatePresence mode="popLayout">
-                                {data.schedule.missed.map((med: any) => (
-                                    <motion.div
-                                        key={`${med.id}-${med.scheduled_time || 'missed'}`}
-                                        layout
-                                        initial={false}
-                                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                                        exit={{
-                                            opacity: 0,
-                                            x: -100,
-                                            scale: 0.9,
-                                            transition: { duration: 0.4, ease: "easeOut" }
-                                        }}
-                                        className="flex flex-col md:flex-row justify-between items-center gap-6 bg-white/10 rounded-3xl p-6"
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                    <button
+                                        onClick={() => setVerifyingMed({ id: med.id, name: med.name })}
+                                        className="h-16 flex-1 bg-red-600/20 border border-red-500/40 text-red-100 rounded-2xl text-xl font-black shadow-xl hover:bg-red-600 transition-all flex items-center justify-center gap-4 active:scale-95"
                                     >
-                                        <div className="text-center md:text-left">
-                                            <h3 className="text-4xl md:text-5xl font-black tracking-tight">{med.name}</h3>
-                                            <p className="text-lg font-bold opacity-80">
-                                                Was due at {med.scheduled_time || 'earlier today'} • {med.dosage}
-                                            </p>
-                                        </div>
-
-                                        <div className="flex gap-4">
-                                            <button
-                                                onClick={() => setVerifyingMed({ id: med.id, name: med.name })}
-                                                className="px-8 py-4 bg-white text-red-600 rounded-2xl text-lg font-black shadow-xl hover:scale-105 transition-all flex items-center gap-2"
-                                            >
-                                                <Play className="w-5 h-5 fill-current" />
-                                                Take Now
-                                            </button>
-                                            <motion.button
-                                                whileHover={{ scale: 1.05 }}
-                                                whileTap={{ scale: 0.95 }}
-                                                disabled={skippingId === med.id}
-                                                onClick={async () => {
-                                                    setSkippingId(med.id);
-                                                    try {
-                                                        await apiFetch(`/medications/${med.id}/skip`, { method: 'POST' });
-                                                        onRefresh();
-                                                        // Don't clear skippingId here anymore
-                                                        // Let the useEffect below handle it when the med is gone from data
-                                                    } catch (err) {
-                                                        console.error('Error skipping:', err);
-                                                        setSkippingId(null); // Clear only on error
-                                                    }
-                                                }}
-                                                className="px-6 py-4 bg-white/20 text-white rounded-2xl text-lg font-bold hover:bg-white/30 transition-all flex items-center gap-2 disabled:opacity-50"
-                                            >
-                                                {skippingId === med.id ? (
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                                ) : null}
-                                                Skip Today
-                                            </motion.button>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </AnimatePresence>
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* Big Next Dose Card */}
-                {nextMed ? (
-                    <motion.div
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="medical-card p-12 bg-primary text-white shadow-3xl shadow-primary/40 rounded-[60px] relative overflow-hidden group"
-                    >
-                        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl" />
-
-                        <div className="flex flex-col md:flex-row justify-between items-center gap-10 relative z-10">
-                            <div className="space-y-6 text-center md:text-left">
-                                <div className="inline-flex items-center gap-3 px-6 py-2 bg-white/20 rounded-full text-sm font-black uppercase tracking-widest">
-                                    <Clock className="w-5 h-5" />
-                                    Next Medicine
+                                        <Camera className="w-6 h-6" />
+                                        EXECUTE_VERIFICATION
+                                    </button>
                                 </div>
-                                <h2 className="text-6xl md:text-8xl font-black tracking-tighter leading-none">
-                                    {nextMed.name}
-                                </h2>
-                                <p className="text-2xl font-bold opacity-80 italic">
-                                    Expected around {nextMed.time}
-                                </p>
-                            </div>
-
-                            <button
-                                onClick={() => setVerifyingMed({ id: nextMed.id, name: nextMed.name })}
-                                className="px-16 py-8 bg-white text-primary rounded-[40px] text-3xl font-black shadow-2xl hover:scale-105 transition-all flex items-center gap-4 group-hover:rotate-1"
-                            >
-                                <Play className="w-10 h-10 fill-current" />
-                                Start Now
-                            </button>
-
-
-                        </div>
-                    </motion.div>
-                ) : data?.schedule?.missed?.length === 0 && (
-                    <div className="medical-card p-16 bg-accent/20 text-accent text-center rounded-[60px] border-4 border-accent/10">
-                        <Smile className="w-20 h-10 mx-auto mb-6 scale-[2]" />
-                        <h2 className="text-4xl font-black mb-4">You are all caught up!</h2>
-                        <p className="text-xl font-bold opacity-70 italic">No more medicines scheduled for right now.</p>
-                    </div>
-                )}
-
-
-                {/* Progress Card */}
-                <div className="grid md:grid-cols-2 gap-10">
-                    <div className="medical-card p-10 bg-white dark:bg-card/50 rounded-[48px] border-2 border-primary/5 flex items-center gap-8">
-                        <div className="w-24 h-24 rounded-[32px] bg-secondary/10 flex items-center justify-center text-secondary">
-                            <CheckCircle2 className="w-12 h-12" />
-                        </div>
-                        <div>
-                            <p className="text-5xl font-black text-foreground">{takenToday}</p>
-                            <p className="text-xl font-bold opacity-50 italic">Medicines Taken Today</p>
-                        </div>
-                    </div>
-
-                    <div className="medical-card p-10 bg-white dark:bg-card/50 rounded-[48px] border-2 border-primary/5 flex items-center gap-8">
-                        <div className="w-24 h-24 rounded-[32px] bg-red-500/10 flex items-center justify-center text-red-500">
-                            <Heart className="w-12 h-12 fill-current" />
-                        </div>
-                        <div>
-                            <p className="text-5xl font-black text-foreground">{realAdherence !== null ? `${realAdherence}%` : "---"}</p>
-                            <p className="text-xl font-bold opacity-50 italic">Health Score</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Bio-Digital Twin (PK Model) */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="medical-card p-10 bg-card/40 backdrop-blur-xl border border-card-border/50 overflow-hidden relative"
-                >
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
-                    <BioDigitalTwin />
-                </motion.div>
-
-
-                {/* Encouraging Message */}
-                <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="p-12 text-center"
-                >
-                    <p className="text-3xl md:text-4xl font-black opacity-30 italic leading-tight">
-                        &quot;You are doing a great job taking care of yourself today.&quot;
-                    </p>
-                </motion.div>
-
-                {/* History Analytics Chart Section */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 }}
-                    className="medical-card p-10 bg-card/40 backdrop-blur-md relative overflow-hidden"
-                >
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full -mr-48 -mt-48 blur-3xl pointer-events-none" />
-                    <div className="flex flex-col md:flex-row items-center justify-between mb-8 relative z-10 gap-6">
-                        <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.25em] opacity-30 mb-1">Deep Analytics</p>
-                            <h3 className="text-3xl font-black text-foreground tracking-tight underline decoration-primary/20 decoration-4 underline-offset-4">
-                                Your {timeRange === '7D' ? 'Weekly' : timeRange === '1M' ? 'Monthly' : timeRange === '6M' ? 'Semi-Annual' : 'Annual'} Progress
-                            </h3>
-                        </div>
-                        <div className="flex bg-background/50 p-1 rounded-2xl border border-card-border gap-1">
-                            {[
-                                { id: '7D', label: '7D' },
-                                { id: '1M', label: '1M' },
-                                { id: '6M', label: '6M' },
-                                { id: '1Y', label: '1Y' }
-                            ].map((range) => (
-                                <button
-                                    key={range.id}
-                                    onClick={() => setTimeRange(range.id)}
-                                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${timeRange === range.id
-                                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                        : 'text-foreground/40 hover:text-foreground/60'
-                                        }`}
-                                >
-                                    {range.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="bg-background/20 p-6 rounded-[32px] border border-card-border/50 min-h-[300px] h-[300px]">
-                        <AdherenceChart data={chartHistory} />
-                    </div>
-
-                    <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {[
-                            {
-                                label: `${timeRange} Average`,
-                                value: (() => {
-                                    const activePoints = chartHistory.filter(h => !h.isLocked);
-                                    if (activePoints.length === 0) return '---';
-                                    const sum = activePoints.reduce((acc, curr) => acc + curr.adherence, 0);
-                                    return `${Math.round(sum / activePoints.length)}%`;
-                                })()
-                            },
-                            { label: `${timeRange} Peak`, value: `${Math.max(...chartHistory.map(h => h.adherence))}%` },
-                            { label: 'Streak', value: data?.schedule?.missed?.length === 0 ? 'Active' : 'Broken' },
-                            { label: 'Status', value: data?.schedule?.missed?.length === 0 ? 'Optimal' : 'Needs Check' }
-                        ].map((stat, i) => (
-                            <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                                <p className="text-[10px] font-black opacity-30 uppercase tracking-widest mb-1">{stat.label}</p>
-                                <p className="text-lg font-black text-foreground">{stat.value}</p>
                             </div>
                         ))}
                     </div>
                 </motion.div>
+            )}
+
+            {/* Main "The Now" Focus: Massive Next Dose Card */}
+            {nextMed ? (
+                <div className="space-y-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 ml-4">Primary_Focus_Target</p>
+                    <motion.div
+                        initial={{ scale: 0.98, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="p-10 bg-slate-900/40 border border-white/10 rounded-[32px] shadow-2xl backdrop-blur-3xl relative overflow-hidden group"
+                    >
+                        <div className="flex flex-col gap-8 text-center md:text-left relative z-10">
+                            <div className="space-y-2">
+                                <div className="text-7xl md:text-9xl font-black tracking-tighter text-white/90 italic leading-none">
+                                    {nextMed.time}
+                                </div>
+                                <div className="space-y-1">
+                                    <h2 className="text-3xl md:text-5xl font-black tracking-tight text-primary-400 uppercase">
+                                        {nextMed.name}
+                                    </h2>
+                                    <p className="text-xl font-bold text-slate-500 tracking-wide uppercase">
+                                        DOSAGE_PROTOCOL: {nextMed.dosage || 'STANDARD'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <button
+                                    onClick={() => setVerifyingMed({ id: nextMed.id, name: nextMed.name })}
+                                    className="h-20 flex-[2] bg-teal-500 text-slate-950 rounded-2xl text-xl font-black shadow-2xl shadow-teal-500/20 hover:bg-teal-400 transition-all flex items-center justify-center gap-4 active:scale-95 group/btn uppercase tracking-widest"
+                                >
+                                    <Camera className="w-7 h-7 group-hover/btn:scale-110 transition-transform" />
+                                    INITIALIZE_VERIFICATION
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        setSkippingId(nextMed.id);
+                                        try {
+                                            await apiFetch(`/medications/${nextMed.id}/skip`, { method: 'POST' });
+                                            onRefresh();
+                                        } catch (err) {
+                                            setSkippingId(null);
+                                        }
+                                    }}
+                                    disabled={skippingId === nextMed.id}
+                                    className="h-20 flex-1 bg-white/5 border border-white/10 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                                >
+                                    {skippingId === nextMed.id ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Override / Skip'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Background Decoration */}
+                        <div className="absolute -top-12 -right-12 p-12 opacity-[0.03] pointer-events-none group-hover:scale-110 group-hover:-rotate-12 transition-all duration-1000">
+                            <Pill className="w-80 h-80" />
+                        </div>
+                    </motion.div>
+                </div>
+            ) : overdueMeds.length === 0 && (
+                <div className="p-12 bg-slate-900/20 text-center rounded-[32px] border border-white/5 backdrop-blur-sm">
+                    <div className="w-16 h-16 bg-teal-500/10 text-teal-400 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-teal-500/20 shadow-[0_0_30px_rgba(20,184,166,0.1)]">
+                        <CheckCircle2 className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-2xl font-black text-white mb-2 tracking-tight uppercase">Fleet_Secured</h2>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">All scheduled protocols are currently finalized.</p>
+                </div>
+            )}
+
+            {/* AI Health Ring: Simplified Health Status */}
+            <div className="grid md:grid-cols-2 gap-8">
+                <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-8 bg-slate-900/40 border border-white/10 rounded-[32px] shadow-xl backdrop-blur-md"
+                >
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6">BIOMETRIC_STATUS_RADAR</p>
+                    <BioDigitalTwin seniorMode />
+                </motion.div>
+
+                {/* AI Companion Hook & Daily Summary */}
+                <div className="space-y-8">
+                    <div className="p-8 bg-primary-600/5 border border-primary-500/10 rounded-[32px] shadow-xl space-y-6 backdrop-blur-sm">
+                        <div className="w-12 h-12 bg-primary-500/10 text-primary-400 rounded-xl flex items-center justify-center border border-primary-500/20">
+                            <MessageCircle className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight">SYSTEM_INTERACT</h3>
+                            <p className="text-sm font-medium text-slate-500 italic">"Voice_Interface: Active. Awaiting queries."</p>
+                        </div>
+                        <Link href="/chat">
+                            <button className="w-full h-14 bg-primary-600/10 border border-primary-500/30 text-primary-100 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-3">
+                                INITIALIZE_CHAT
+                                <ArrowRight className="w-4 h-4" />
+                            </button>
+                        </Link>
+                    </div>
+
+                    <div className="p-8 bg-teal-500/5 border border-teal-500/10 rounded-[32px] shadow-xl flex items-center gap-6 backdrop-blur-sm relative overflow-hidden group">
+                        <div className="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-400 border border-teal-500/20 z-10">
+                            <CheckCircle2 className="w-6 h-6" />
+                        </div>
+                        <div className="z-10">
+                            <div className="flex items-center gap-2">
+                                <p className="text-3xl font-black text-white leading-none">{takenToday}</p>
+                                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                            </div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Doses_Logged_Today</p>
+                            <p className="text-[8px] font-bold text-teal-500/60 uppercase tracking-tighter mt-0.5">Fleet_Live_Status: Nominal</p>
+                        </div>
+                        {/* Subtle background glow */}
+                        <div className="absolute inset-0 bg-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    </div>
+                </div>
             </div>
 
             {/* Verification Modal */}
@@ -644,11 +397,9 @@ function SeniorDashboardView({
                     medicationName={verifyingMed.name}
                     onClose={() => setVerifyingMed(null)}
                     onVerified={async () => {
-                        console.log('[Dashboard] onVerified called, marking as taken:', verifyingMed.id);
                         if (verifyingMed.id !== 0) {
                             try {
                                 await markAsTaken(verifyingMed.id, true, 'vision_v2');
-                                console.log('[Dashboard] markAsTaken success');
                             } catch (error) {
                                 console.error('[Dashboard] markAsTaken error:', error);
                             }
@@ -658,557 +409,328 @@ function SeniorDashboardView({
                     }}
                 />
             )}
-
-        </div>
+        </motion.div>
     );
 }
 
-function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId }: { data: any, user: any, onSeniorChange: (id: number | undefined) => void, selectedSeniorId?: number }) {
+function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId, onRefresh }: {
+    data: any;
+    user: any;
+    onSeniorChange: (id: number | undefined) => void;
+    selectedSeniorId?: number;
+    onRefresh: () => void;
+}) {
     const [seniors, setSeniors] = useState<any[]>([]);
-    const [timeRange, setTimeRange] = useState('7D');
     const [alerts, setAlerts] = useState<any[]>([]);
     const [recentLogs, setRecentLogs] = useState<any[]>([]);
-    const [loadingExtras, setLoadingExtras] = useState(true);
     const [sendingReminders, setSendingReminders] = useState<Record<string, boolean>>({});
     const { showToast } = useToast();
 
-    const fetchData = useCallback(async () => {
-        try {
-            setLoadingExtras(true);
-            const [seniorsRes, alertsRes, logsRes] = await Promise.all([
-                apiFetch('/caregiver/seniors'),
-                apiFetch('/caregiver/alerts'),
-                apiFetch('/caregiver/recent-logs')
-            ]);
+    // Mock Live Telemetry Data
+    const telemetryLogs = [
+        { id: 1, time: '10:42:01', event: 'YOLO-WORLD', message: 'Verified Lisinopril for John Doe', match: '99.8%', status: 'success' },
+        { id: 2, time: '10:41:45', event: 'PK-SIM', message: 'Simulating Metformin clearance for Jane Smith', match: 'N/A', status: 'info' },
+        { id: 3, time: '10:38:12', event: 'LSTM-CORE', message: 'Anomaly detected: Irregular intake pattern (John Doe)', match: '88.4%', status: 'warning' },
+        { id: 4, time: '10:35:00', event: 'RAG-SYSTEM', message: 'Retrieving safety docs for drug-drug interaction (Warfarin)', match: '95.2%', status: 'info' },
+        { id: 5, time: '10:30:22', event: 'VISION-V2', message: 'Detected hand tremors during verification (Sam Wilson)', match: '72.1%', status: 'error' },
+    ];
 
-            if (seniorsRes.success) {
-                setSeniors(seniorsRes.data);
-                if (!selectedSeniorId && seniorsRes.data.length > 0) {
-                    onSeniorChange(seniorsRes.data[0].id);
+    // Mock At-Risk Data
+    const atRiskPatients = [
+        { name: 'John Doe', risk: 85, insight: 'Usually misses evening doses on weekends. Behavioral drift detected.', color: 'text-amber-500' },
+        { name: 'Sam Wilson', risk: 42, insight: 'Late intake 3 times this week. Reminder suggested.', color: 'text-blue-400' },
+        { name: 'Jane Smith', risk: 15, insight: 'Optimal compliance. Minimal risk.', color: 'text-teal-400' },
+    ];
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [seniorsRes, alertsRes, logsRes] = await Promise.all([
+                    apiFetch('/caregiver/seniors'),
+                    apiFetch('/caregiver/alerts'),
+                    apiFetch('/caregiver/recent-logs')
+                ]);
+                if (seniorsRes.success) {
+                    setSeniors(seniorsRes.data);
+                    if (!selectedSeniorId && seniorsRes.data.length > 0) {
+                        onSeniorChange(seniorsRes.data[0].id);
+                    }
                 }
+                if (alertsRes.success) setAlerts(alertsRes.alerts);
+                if (logsRes.success) setRecentLogs(logsRes.logs);
+            } catch (err) {
+                console.error('Failed to fetch caregiver extras:', err);
             }
-            if (alertsRes.success) setAlerts(alertsRes.alerts);
-            if (logsRes.success) setRecentLogs(logsRes.logs);
-        } catch (err) {
-            console.error('Failed to fetch caregiver extras:', err);
-        } finally {
-            setLoadingExtras(false);
-        }
-    }, []);
+        };
 
-    useEffect(() => {
         fetchData();
-    }, [fetchData]);
 
-    useEffect(() => {
-        if (!user?.id) return;
-
-        console.log('🔗 Connecting to Live Sync Relay for user:', user.id);
-        const socket = connectSocket(user.id);
-
-        socket.on('fleet_activity_update', (update: any) => {
-            console.log('🚀 LIVE UPDATE RECEIVED:', update);
-
-            // Add to recent logs
-            const newLog = {
-                id: Date.now(), // Temporary ID for list key
-                senior_name: update.senior_name,
-                medication_name: update.medication_name,
-                taken_at: update.timestamp,
-                taken_correctly: update.event_type === 'taken',
-                notes: update.event_type === 'taken' ? 'Verified via Live Sync' : 'Skipped via Live Sync'
-            };
-
-            setRecentLogs(prev => [newLog, ...prev.slice(0, 14)]);
-
-            // Optional: If it's a skip, we might want to refresh alerts too
-            if (update.event_type === 'skipped') {
-                apiFetch('/caregiver/alerts').then(res => {
-                    if (res.success) setAlerts(res.alerts);
-                });
-            }
-        });
+        let socket: any;
+        if (user?.id) {
+            socket = connectSocket(user.id);
+            socket.on('fleet_activity_update', (update: any) => {
+                const newLog = {
+                    id: Date.now(),
+                    senior_name: update.senior_name,
+                    medication_name: update.medication_name,
+                    status: update.event_type === 'taken' ? 'verified' : 'skipped',
+                    taken_at: update.timestamp,
+                    taken_correctly: update.event_type === 'taken',
+                };
+                setRecentLogs(prev => [newLog, ...prev.slice(0, 14)]);
+                onRefresh();
+            });
+        }
 
         return () => {
-            console.log('🧼 Cleaning up Socket listeners');
-            socket.off('fleet_activity_update');
+            if (socket) {
+                socket.off('fleet_activity_update');
+            }
         };
-    }, [user?.id]);
+    }, [user?.id, onRefresh, onSeniorChange, selectedSeniorId]);
 
     const sendReminder = async (seniorId: number, medicationId: number) => {
         const key = `${seniorId}-${medicationId}`;
-        console.log(`[CaregiverDashboard] Sending reminder for senior ${seniorId}, medication ${medicationId}`);
-
         setSendingReminders(prev => ({ ...prev, [key]: true }));
         try {
-            const res = await apiFetch(`/caregiver/send-reminder/${seniorId}/${medicationId}`, {
-                method: 'POST'
-            });
-            console.log('[CaregiverDashboard] Reminder response:', res);
-            if (res.success) {
-                showToast(`Reminder sent to ${data?.user?.username || 'Senior'}!`);
-            } else {
-                showToast(res.error || 'Failed to send reminder', 'error');
-            }
-        } catch (err) {
-            console.error('[CaregiverDashboard] Error sending reminder:', err);
-            showToast('Failed to send reminder', 'error');
+            const res = await apiFetch(`/caregiver/send-reminder/${seniorId}/${medicationId}`, { method: 'POST' });
+            if (res.success) showToast(`Reminder sent!`);
         } finally {
             setSendingReminders(prev => ({ ...prev, [key]: false }));
         }
     };
 
     const requestCamera = async (seniorId: number) => {
-        console.log(`[CaregiverDashboard] Requesting camera for senior ${seniorId}`);
-        try {
-            const res = await apiFetch(`/caregiver/request-camera/${seniorId}`, {
-                method: 'POST'
-            });
-            console.log('[CaregiverDashboard] Camera request response:', res);
-            if (res.success) {
-                showToast(res.message);
-            } else {
-                showToast(res.error || 'Failed to request camera', 'error');
-            }
-        } catch (err: any) {
-            console.error('[CaregiverDashboard] Error requesting camera:', err);
-            showToast(err.message || 'Failed to request camera', 'error');
-        }
+        const res = await apiFetch(`/caregiver/request-camera/${seniorId}`, { method: 'POST' });
+        if (res.success) showToast(res.message);
     };
-
-    // Calculate realistic adherence from actual logs and alerts
-    const takenCount = recentLogs.filter((log: any) => log.taken_correctly).length;
-    const missedCount = alerts.length; // Alerts are missed doses
-    const totalDoses = takenCount + missedCount;
-    const realAdherence = totalDoses > 0 ? Math.round((takenCount / totalDoses) * 100) : null;
-
-    // Build realistic history based on logs and selected time range
-    const generateRealisticHistory = (range: string) => {
-        const history: any[] = [];
-        const now = new Date();
-        let points = 7;
-        let unit: 'day' | 'month' = 'day';
-
-        if (range === '1M') points = 31; // One point per day for the month view
-        if (range === '6M') points = 6, unit = 'month';
-        if (range === '1Y') points = 12, unit = 'month';
-
-        const currentSenior = seniors.find(s => s.id === selectedSeniorId);
-        const accountCreatedAt = currentSenior?.created_at ? new Date(currentSenior.created_at) : null;
-
-        for (let i = points - 1; i >= 0; i--) {
-            const d = new Date(now);
-            if (unit === 'day') {
-                d.setDate(d.getDate() - i);
-            } else {
-                d.setDate(1); // Normalize to 1st first
-                d.setMonth(d.getMonth() - i);
-                if (i === 0) d.setDate(now.getDate()); // Last point is today
-            }
-
-            // Normalize time to start of day for accurate comparison
-            const startOfDay = new Date(d.setHours(0, 0, 0, 0));
-            const accountCreatedDate = accountCreatedAt ? new Date(new Date(accountCreatedAt).setHours(0, 0, 0, 0)) : null;
-            let isLocked = accountCreatedDate ? startOfDay < accountCreatedDate : false;
-
-            // Mark as establishment if this is the transition point from Locked to Unlocked
-            let isEstablishment = !isLocked && history.length > 0 && history[history.length - 1].isLocked;
-
-            // Special Case: If the very FIRST point in the chart is NOT locked, but account was created RECENTLY
-            if (i === points - 1 && !isLocked && accountCreatedAt) {
-                const startOfRange = new Date(startOfDay);
-                if (unit === 'day') startOfRange.setDate(startOfRange.getDate() - 1);
-                else startOfRange.setMonth(startOfRange.getMonth() - 1);
-
-                if (accountCreatedAt >= startOfRange) isEstablishment = true;
-            }
-
-            const isToday = i === 0 && unit === 'day';
-            let adherence: number | null;
-
-            if (isToday) {
-                adherence = realAdherence;
-            } else if (isLocked) {
-                adherence = null; // Locked days should be null, not 0
-            } else {
-                if (unit === 'month') {
-                    // Average all real history points for this month
-                    const monthYear = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-                    const monthPoints = data?.stats?.history?.filter((h: any) => h.full_date.startsWith(monthYear));
-
-                    if (monthPoints && monthPoints.length > 0) {
-                        const activeDays = monthPoints.filter((h: any) => h.expected > 0);
-                        const sourcePoints = activeDays.length > 0 ? activeDays : monthPoints;
-                        const sum = sourcePoints.reduce((acc: number, cur: any) => acc + (cur.adherence || 0), 0);
-                        adherence = Math.round(sum / sourcePoints.length);
-                    } else {
-                        adherence = null;
-                    }
-                } else {
-                    // Day unit - check specific date using local YYYY-MM-DD
-                    const checkString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    const realPoint = data?.stats?.history?.find((h: any) => h.full_date === checkString);
-
-                    if (realPoint) {
-                        adherence = realPoint.adherence;
-                        if (realPoint.isLocked) isLocked = true;
-                    } else {
-                        adherence = null;
-                        isLocked = true;
-                    }
-                }
-            }
-            if (adherence !== null && alerts.length > 0 && i > 0 && i < 3 && unit === 'day' && range === '7D') {
-                adherence -= (10 * (3 - i));
-            }
-
-            history.push({
-                date: unit === 'day'
-                    ? (range === '1M' ? d.toLocaleDateString([], { day: 'numeric', month: 'short' }) : d.toLocaleDateString([], { weekday: 'short' }))
-                    : d.toLocaleDateString([], { month: 'short' }),
-                fullDate: d.setHours(0, 0, 0, 0),
-                adherence: isLocked ? 0 : Math.max(0, Math.min(100, (adherence ?? 0))),
-                isLocked,
-                isEstablishment
-            });
-        }
-        return history;
-    };
-
-    const chartHistory = generateRealisticHistory(timeRange);
-
-    const stats = [
-        {
-            label: "Adherence Precision",
-            value: realAdherence !== null ? `${realAdherence}%` : "---",
-            trend: data?.stats?.history?.length > 0
-                ? (() => {
-                    const validPoints = data.stats.history.filter((h: any) => h.adherence !== null);
-                    if (validPoints.length === 0) return "No History Found";
-                    const avg = Math.round(validPoints.reduce((a: number, b: any) => a + b.adherence, 0) / validPoints.length);
-                    return `${avg}% 7-Day Average`;
-                })()
-                : (realAdherence === null ? "Profile Newly Created" : "Optimal Range"),
-            icon: Activity,
-            color: alerts.length > 0 ? "text-red-500" : "text-accent",
-            bg: alerts.length > 0 ? "bg-red-500/10" : "bg-accent/10"
-        },
-        {
-            label: "Active Protocols",
-            value: (data?.stats?.total ?? 0).toString(),
-            trend: data?.schedule?.upcoming?.[0] ? `Next: ${data.schedule.upcoming[0].name}` : (data?.stats?.total > 0 ? "(Shift Complete)" : "No Active Meds"),
-            icon: Clock,
-            color: "text-primary",
-            bg: "bg-primary/10"
-        },
-        {
-            label: "Patients",
-            value: seniors.length.toString(),
-            trend: `${data?.schedule?.taken?.length ?? 0} Logs Finalized`,
-            icon: Zap,
-            color: "text-secondary",
-            bg: "bg-secondary/10"
-        },
-    ];
 
     return (
-        <div className="space-y-12 pb-20">
-            {/* Senior Switcher */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-card/40 backdrop-blur-md p-10 rounded-[48px] border border-card-border gap-10 mb-8">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                        <Users className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-black tracking-tight">Patient View</h3>
-                        <p className="text-[10px] font-black opacity-30 uppercase tracking-widest">Linked Patient Accounts</p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <select
-                        value={selectedSeniorId ?? ''}
-                        onChange={(e) => onSeniorChange(e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-background border border-card-border text-foreground px-6 py-3 rounded-2xl font-bold flex-1 md:w-64 appearance-none focus:outline-none focus:border-primary transition-colors"
-                    >
-                        <option value="" disabled>Select a Patient</option>
-                        {seniors.map(s => (
-                            <option key={s.id} value={s.id}>{s.name} (ID: {s.id})</option>
-                        ))}
-                    </select>
-
-                    {selectedSeniorId && (
-                        <button
-                            onClick={() => requestCamera(selectedSeniorId)}
-                            className="px-6 py-3 bg-accent text-white rounded-2xl font-black text-sm shadow-lg shadow-accent/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 shrink-0"
-                        >
-                            <Camera className="w-4 h-4" />
-                            <span>EMERGENCY CAMERA</span>
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* Alert Center - Only show if there are alerts */}
-            {alerts.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="medical-card p-8 bg-red-600 text-white shadow-3xl shadow-red-500/40 rounded-[40px] relative overflow-hidden"
-                >
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl text-3xl" />
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
-                                <AlertCircle className="w-8 h-8" />
-                            </div>
-                            <div>
-                                <h3 className="text-2xl font-black">Attention Required</h3>
-                                <p className="font-bold opacity-80">{alerts.length} missed doses detected across your seniors.</p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            {alerts.slice(0, 3).map((alert, i) => (
-                                <div key={`${alert.senior_id}-${alert.medication_id}-${i}`} className="bg-white/10 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 flex items-center gap-3">
-                                    <span>{alert.senior_name}: {alert.medication_name}</span>
-                                    <button
-                                        onClick={() => sendReminder(alert.senior_id, alert.medication_id)}
-                                        disabled={sendingReminders[`${alert.senior_id}-${alert.medication_id}`]}
-                                        className="bg-white text-red-600 px-3 py-1 rounded-lg hover:scale-105 transition-all text-[10px] font-black disabled:opacity-50 disabled:cursor-not-allowed min-w-[70px]"
-                                    >
-                                        {sendingReminders[`${alert.senior_id}-${alert.medication_id}`] ? 'SENDING...' : 'REMIND'}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </motion.div>
-            )}
-
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {stats.map((stat, index) => (
+        <div className="space-y-8 pb-32">
+            {/* Top Row: Fleet Overview Status */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[
+                    { label: 'Active Patients Monitored', value: seniors.length, icon: Users, trend: 'Operational', color: 'text-blue-400' },
+                    { label: '7-Day Adherence Average', value: '94.2%', icon: Activity, trend: '+2.1%', color: 'text-teal-400', showSpark: true },
+                    { label: 'LSTM Anomaly Flags', value: '03', icon: AlertTriangle, trend: 'Needs Review', color: 'text-amber-500' },
+                    { label: 'Pending YOLO Verifications', value: '0', icon: Eye, trend: 'Live Sync On', color: 'text-blue-400' },
+                ].map((stat, i) => (
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
+                        transition={{ delay: i * 0.05 }}
                         key={stat.label}
-                        className="medical-card p-10 group relative overflow-hidden bg-card/40 backdrop-blur-md"
+                        className="p-5 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md group hover:border-white/20 transition-all shadow-xl"
                     >
-                        <div className={`absolute top-0 right-0 w-24 h-24 ${stat.bg} -mr-8 -mt-8 rounded-full blur-3xl opacity-50 transition-opacity group-hover:opacity-100`} />
-                        <div className="flex items-center justify-between mb-6">
-                            <div className={`w-12 h-12 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                                <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                            </div>
-                            <TrendingUp className="w-4 h-4 opacity-20" />
+                        <div className="flex items-center justify-between mb-3 text-slate-500 uppercase text-[10px] font-black tracking-widest leading-none">
+                            {stat.label}
+                            <stat.icon className={`w-4 h-4 ${stat.color}`} />
                         </div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 mb-1">{stat.label}</p>
-                        <p className="text-4xl font-black text-foreground tracking-tight leading-none mb-4">{stat.value}</p>
-                        <p className={`text-xs font-black uppercase tracking-widest ${stat.color} flex items-center gap-2`}>
-                            {stat.trend}
-                        </p>
+                        <div className="flex items-end justify-between">
+                            <div>
+                                <h4 className="text-2xl font-black text-white leading-none">{stat.value}</h4>
+                                <p className={`text-[10px] font-bold mt-2 ${stat.color === 'text-amber-500' ? 'text-amber-500' : 'text-slate-400'}`}>{stat.trend}</p>
+                            </div>
+                            {stat.showSpark && (
+                                <div className="h-8 w-16 bg-white/5 rounded-md flex items-end justify-between px-1 pb-1 gap-[2px]">
+                                    {[30, 50, 40, 60, 80, 70, 90].map((h, j) => (
+                                        <div key={j} className="w-full bg-teal-400/30 rounded-t-[1px]" style={{ height: `${h}%` }} />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </motion.div>
                 ))}
             </div>
 
-            {/* Historical Trending Chart */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="medical-card p-10 bg-card/40 backdrop-blur-md relative overflow-hidden"
-            >
-                <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full -mr-48 -mt-48 blur-3xl pointer-events-none" />
-                <div className="flex items-center justify-between mb-8 relative z-10">
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] opacity-30 mb-1">Deep Analytics</p>
-                        <h3 className="text-3xl font-black text-foreground tracking-tight underline decoration-primary/20 decoration-4 underline-offset-4">
-                            {timeRange === '7D' ? 'Weekly' : timeRange === '1M' ? 'Monthly' : timeRange === '6M' ? 'Semi-Annual' : 'Annual'} Adherence Trend
-                        </h3>
-                    </div>
-                    <div className="flex bg-background/50 p-1 rounded-2xl border border-card-border gap-1">
-                        {[
-                            { id: '7D', label: '7D' },
-                            { id: '1M', label: '1M' },
-                            { id: '6M', label: '6M' },
-                            { id: '1Y', label: '1Y' }
-                        ].map((range) => (
-                            <button
-                                key={range.id}
-                                onClick={() => setTimeRange(range.id)}
-                                className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${timeRange === range.id
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                    : 'text-foreground/40 hover:text-foreground/60'
-                                    }`}
-                            >
-                                {range.label}
-                            </button>
-                        ))}
-                    </div>
+            {/* Senior Switcher (Sleeker / High-Density) */}
+            <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-3 rounded-2xl backdrop-blur-md">
+                <div className="px-3 py-1.5 bg-blue-600/20 text-blue-400 rounded-lg text-xs font-black tracking-widest uppercase flex items-center gap-2">
+                    <Users className="w-3.5 h-3.5" />
+                    Focus Selection
                 </div>
-
-                <div className="bg-background/20 p-6 rounded-[32px] border border-card-border/50 min-h-[300px] h-[300px]">
-                    <AdherenceChart data={chartHistory} />
-                </div>
-
-                <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                        {
-                            label: `${timeRange} Avg Compliance`,
-                            value: (() => {
-                                const activePoints = chartHistory.filter(h => h.adherence !== null && !h.isLocked);
-                                if (activePoints.length === 0) return '---';
-                                const sum = activePoints.reduce((acc, curr) => acc + (curr.adherence || 0), 0);
-                                return `${Math.round(sum / activePoints.length)}%`;
-                            })()
-                        },
-                        {
-                            label: `${timeRange} Peak`, value: (() => {
-                                const validAdherence = chartHistory.filter(h => h.adherence !== null).map(h => h.adherence);
-                                return validAdherence.length > 0 ? `${Math.max(...validAdherence)}%` : '---';
-                            })()
-                        },
-                        { label: 'Consistency', value: alerts.length > 2 ? 'Low' : alerts.length > 0 ? 'Medium' : 'High' },
-                        { label: 'Trend Phase', value: alerts.length > 0 ? 'Declining' : 'Ascending' }
-                    ].map((stat, i) => (
-                        <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                            <p className="text-[10px] font-black opacity-30 uppercase tracking-widest mb-1">{stat.label}</p>
-                            <p className="text-lg font-black text-foreground">{stat.value}</p>
-                        </div>
+                <select
+                    value={selectedSeniorId ?? ''}
+                    onChange={(e) => onSeniorChange(e.target.value ? Number(e.target.value) : undefined)}
+                    className="bg-transparent border-none text-gray-200 text-sm font-bold flex-1 appearance-none focus:outline-none cursor-pointer"
+                >
+                    <option value="" disabled className="bg-slate-900">Select Patient Profile</option>
+                    {seniors.map(s => (
+                        <option key={s.id} value={s.id} className="bg-slate-900">{s.name.toUpperCase()} (ID: 00{s.id})</option>
                     ))}
-                </div>
-            </motion.div>
+                </select>
+                {selectedSeniorId && (
+                    <button
+                        onClick={() => requestCamera(selectedSeniorId)}
+                        className="px-4 py-2 bg-red-600/10 border border-red-500/20 text-red-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center gap-2"
+                    >
+                        <Camera className="w-3.5 h-3.5" />
+                        INITIATE VERIFICATION
+                    </button>
+                )}
+            </div>
 
-            <div className="grid lg:grid-cols-2 gap-8">
-                {/* Internal Schedule Card */}
+            {/* Middle Grid: The "War Room" View */}
+            <div className="grid lg:grid-cols-3 gap-6">
+                {/* Left Panel: Live Telemetry Stream */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="medical-card p-10 bg-card/60 backdrop-blur-xl border-l-[12px] border-l-primary/30"
+                    transition={{ delay: 0.1 }}
+                    className="lg:col-span-2 bg-[#09090b] border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative"
                 >
-                    <div className="flex justify-between items-center mb-10">
+                    <header className="px-5 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between backdrop-blur-md">
                         <div className="flex items-center gap-3">
-                            <Calendar className="w-6 h-6 text-primary" />
-                            <h3 className="text-2xl font-black text-foreground tracking-tight">Recent Activity</h3>
+                            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                            <h3 className="text-[10px] font-black text-slate-300 tracking-[0.2em] uppercase leading-none">Live Telemetry Stream</h3>
                         </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        {recentLogs.map((log) => {
-                            const status = log.status || (log.taken_correctly ? 'verified' : 'skipped');
-                            const statusConfigs: Record<string, { bg: string, icon: any, label: string }> = {
-                                verified: { bg: 'bg-accent/10 text-accent', icon: CheckCircle2, label: 'Verified' },
-                                skipped: { bg: 'bg-red-500/10 text-red-500', icon: AlertCircle, label: 'Skipped' },
-                                missed: { bg: 'bg-amber-500/10 text-amber-500', icon: AlertTriangle, label: 'Missed' }
-                            };
-                            const statusConfig = statusConfigs[status] || statusConfigs.skipped;
-                            const StatusIcon = statusConfig.icon;
-
-                            return (
-                                <div key={log.id} className="flex items-center gap-5 p-5 rounded-[24px] border border-card-border bg-background/30 hover:bg-card transition-all group">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${statusConfig.bg}`}>
-                                        <StatusIcon className="w-7 h-7" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-black text-foreground tracking-tight text-lg leading-tight">
-                                            {log.senior_name}: {log.medication_name}
-                                        </p>
-                                        <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mt-1">
-                                            {statusConfig.label} • {log.scheduled_time || new Date(log.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 opacity-10 group-hover:opacity-100 transition-opacity" />
+                        <div className="text-[10px] font-mono text-slate-500 leading-none uppercase">System.WAR_ROOM_v4.2</div>
+                    </header>
+                    <div className="p-4 font-mono text-[11px] space-y-2.5 max-h-[420px] overflow-y-auto custom-scrollbar bg-black/40">
+                        {telemetryLogs.map(log => (
+                            <div key={log.id} className="flex gap-4 group hover:bg-white/5 p-1 rounded transition-colors">
+                                <span className="text-slate-600 shrink-0">[{log.time}]</span>
+                                <span className={`shrink-0 font-bold ${log.status === 'error' ? 'text-red-500' : log.status === 'warning' ? 'text-amber-500' : 'text-blue-400'}`}>
+                                    {log.event}:
+                                </span>
+                                <div className="text-slate-400 flex-1 leading-normal">
+                                    {log.message}
+                                    <span className="ml-2 text-slate-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                        MATCH: <span className="text-teal-500">{log.match}</span>
+                                    </span>
                                 </div>
-                            );
-                        })}
-
-                        {recentLogs.length === 0 && (
-                            <div className="py-20 text-center opacity-30">
-                                <Activity className="w-12 h-12 mx-auto mb-4" />
-                                <p className="text-lg font-black tracking-tight">No Recent Activity</p>
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-2">Logs will appear here in real-time</p>
                             </div>
-                        )}
+                        ))}
+                        {recentLogs.map((log, i) => (
+                            <div key={i} className="flex gap-4 group hover:bg-white/5 p-1 rounded transition-colors">
+                                <span className="text-slate-600 shrink-0">[{new Date(log.taken_at).toLocaleTimeString([], { hour12: false })}]</span>
+                                <span className={`shrink-0 font-bold ${log.status === 'verified' ? 'text-teal-400' : 'text-red-400'}`}>
+                                    {log.status === 'verified' ? 'VISION-V2' : 'ALERT-CORE'}:
+                                </span>
+                                <div className="text-slate-300 flex-1 leading-normal uppercase text-[10px] font-black">
+                                    {log.senior_name}: {log.medication_name} — {log.status}
+                                </div>
+                            </div>
+                        ))}
+                        {/* Simulation Cursor */}
+                        <div className="flex gap-4 animate-pulse pt-2">
+                            <span className="text-slate-600">[{new Date().toLocaleTimeString([], { hour12: false })}]</span>
+                            <span className="text-blue-500 font-bold">READY:</span>
+                            <span className="text-slate-800 uppercase font-black">Waiting for fleet telemetry...</span>
+                            <span className="w-1.5 h-3.5 bg-blue-500/50" />
+                        </div>
                     </div>
                 </motion.div>
 
-                {/* AI Insights Card */}
+                {/* Right Panel: Predictive Risk Radar */}
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-xl"
+                >
+                    <div className="flex items-center gap-3 mb-8">
+                        <Radar className="w-5 h-5 text-amber-500" />
+                        <h3 className="text-[10px] font-black text-slate-300 tracking-[0.2em] uppercase leading-none">Predictive Risk Radar</h3>
+                    </div>
+
+                    <div className="space-y-8">
+                        {atRiskPatients.map((patient, i) => (
+                            <div key={i} className="space-y-3">
+                                <div className="flex justify-between items-end">
+                                    <h4 className="text-xs font-black text-white tracking-widest uppercase">{patient.name}</h4>
+                                    <span className={`text-[10px] font-mono font-bold ${patient.risk > 70 ? 'text-red-500' : patient.color}`}>
+                                        RISK: {patient.risk}%
+                                    </span>
+                                </div>
+                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${patient.risk}%` }}
+                                        transition={{ duration: 1.5, delay: 0.5 + (i * 0.2) }}
+                                        className={`h-full ${patient.risk > 70 ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : patient.risk > 30 ? 'bg-amber-500' : 'bg-teal-400'}`}
+                                    />
+                                </div>
+                                <p className="text-[10px] text-slate-500 font-medium italic leading-[1.6]">
+                                    {patient.insight}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                    {/* Radar Animation Placeholder */}
+                    <div className="mt-10 flex justify-center opacity-20">
+                        <div className="relative w-24 h-24 border border-slate-500 border-dashed rounded-full flex items-center justify-center animate-spin-slow">
+                            <div className="w-12 h-12 border border-slate-500 border-dashed rounded-full" />
+                            <div className="absolute top-0 left-1/2 -ml-px w-px h-1/2 bg-gradient-to-b from-teal-500 to-transparent origin-bottom" />
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+
+            {/* Bottom Row: Intelligence Summary */}
+            <div className="grid lg:grid-cols-2 gap-8">
+                {/* Llama 3.2 Terminal Output */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-[#050505] border-l-4 border-teal-500 rounded-r-2xl p-6 shadow-2xl relative group overflow-hidden"
+                >
+                    <div className="absolute top-4 right-4 text-[9px] font-mono text-teal-500 opacity-50 tracking-[0.2em]">LLAMA_3.2_RAG_v2.0</div>
+                    <div className="flex items-center gap-3 mb-6 relative z-10">
+                        <Brain className="w-5 h-5 text-teal-400" />
+                        <h3 className="text-[10px] font-black text-teal-400 tracking-[0.3em] uppercase leading-none">Intelligence Terminal</h3>
+                    </div>
+                    <div className="font-mono text-[13px] text-slate-300 leading-[1.8] space-y-4 relative z-10 transition-colors group-hover:text-white">
+                        <p className="border-b border-white/5 pb-3">
+                            <span className="text-teal-500 font-bold tracking-widest">SYSTEM_LOG:</span> Automated clinical fleet summary.
+                        </p>
+                        <p className="text-teal-100/90 tracking-tight">
+                            Current telemetry confirms <span className="text-white font-black underline decoration-teal-500">94.2% fleet adherence</span>.
+                            LSTM behavioral drift detected in <span className="text-amber-400 font-bold">John Doe</span> (Weekend Pattern Evasion).
+                            RAG suggests immediate SMS nudge deployment.
+                            Vision-V2 flagged hand tremors in <span className="text-red-400 font-bold">Sam Wilson</span>; updating neurological risk baseline.
+                        </p>
+                        <div className="flex items-center gap-6 text-[9px] uppercase font-black tracking-[0.2em] text-slate-600 pt-4 select-none">
+                            <span className="hover:text-teal-500 transition-colors">Usage: 452T</span>
+                            <span className="hover:text-teal-500 transition-colors">Latency: 124ms</span>
+                            <span className="text-teal-500 animate-pulse underline cursor-pointer hover:text-white transition-colors">Run_Deep_Audit_v4.exe</span>
+                        </div>
+                    </div>
+                    {/* Background Glow */}
+                    <div className="absolute inset-0 bg-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity blur-3xl pointer-events-none" />
+                </motion.div>
+
+                {/* Patient Summary Card (Existing but Dense) */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className={`medical-card p-10 shadow-2xl relative overflow-hidden flex flex-col justify-between transition-colors duration-500 ${(data?.stats?.predictive?.anomalies?.some((a: any) => a.severity === 'high'))
-                        ? 'bg-red-600 text-white shadow-red-500/40'
-                        : (data?.stats?.predictive?.anomalies?.length > 0)
-                            ? 'bg-amber-600 text-white shadow-amber-500/40'
-                            : 'bg-primary/95 text-white shadow-primary/40'
-                        }`}
+                    transition={{ delay: 0.4 }}
+                    className="p-6 bg-white/5 border border-white/10 rounded-2xl shadow-xl flex flex-col justify-between backdrop-blur-md"
                 >
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
-
                     <div>
-                        <header className="flex justify-between items-center mb-10">
-                            <div className="flex items-center gap-3">
-                                {data?.stats?.predictive?.anomalies?.length > 0 ? (
-                                    <AlertTriangle className="w-6 h-6 text-white animate-pulse" />
-                                ) : (
-                                    <Activity className="w-6 h-6 text-accent" />
-                                )}
-                                <h3 className="text-2xl font-black tracking-tight uppercase">
-                                    {data?.stats?.predictive?.anomalies?.length > 0 ? 'Proactive Alert' : 'AI Insights'}
-                                </h3>
+                        <div className="flex items-center gap-3 mb-8">
+                            <Zap className="w-5 h-5 text-blue-400" />
+                            <h3 className="text-[10px] font-black text-slate-300 tracking-[0.2em] uppercase leading-none">Operational Summary</h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 leading-none">Total Logs (24h)</p>
+                                <p className="text-3xl font-black text-white leading-none">{recentLogs.length}</p>
                             </div>
-                            {data?.stats?.predictive?.forecasted_risk > 0 && (
-                                <div className="bg-white/20 px-4 py-2 rounded-2xl border border-white/10">
-                                    <span className="text-[10px] font-black uppercase tracking-widest">
-                                        Forecasted Risk: {data.stats.predictive.forecasted_risk}%
-                                    </span>
-                                </div>
-                            )}
-                        </header>
-
-                        <div className="space-y-6">
-                            <p className="text-3xl font-black leading-tight tracking-tight italic opacity-90">
-                                &quot;{data?.stats?.predictive?.anomalies?.length > 0
-                                    ? data.stats.predictive.anomalies[0].message
-                                    : alerts.length > 0
-                                        ? `Protocol deviation detected. ${alerts[0].senior_name} has missed a dosage sequence. Proactive reminder suggested.`
-                                        : "All patients on track. Adherence levels are healthy."}&quot;
-                            </p>
-
-                            {data?.stats?.predictive?.anomalies?.length > 1 && (
-                                <div className="p-4 bg-white/10 rounded-2xl border border-white/10">
-                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Secondary Insights</p>
-                                    <ul className="space-y-2">
-                                        {data.stats.predictive.anomalies.slice(1).map((a: any, i: number) => (
-                                            <li key={i} className="text-xs font-bold flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                                                {a.message}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
+                            <div className="p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-red-500/10 transition-colors">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 leading-none">Missed Detected</p>
+                                <p className={`text-3xl font-black leading-none ${alerts.length > 0 ? 'text-red-500' : 'text-slate-700'}`}>{alerts.length}</p>
+                            </div>
                         </div>
                     </div>
-
-                    <div className="flex flex-col md:flex-row gap-4 mt-10">
+                    <div className="flex gap-4 mt-8">
                         <button
-                            onClick={() => window.location.href = '/api/v1/caregiver/export/fleet/pdf'}
-                            className="flex-1 py-4 bg-white text-primary rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-black/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                            onClick={() => window.location.href = '/export'}
+                            className="flex-1 py-3.5 bg-white/5 border border-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white hover:text-slate-950 transition-all shadow-lg active:scale-95"
                         >
-                            Export Report
-                            <ArrowRight className="w-4 h-4" />
+                            Generate Fleet Intelligence PDF
                         </button>
-                        {data?.stats?.predictive?.anomalies?.length > 0 && (
-                            <button
-                                onClick={() => showToast("Proactive monitoring strategy updated.", "success")}
-                                className="flex-1 py-4 bg-white/20 text-white rounded-[20px] font-black text-sm uppercase tracking-widest border border-white/20 hover:bg-white/30 transition-all flex items-center justify-center gap-2"
-                            >
-                                Acknowledge Risk
-                            </button>
-                        )}
                     </div>
                 </motion.div>
             </div>

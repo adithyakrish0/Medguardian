@@ -12,6 +12,8 @@ from research.training.pill_embedding_model import PillEmbeddingNet
 
 logger = logging.getLogger(__name__)
 
+import threading
+
 class EmbeddingService:
     """
     SOTA Deep Metric Learning Service.
@@ -20,17 +22,27 @@ class EmbeddingService:
     
     def __init__(self, model_path='app/services/models/pill_metric_model.pth'):
         self.available = False
+        self.model = None
+        self.preprocess = None
+        self.model_path = model_path
+        
+        # Start async loading
+        thread = threading.Thread(target=self._init_model, daemon=True)
+        thread.start()
+
+    def _init_model(self):
         try:
             # Initialize our custom Siamese Architecture
+            # This and weight loading can be slow
             self.model = PillEmbeddingNet(embedding_dim=128)
             
             # Load weights if available
-            if os.path.exists(model_path):
+            if os.path.exists(self.model_path):
                 # Using weights_only=False carefully for our own .pth
-                self.model.load_state_dict(torch.load(model_path, map_location='cpu'))
-                logger.info(f"Siamese Metric Model loaded from {model_path}")
+                self.model.load_state_dict(torch.load(self.model_path, map_location='cpu'))
+                logger.info(f"Siamese Metric Model loaded from {self.model_path}")
             else:
-                logger.warning(f"Siamese weights not found at {model_path}. Using pre-trained ResNet-50 features.")
+                logger.warning(f"Siamese weights not found at {self.model_path}. Using pre-trained ResNet-50 features.")
                 
             self.model.eval()
             
@@ -42,7 +54,7 @@ class EmbeddingService:
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ])
             self.available = True
-            logger.info("Deep Metric Learning Service (ResNet50-Siamese) Initialized.")
+            logger.info("Deep Metric Learning Service (ResNet50-Siamese) Initialized (Async).")
         except Exception as e:
             logger.error(f"Failed to init Embedding Service: {e}")
 

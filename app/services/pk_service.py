@@ -1,4 +1,7 @@
 import math
+import logging
+
+logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta
 from app.models.medication import Medication
 from app.models.medication_log import MedicationLog

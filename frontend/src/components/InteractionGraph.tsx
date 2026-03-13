@@ -18,6 +18,9 @@ interface SimulationNode extends GraphNode, d3.SimulationNodeDatum {
 interface SimulationEdge extends d3.SimulationLinkDatum<SimulationNode> {
     severity: string;
     description: string;
+    gnn_confidence?: number;
+    reasoning?: string;
+    is_ai_prediction?: boolean;
 }
 
 export default function InteractionGraph({ data }: InteractionGraphProps) {
@@ -102,24 +105,29 @@ export default function InteractionGraph({ data }: InteractionGraphProps) {
             .data(links)
             .join('line')
             .attr('stroke', d => getSeverityColor(d.severity as any))
-            .attr('stroke-width', d => {
-                switch (d.severity) {
-                    case 'critical': return 4;
-                    case 'major': return 3;
-                    case 'moderate': return 2;
-                    default: return 1.5;
-                }
+            .attr('stroke-width', (d: any) => {
+                const baseWidthOffsets: Record<string, number> = {
+                    'critical': 4,
+                    'major': 3,
+                    'moderate': 2
+                };
+                const baseWidth = baseWidthOffsets[d.severity] || 1.5;
+                // Scale width by GNN confidence if available (Attention Weight)
+                return d.gnn_confidence ? baseWidth * (0.5 + d.gnn_confidence) : baseWidth;
             })
-            .attr('stroke-opacity', 0.8)
+            .attr('stroke-opacity', (d: any) => d.is_ai_prediction ? 0.6 : 0.8)
+            .attr('stroke-dasharray', (d: any) => d.is_ai_prediction ? '5,5' : '0') // Dotted line for AI
             .attr('marker-end', d => `url(#arrow-${d.severity})`)
             .style('cursor', 'pointer')
-            .on('mouseenter', (event, d) => {
+            .on('mouseenter', (event, d: any) => {
                 const rect = container.getBoundingClientRect();
                 setTooltip({
                     visible: true,
                     x: event.clientX - rect.left,
                     y: event.clientY - rect.top,
-                    content: d.description,
+                    content: d.is_ai_prediction
+                        ? `AI PREDICTION (${(d.gnn_confidence * 100).toFixed(1)}% confidence)\n\n${d.description}${d.reasoning ? `\n\nREASON: ${d.reasoning}` : ''}`
+                        : d.description,
                     severity: d.severity
                 });
             })
@@ -255,14 +263,15 @@ export default function InteractionGraph({ data }: InteractionGraphProps) {
             {tooltip.visible && (
                 <div
                     className={`absolute pointer-events-none z-50 px-3 py-2 rounded-lg text-sm font-bold max-w-xs shadow-xl ${tooltip.severity === 'critical' ? 'bg-red-500 text-white' :
-                            tooltip.severity === 'major' ? 'bg-orange-500 text-white' :
-                                tooltip.severity === 'moderate' ? 'bg-yellow-500 text-black' :
-                                    'bg-gray-800 text-white'
+                        tooltip.severity === 'major' ? 'bg-orange-500 text-white' :
+                            tooltip.severity === 'moderate' ? 'bg-yellow-500 text-black' :
+                                'bg-gray-800 text-white'
                         }`}
                     style={{
                         left: tooltip.x + 10,
                         top: tooltip.y - 30,
-                        transform: 'translateX(-50%)'
+                        transform: 'translateX(-50%)',
+                        whiteSpace: 'pre-wrap'
                     }}
                 >
                     {tooltip.content}

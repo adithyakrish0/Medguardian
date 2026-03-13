@@ -15,6 +15,8 @@ from app.models.medication import Medication
 from app.models.medication_log import MedicationLog
 from app.models.relationship import CaregiverSenior
 from app.ml.anomaly_detector import anomaly_detector, Sensitivity
+from app.ml.lstm_anomaly_detector import lstm_detector
+from app.ml.evaluate_anomalies import generate_roc_pr_data
 from app.extensions import db, socketio
 import logging
 
@@ -84,12 +86,22 @@ def train_anomaly_baseline():
                 'suggestion': 'Generate synthetic data first or wait for more adherence history'
             }), 400
         
-        # Train baseline
+        # Train baseline (Z-score)
         baseline = anomaly_detector.train(patient_id, logs, sensitivity)
+        
+        # Train LSTM Autoencoder (New Deep Learning layer)
+        try:
+            logger.info(f"Starting LSTM training for patient {patient_id}...")
+            lstm_detector.train_for_patient(patient_id, logs, epochs=100)
+            lstm_trained = True
+        except Exception as e:
+            logger.error(f"LSTM training failed: {e}")
+            lstm_trained = False
         
         return jsonify({
             'success': True,
             'model_saved': True,
+            'lstm_trained': lstm_trained,
             'patient_id': patient_id,
             'threshold': baseline.sensitivity.value,
             'sensitivity': baseline.sensitivity.name.lower(),
@@ -124,14 +136,33 @@ def detect_anomaly():
         if recent_logs is None:
             recent_logs = _get_patient_logs(patient_id, days=7)
         
-        # Run detection
-        result = anomaly_detector.detect(patient_id, recent_logs)
+        # 1. Run LSTM detection (Primary)
+        lstm_result = lstm_detector.predict(patient_id, recent_logs)
+        
+        # 2. Run Z-score detection (Secondary/Baseline)
+        zscore_result = anomaly_detector.detect(patient_id, recent_logs)
+        
+        # Merge results - LSTM takes precedence for the final alert
+        # but we keep both for the comparison dashboard
+        is_anomaly = lstm_result.get('is_anomaly', False) or zscore_result.is_anomaly
         
         response = {
             'success': True,
             'patient_id': patient_id,
-            **result.to_dict()
+            'is_anomaly': is_anomaly,
+            'method': 'LSTM Autoencoder', # Alignment for demo checklist
+            'lstm': lstm_result,
+            'zscore': zscore_result.to_dict(),
+            'primary_method': 'lstm' if lstm_result.get('score', 0) > 0 else 'zscore'
         }
+        
+        # Add alert message from the primary triggered method
+        if lstm_result.get('is_anomaly'):
+            response['alert'] = f"AI Alert: Complex pattern anomaly detected (Score: {lstm_result['score']:.4f})"
+            response['anomaly_type'] = 'complex_pattern'
+        elif zscore_result.is_anomaly:
+            response['alert'] = zscore_result.alert_message
+            response['anomaly_type'] = zscore_result.anomaly_type
         
         return jsonify(response), 200
         
@@ -372,3 +403,136 @@ def batch_detect_anomalies():
     except Exception as e:
         logger.error(f"Error in batch detection: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_v1.route('/anomaly/comparison', methods=['POST'])
+@login_required
+def get_model_comparison():
+    """
+    Generate ROC/PR data for model comparison.
+    Input: {"patient_id": 123}
+    """
+    try:
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id', current_user.id)
+        
+        # Verify access
+        if not _verify_access(patient_id):
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+            
+        logs = _get_patient_logs(patient_id, days=180)
+        
+        if len(logs) < 20:
+             return jsonify({
+                'success': False, 
+                'error': 'Insufficient data for comparison (need 20+ logs)'
+            }), 400
+            
+        comparison_data = generate_roc_pr_data(patient_id, logs)
+        
+        if not comparison_data:
+            return jsonify({'success': False, 'error': 'Failed to generate comparison data'}), 500
+            
+        return jsonify({
+            'success': True,
+            **comparison_data
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in comparison endpoint: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_v1.route('/anomalies/<int:patient_id>/contact', methods=['POST'])
+@login_required
+def log_anomaly_contact(patient_id: int):
+    """
+    Log a caregiver follow-up contact for a patient's anomaly.
+
+    Body: {
+        "contact_method": "telegram" | "in_app" | "phone_noted",
+        "notes": "optional string"
+    }
+    """
+    try:
+        # Verify caregiver access
+        if not _verify_access(patient_id):
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+        data = request.get_json() or {}
+        contact_method = data.get('contact_method', 'phone_noted')
+        notes = data.get('notes', '')
+
+        # Validate contact method
+        allowed_methods = ['telegram', 'in_app', 'phone_noted']
+        if contact_method not in allowed_methods:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid contact_method. Must be one of: {allowed_methods}'
+            }), 400
+
+        # Find the most recent uncontacted incident for this patient
+        from app.models.health_incident import HealthIncident
+
+        incident = (
+            HealthIncident.query
+            .filter_by(user_id=patient_id)
+            .filter(
+                (HealthIncident.contacted == False) | (HealthIncident.contacted == None)
+            )
+            .order_by(HealthIncident.detected_at.desc())
+            .first()
+        )
+
+        if not incident:
+            # Fallback: update the most recent incident regardless
+            incident = (
+                HealthIncident.query
+                .filter_by(user_id=patient_id)
+                .order_by(HealthIncident.detected_at.desc())
+                .first()
+            )
+
+        if not incident:
+            return jsonify({'success': False, 'error': 'No incident found for this patient'}), 404
+
+        # Update the incident
+        incident.contacted = True
+        incident.contacted_at = datetime.utcnow()
+        incident.contact_method = contact_method
+        incident.contact_notes = notes[:500] if notes else None
+        incident.caregiver_notified = True
+        incident.caregiver_response = f"Contacted via {contact_method}"
+
+        db.session.commit()
+
+        # If in-app, send real-time notification to the senior
+        if contact_method == 'in_app':
+            caregiver_name = current_user.full_name or current_user.username
+            socketio.emit('caregiver_followup', {
+                'message': (
+                    'Your caregiver has been notified about an unusual medication '
+                    'pattern and is checking in on you.'
+                ),
+                'caregiver_name': caregiver_name,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'user_{patient_id}')
+
+            logger.info(f"In-app followup sent to user_{patient_id} by {caregiver_name}")
+
+        logger.info(
+            f"Contact logged for patient {patient_id} by caregiver {current_user.id} "
+            f"via {contact_method}"
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Contact logged',
+            'incident_id': incident.id
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error logging contact: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+

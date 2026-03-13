@@ -4,7 +4,7 @@
  * TypeScript client for medication adherence anomaly detection.
  */
 
-import { apiFetch } from './api';
+import { apiFetch } from '../api';
 
 // Types
 
@@ -182,25 +182,25 @@ export function getAnomalyTypeInfo(type: AnomalyType | null) {
     const info: Record<AnomalyType, { label: string; icon: string; color: string; bgColor: string }> = {
         unusual_timing: {
             label: 'Unusual Timing',
-            icon: '⏰',
+            icon: 'Clock',
             color: 'text-orange-500',
             bgColor: 'bg-orange-500/10'
         },
         skipping_pattern: {
             label: 'Skipping Pattern',
-            icon: '📅',
+            icon: 'Calendar',
             color: 'text-yellow-500',
             bgColor: 'bg-yellow-500/10'
         },
         adherence_drop: {
             label: 'Adherence Drop',
-            icon: '📉',
+            icon: 'TrendingDown',
             color: 'text-red-500',
-            bgColor: 'bg-red-500/10'
+            bgColor: 'bg-red-50 dark:bg-red-900/10'
         }
     };
 
-    return type ? info[type] : { label: 'Normal', icon: '✅', color: 'text-green-500', bgColor: 'bg-green-500/10' };
+    return type ? info[type] : { label: 'Normal', icon: 'CheckCircle', color: 'text-green-500', bgColor: 'bg-green-50 dark:bg-green-900/20/10' };
 }
 
 /**
@@ -212,7 +212,7 @@ export function getAnomalySeverity(score: number): {
     bgColor: string;
 } {
     if (score >= 4) {
-        return { level: 'critical', color: 'text-red-500', bgColor: 'bg-red-500/20' };
+        return { level: 'critical', color: 'text-red-500', bgColor: 'bg-red-50 dark:bg-red-900/20' };
     } else if (score >= 3) {
         return { level: 'high', color: 'text-orange-500', bgColor: 'bg-orange-500/20' };
     } else if (score >= 2.5) {

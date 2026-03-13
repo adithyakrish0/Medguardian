@@ -14,7 +14,7 @@ class GeminiService:
     def __init__(self):
         self.api_key = os.environ.get('GEMINI_API_KEY')
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
-        self.model = "gemini-1.5-flash"
+        self.model = "gemini-2.5-flash"
     
     def is_configured(self):
         """Check if Gemini is configured"""
@@ -168,6 +168,95 @@ Focus on:
                 return {'success': True, 'data': data}
             else:
                 return {'success': False, 'error': 'No response from Gemini'}
+                
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def chat_with_guardian(self, message: str, history: list, context: dict):
+        """
+        Chat with MedGuardian AI
+        
+        Args:
+            message: Current user message
+            history: List of previous messages [{"role": "user"|"model", "parts": [{"text": "..."}]}]
+            context: Dict containing user context (medications, logs, etc.)
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Gemini API not configured'}
+        
+        try:
+            url = f"{self.base_url}/{self.model}:generateContent?key={self.api_key}"
+            
+            # Construct System Context
+            user_name = context.get('user_name', 'the user')
+            meds_str = json.dumps(context.get('medications', []), indent=2)
+            adherence = context.get('compliance_rate', 0)
+            current_time = context.get('current_time', 'unknown')
+            
+            system_prompt = f"""You are MedGuardian, an empathetic AI health companion for {user_name}.
+
+YOUR CONTEXT:
+- Current Date & Time: {current_time}
+- Current Adherence Score: {adherence}%
+- Active Medications: {meds_str}
+
+YOUR PERSONALITY:
+- Warm, encouraging, and professional.
+- Concise outcomes. Keep responses under 3 paragraphs.
+- Use emojis sparingly to be friendly.
+
+YOUR GUIDELINES:
+1. Answer questions about their medications using the provided list.
+2. If they report symptoms, check against known side effects of their meds (general knowledge) and advise consulting a doctor if severe.
+3. Motivate them to improve adherence if low.
+4. STRICT SAFETY: Do NOT diagnose conditions or prescribe changes. Always advise consulting a professional for medical decisions.
+5. If asked about "War Room" or "Telemetry", explain you monitor their vitals in real-time.
+
+Interact naturally. Do not start every message with "Hello". Respond directly to the query."""
+
+            # Prepare payload
+            # Note: history should already be in Gemini format: [{"role": "user", "parts": [...]}, ...]
+            formatted_history = []
+            for msg in history:
+                role = "user" if msg.get("role") == "user" else "model"
+                formatted_history.append({
+                    "role": role,
+                    "parts": [{"text": msg.get("content", "")}]
+                })
+            
+            # Add current message
+            formatted_history.append({
+                "role": "user",
+                "parts": [{"text": message}]
+            })
+
+            payload = {
+                "contents": formatted_history,
+                "systemInstruction": {
+                    "parts": [{"text": system_prompt}]
+                },
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 800
+                }
+            }
+            
+            response = requests.post(url, json=payload, timeout=60)
+            result = response.json()
+
+            # Handle rate-limit / quota errors explicitly
+            if response.status_code == 429:
+                retry = result.get('error', {}).get('details', [{}])[-1].get('retryDelay', '60s')
+                return {'success': False, 'error': f'AI rate limit reached. Please try again in {retry}.'}
+            if response.status_code != 200:
+                err_msg = result.get('error', {}).get('message', 'Unknown API error')
+                return {'success': False, 'error': f'AI service error ({response.status_code}): {err_msg[:200]}'}
+
+            if 'candidates' in result and result['candidates']:
+                content = result['candidates'][0]['content']['parts'][0]['text']
+                return {'success': True, 'response': content}
+            else:
+                return {'success': False, 'error': f'No response from AI. Raw result: {json.dumps(result)}'}
                 
         except Exception as e:
             return {'success': False, 'error': str(e)}

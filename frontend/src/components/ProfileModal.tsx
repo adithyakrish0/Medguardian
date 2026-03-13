@@ -17,7 +17,8 @@ import {
     EyeOff,
     Camera,
     Bell,
-    UserCircle
+    UserCircle,
+    Zap
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { User } from '@/hooks/useUser';
@@ -143,33 +144,33 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 overflow-hidden">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto bg-black/60 backdrop-blur-sm">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-black/90 backdrop-blur-md"
+                        className="fixed inset-0"
                     />
 
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0, y: 30 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.95, opacity: 0, y: 30 }}
-                        className="w-full max-w-4xl bg-[#0a0c10] border border-white/10 rounded-[48px] shadow-3xl relative overflow-hidden flex flex-col md:flex-row h-[85vh] md:h-[700px]"
+                        className="w-full max-w-4xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-2xl relative flex flex-col md:flex-row max-h-[90vh] overflow-hidden my-auto"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Sidebar */}
-                        <div className="w-full md:w-80 bg-white/5 p-8 flex flex-col border-r border-white/5">
+                        <div className="w-full md:w-80 bg-gray-50 dark:bg-zinc-900 p-8 flex flex-col border-r border-gray-200 dark:border-gray-700 shrink-0">
                             <div className="flex items-center gap-4 mb-12">
-                                <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center font-black text-2xl text-primary border border-primary/20">
+                                <div className="w-16 h-16 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center font-bold text-2xl text-primary-600 shadow-sm">
                                     {user?.username?.slice(0, 2).toUpperCase()}
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-black text-white tracking-tight leading-tight">
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight leading-tight">
                                         {user?.full_name || user?.username}
                                     </h2>
-                                    <p className="text-xs font-bold opacity-30 uppercase tracking-widest mt-1">
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-1">
                                         {user?.role} Account
                                     </p>
                                 </div>
@@ -180,12 +181,12 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-sm transition-all group ${activeTab === tab.id
-                                            ? 'bg-primary text-white shadow-xl shadow-primary/20'
-                                            : 'text-white/40 hover:bg-white/5 hover:text-white'
+                                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl font-medium text-sm transition-all group ${activeTab === tab.id
+                                            ? 'bg-white dark:bg-gray-800 text-primary-600 shadow-md shadow-gray-200/50 ring-1 ring-gray-100'
+                                            : 'text-gray-500 hover:bg-white dark:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 dark:text-gray-100'
                                             }`}
                                     >
-                                        <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`} />
+                                        <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`} />
                                         <span>{tab.label}</span>
                                     </button>
                                 ))}
@@ -193,28 +194,28 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
 
                             <button
                                 onClick={onLogout}
-                                className="mt-auto flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm text-red-500 hover:bg-red-500/10 transition-all"
+                                className="mt-auto flex items-center gap-4 px-6 py-5 rounded-xl font-bold text-sm text-red-600 hover:bg-red-50 dark:bg-red-900/20 transition-all"
                             >
                                 <LogOut className="w-5 h-5" />
-                                <span>Sign Out Session</span>
+                                <span>Sign Out</span>
                             </button>
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1 p-10 overflow-y-auto relative">
+                        <div className="flex-1 p-10 overflow-y-auto bg-white dark:bg-gray-800 relative">
                             <button
                                 onClick={onClose}
-                                className="absolute top-8 right-8 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-all opacity-40 hover:opacity-100"
+                                className="absolute top-6 right-6 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 dark:text-gray-400 transition-all"
                             >
-                                <X className="w-5 h-5 text-white" />
+                                <X className="w-5 h-5" />
                             </button>
 
                             <div className="max-w-xl mx-auto md:mx-0">
                                 <header className="mb-10">
-                                    <h3 className="text-4xl font-black text-white tracking-tighter capitalize italic">
+                                    <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                                         {tabs.find(t => t.id === activeTab)?.label || activeTab} Settings
                                     </h3>
-                                    <p className="text-sm font-bold opacity-30 mt-2">
+                                    <p className="text-sm font-medium text-gray-500 mt-2">
                                         Manage your {tabs.find(t => t.id === activeTab)?.label?.toLowerCase() || activeTab} information and platform preferences.
                                     </p>
                                 </header>
@@ -223,7 +224,7 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                     <motion.div
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="mb-8 p-4 bg-accent/20 border border-accent/20 rounded-2xl flex items-center gap-4 text-accent font-black text-sm"
+                                        className="mb-8 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-4 text-green-700 dark:text-green-400 font-bold text-sm"
                                     >
                                         <CheckCircle2 className="w-5 h-5" />
                                         {successMessage}
@@ -234,7 +235,7 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                     <motion.div
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 text-red-500 font-black text-sm"
+                                        className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-4 text-red-700 dark:text-red-400 font-bold text-sm"
                                     >
                                         <Shield className="w-5 h-5" />
                                         {error}
@@ -245,54 +246,54 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                     <form onSubmit={handleProfileSubmit} className="space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 ml-2">Full Name</label>
+                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Full Name</label>
                                                 <div className="relative group">
-                                                    <UserCircle className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-primary transition-colors" />
+                                                    <UserCircle className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary-600 transition-colors" />
                                                     <input
                                                         type="text"
                                                         value={profileData.full_name}
                                                         onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
                                                         placeholder="Enter full name"
-                                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 font-bold text-white outline-none focus:border-primary/40 focus:bg-primary/5 transition-all"
+                                                        className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all"
                                                     />
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 ml-2">Username</label>
+                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Username</label>
                                                 <div className="relative group">
-                                                    <UserIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-primary transition-colors" />
+                                                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary-600 transition-colors" />
                                                     <input
                                                         type="text"
                                                         value={profileData.username}
                                                         onChange={(e) => setProfileData({ ...profileData, username: e.target.value })}
-                                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 font-bold text-white outline-none focus:border-primary/40 focus:bg-primary/5 transition-all"
+                                                        className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 ml-2">Email Address</label>
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Email Address</label>
                                             <div className="relative group">
-                                                <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-primary transition-colors" />
+                                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary-600 transition-colors" />
                                                 <input
                                                     type="email"
                                                     value={profileData.email}
                                                     onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 font-bold text-white outline-none focus:border-primary/40 focus:bg-primary/5 transition-all"
+                                                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all"
                                                 />
                                             </div>
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 ml-2">Safety Phone</label>
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Safety Phone</label>
                                             <div className="relative group">
-                                                <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-primary transition-colors" />
+                                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary-600 transition-colors" />
                                                 <input
                                                     type="tel"
                                                     value={profileData.phone}
                                                     onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 font-bold text-white outline-none focus:border-primary/40 focus:bg-primary/5 transition-all"
+                                                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all"
                                                 />
                                             </div>
                                         </div>
@@ -300,9 +301,9 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                         <button
                                             type="submit"
                                             disabled={loading}
-                                            className="w-full py-5 bg-primary text-white rounded-2xl font-black text-lg shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                            className="w-full py-4 bg-primary-600 text-white rounded-xl font-bold text-base shadow-lg hover:bg-primary-700 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {loading ? <Loader2 className="animate-spin w-6 h-6" /> : 'SAVE CHANGES'}
+                                            {loading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Save Changes'}
                                         </button>
                                     </form>
                                 )}
@@ -310,61 +311,61 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                 {activeTab === 'security' && (
                                     <form onSubmit={handlePasswordSubmit} className="space-y-6">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 ml-2">Current Password</label>
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Current Password</label>
                                             <div className="relative group">
                                                 <input
                                                     type={showPasswords ? "text" : "password"}
                                                     value={passwordData.old_password}
                                                     onChange={(e) => setPasswordData({ ...passwordData, old_password: e.target.value })}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-6 pr-14 font-bold text-white outline-none focus:border-primary/40 focus:bg-primary/5 transition-all"
+                                                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-6 pr-14 font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all"
                                                     placeholder="••••••••"
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowPasswords(!showPasswords)}
-                                                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-white/0 hover:bg-white/5 text-white/20 hover:text-white transition-all z-20"
+                                                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 dark:text-gray-400 transition-all z-20"
                                                 >
                                                     {showPasswords ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <div className="w-full h-px bg-white/5 my-4" />
+                                        <div className="w-full h-px bg-gray-100 dark:bg-gray-800 my-4" />
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 ml-2">New Password</label>
+                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">New Password</label>
                                                 <div className="relative group">
                                                     <input
                                                         type={showPasswords ? "text" : "password"}
                                                         value={passwordData.new_password}
                                                         onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-6 pr-14 font-bold text-white outline-none focus:border-primary/40 focus:bg-primary/5 transition-all"
+                                                        className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-6 pr-14 font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all"
                                                         placeholder="••••••••"
                                                     />
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowPasswords(!showPasswords)}
-                                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-white/0 hover:bg-white/5 text-white/20 hover:text-white transition-all z-20"
+                                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 dark:text-gray-400 transition-all z-20"
                                                     >
                                                         {showPasswords ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                                     </button>
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 ml-2">Confirm New</label>
+                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Confirm New</label>
                                                 <div className="relative group">
                                                     <input
                                                         type={showPasswords ? "text" : "password"}
                                                         value={passwordData.confirm_password}
                                                         onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-6 pr-14 font-bold text-white outline-none focus:border-primary/40 focus:bg-primary/5 transition-all"
+                                                        className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-xl py-3 pl-6 pr-14 font-medium text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all"
                                                         placeholder="••••••••"
                                                     />
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowPasswords(!showPasswords)}
-                                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-white/0 hover:bg-white/5 text-white/20 hover:text-white transition-all z-20"
+                                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 dark:text-gray-400 transition-all z-20"
                                                     >
                                                         {showPasswords ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                                     </button>
@@ -375,9 +376,9 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                         <button
                                             type="submit"
                                             disabled={loading || !passwordData.new_password}
-                                            className="w-full py-5 bg-white text-black rounded-2xl font-black text-lg shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                            className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold text-base shadow-lg hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {loading ? <Loader2 className="animate-spin w-6 h-6 text-black" /> : 'UPDATE PASSWORD'}
+                                            {loading ? <Loader2 className="animate-spin w-5 h-5 text-white" /> : 'Update Password'}
                                         </button>
                                     </form>
                                 )}
@@ -386,14 +387,14 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                     <div className="space-y-8">
                                         {user?.role === 'senior' ? (
                                             <div className="space-y-6">
-                                                <div className="p-8 bg-white/5 rounded-[32px] border border-white/5 flex items-center justify-between group/toggle">
+                                                <div className="p-8 bg-gray-50 dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between group/toggle">
                                                     <div className="flex items-center gap-6">
-                                                        <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center group-hover/toggle:scale-110 transition-transform">
-                                                            <Camera className="w-7 h-7 text-accent" />
+                                                        <div className="w-14 h-14 rounded-xl bg-primary-100 flex items-center justify-center group-hover/toggle:scale-110 transition-transform">
+                                                            <Camera className="w-7 h-7 text-primary-600" />
                                                         </div>
                                                         <div>
-                                                            <h4 className="text-xl font-black text-white italic">Trust Verification</h4>
-                                                            <p className="text-sm font-bold opacity-30">Auto-accept camera requests from linked caregivers.</p>
+                                                            <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100">Trust Verification</h4>
+                                                            <p className="text-sm font-medium text-gray-500">Auto-accept camera requests from linked caregivers.</p>
                                                         </div>
                                                     </div>
                                                     <button
@@ -405,45 +406,93 @@ export default function ProfileModal({ isOpen, onClose, user, onRefreshUser, onL
                                                                 body: JSON.stringify({ camera_auto_accept: newVal })
                                                             }).then(() => onRefreshUser());
                                                         }}
-                                                        className={`w-14 h-8 rounded-full transition-all relative ${profileData.camera_auto_accept ? 'bg-accent shadow-lg shadow-accent/20' : 'bg-white/10'}`}
+                                                        className={`w-14 h-8 rounded-full transition-all relative ${profileData.camera_auto_accept ? 'bg-primary-600 shadow-md shadow-primary-600/20' : 'bg-gray-200 dark:bg-gray-700'}`}
                                                     >
-                                                        <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-500 shadow-md ${profileData.camera_auto_accept ? 'left-[calc(100%-1.75rem)]' : 'left-1'}`} />
+                                                        <div className={`absolute top-1 w-6 h-6 bg-white dark:bg-gray-800 rounded-full transition-all duration-500 shadow-md ${profileData.camera_auto_accept ? 'left-[calc(100%-1.75rem)]' : 'left-1'}`} />
                                                     </button>
                                                 </div>
 
-                                                <div className="p-8 bg-white/5 rounded-[32px] border border-white/5">
+                                                <div className="p-8 bg-gray-50 dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-gray-700">
                                                     <div className="flex items-center gap-6 mb-6">
-                                                        <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center">
-                                                            <Settings className="w-7 h-7 text-primary" />
+                                                        <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center">
+                                                            <Settings className="w-7 h-7 text-blue-600" />
                                                         </div>
                                                         <div>
-                                                            <h4 className="text-xl font-black text-white italic">Active Guard</h4>
-                                                            <p className="text-sm font-bold opacity-30">Who is currently monitoring your health.</p>
+                                                            <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100">Active Guard</h4>
+                                                            <p className="text-sm font-medium text-gray-500">Who is currently monitoring your health.</p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
-                                                        <span className="text-sm font-bold opacity-60">Primary Caregiver</span>
-                                                        <span className="px-3 py-1 bg-primary/20 text-primary rounded-lg text-xs font-black uppercase tracking-wider">Connected</span>
+                                                    <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+                                                        <span className="text-sm font-bold text-gray-500">Primary Caregiver</span>
+                                                        <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-bold uppercase tracking-wider">Connected</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         ) : (
                                             <div className="space-y-6">
-                                                <div className="p-8 bg-white/5 rounded-[32px] border border-white/5">
-                                                    <div className="flex items-center gap-6 mb-6">
-                                                        <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center">
-                                                            <Bell className="w-7 h-7 text-primary" />
+                                                {/* Accessibility Controls */}
+                                                <div className="p-8 bg-gray-50 dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                                    <div className="flex items-center gap-6 mb-8">
+                                                        <div className="w-14 h-14 rounded-xl bg-indigo-100 flex items-center justify-center">
+                                                            <Eye className="w-7 h-7 text-indigo-600" />
                                                         </div>
                                                         <div>
-                                                            <h4 className="text-xl font-black text-white italic">Patient Alerts</h4>
-                                                            <p className="text-sm font-bold opacity-30">Notification preferences for your patients.</p>
+                                                            <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100">Visual Accessibility</h4>
+                                                            <p className="text-sm font-medium text-gray-500">Tailor the platform to your visual needs.</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+                                                            <div>
+                                                                <p className="text-gray-900 dark:text-gray-100 font-bold">High Contrast Mode</p>
+                                                                <p className="text-xs text-gray-500">Increases visibility of borders and text</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const html = document.documentElement;
+                                                                    html.classList.toggle('high-contrast');
+                                                                }}
+                                                                className="w-12 h-6 bg-gray-200 dark:bg-gray-700 rounded-full relative hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                                            >
+                                                                <div className="absolute top-1 left-1 w-4 h-4 bg-white dark:bg-gray-800 rounded-full transition-all shadow-sm" />
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+                                                            <div>
+                                                                <p className="text-gray-900 dark:text-gray-100 font-bold">Large Text</p>
+                                                                <p className="text-xs text-gray-500">Increase base font size for better legibility</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const html = document.documentElement;
+                                                                    const isLarge = html.style.fontSize === '115%';
+                                                                    html.style.fontSize = isLarge ? '100%' : '115%';
+                                                                }}
+                                                                className="w-12 h-6 bg-gray-200 dark:bg-gray-700 rounded-full relative hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                                            >
+                                                                <div className="absolute top-1 left-1 w-4 h-4 bg-white dark:bg-gray-800 rounded-full transition-all shadow-sm" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="p-8 bg-gray-50 dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                                    <div className="flex items-center gap-6 mb-6">
+                                                        <div className="w-14 h-14 rounded-xl bg-orange-100 flex items-center justify-center">
+                                                            <Bell className="w-7 h-7 text-orange-600" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100">Patient Alerts</h4>
+                                                            <p className="text-sm font-medium text-gray-500">Notification preferences for your patients.</p>
                                                         </div>
                                                     </div>
                                                     <div className="space-y-4">
                                                         {['Critical Missed Doses', 'Late Intake Bans', 'Senior Distress Signals'].map((item) => (
-                                                            <div key={item} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
-                                                                <span className="text-sm font-bold opacity-60">{item}</span>
-                                                                <CheckCircle2 className="w-5 h-5 text-accent" />
+                                                            <div key={item} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+                                                                <span className="text-sm font-bold text-gray-600 dark:text-gray-400">{item}</span>
+                                                                <CheckCircle2 className="w-5 h-5 text-green-500" />
                                                             </div>
                                                         ))}
                                                     </div>

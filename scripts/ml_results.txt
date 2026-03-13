@@ -1,0 +1,41 @@
+============================================================
+STEP 1: SHAP EXPLAINABILITY
+============================================================
+  Model loaded: True
+  Explainer ready: True
+  ERROR: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+  >>> SHAP: BROKEN <<<
+
+============================================================
+STEP 2: ANOMALY DETECTION
+============================================================
+  Baseline trained: mean_hr=8.8, adherence=87%
+  Anomaly detected: True
+  Score: 9.72
+  Type: unusual_timing
+  Alert: Unusual medication timing detected - possible confusion. Expected around 8:48, b
+  >>> Z-SCORE ANOMALY: FULLY WORKING <<<
+  --- LSTM Layer ---
+  TensorFlow available: True
+  LSTM result: {'is_anomaly': False, 'score': 0, 'error': 'Model not trained'}
+  >>> LSTM: WORKING <<<
+
+============================================================
+STEP 3: GNN DRUG INTERACTIONS
+============================================================
+  Model file: True
+  Meta file: True
+  Model in memory: True
+  GNN predictions: 3
+    Metformin <-> Lisinopril: critical conf=66.2%
+    Metformin <-> Aspirin: major conf=99.5%
+    Lisinopril <-> Aspirin: major conf=100.0%
+  >>> GNN: FULLY WORKING <<<
+  --- Full InteractionChecker ---
+  Total interactions: 3
+    Metformin <-> Lisinopril: critical [GNN AI] (66.2%)
+    Metformin <-> Aspirin: major [GNN AI] (99.5%)
+    Lisinopril <-> Aspirin: major [GNN AI] (100.0%)
+  Risk: 100/100 (critical)
+  D3 nodes: 3, edges: 3
+  >>> INTERACTION CHECKER: FULLY WORKING <<<

@@ -7,6 +7,9 @@ from .relationship import CaregiverSenior
 from .medication_interaction import MedicationInteraction, InteractionCheckResult
 from .snooze_log import SnoozeLog
 from .emergency_contact import EmergencyContact
+from .health_incident import HealthIncident
+from .refill_alert import RefillAlert
+from .chat_history import ChatHistory
 
 __all__ = [
     'BaseModel',
@@ -17,5 +20,8 @@ __all__ = [
     'MedicationInteraction',
     'InteractionCheckResult',
     'SnoozeLog',
-    'EmergencyContact'
+    'EmergencyContact',
+    'HealthIncident',
+    'RefillAlert',
+    'ChatHistory',
 ]

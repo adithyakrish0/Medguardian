@@ -4,7 +4,7 @@
  * TypeScript client for SHAP-based model explanations.
  */
 
-import { apiFetch } from './api';
+import { apiFetch } from '../api';
 
 // Types
 
@@ -130,7 +130,7 @@ export function getContributionColor(contribution: number): { text: string; bg: 
     if (contribution > 0) {
         return { text: 'text-blue-500', bg: 'bg-blue-500/20' };
     }
-    return { text: 'text-red-500', bg: 'bg-red-500/20' };
+    return { text: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20' };
 }
 
 /**
@@ -147,13 +147,13 @@ export function formatContribution(contribution: number): string {
 export function getRiskLevelStyle(riskLevel: string) {
     switch (riskLevel) {
         case 'High':
-            return { text: 'text-red-500', bg: 'bg-red-500/20', border: 'border-red-500/30' };
+            return { text: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-500/30' };
         case 'Medium':
             return { text: 'text-yellow-500', bg: 'bg-yellow-500/20', border: 'border-yellow-500/30' };
         case 'Low':
-            return { text: 'text-green-500', bg: 'bg-green-500/20', border: 'border-green-500/30' };
+            return { text: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20', border: 'border-green-500/30' };
         default:
-            return { text: 'text-gray-500', bg: 'bg-gray-500/20', border: 'border-gray-500/30' };
+            return { text: 'text-gray-500', bg: 'bg-gray-50 dark:bg-zinc-900/20', border: 'border-gray-500/30' };
     }
 }
 

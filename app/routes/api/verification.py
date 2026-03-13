@@ -1,6 +1,6 @@
 """API v1 - Verification endpoints"""
 import traceback
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from flask_login import login_required, current_user
 from . import api_v1
 from app.services import verification_service
@@ -102,8 +102,10 @@ def detect_hand():
     # Handle CORS preflight immediately
     if request.method == 'OPTIONS':
         response = jsonify({'status': 'ok'})
-        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3001')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        # Accept origin from frontend (3000) or any other valid origin
+        origin = request.headers.get('Origin', 'http://localhost:3000')
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response, 200
@@ -117,19 +119,29 @@ def detect_hand():
                 'hand_detected': False,
                 'error': 'Missing required field: image'
             }), 400
+            
+        # Call the vision engine for hand detection
+        result = verification_service.vision_engine.detect_hand(data['image'])
         
-        from app.vision.vision_v2 import vision_v2
-        print(f"[DEBUG] Calling detect_hand, vision_available={vision_v2.vision_available}, hand_detector={'yes' if vision_v2.hand_detector else 'no'}")
-        result = vision_v2.detect_hand(data['image'])
-        print(f"[DEBUG] detect_hand result: {result}")
+        # Add CORS headers to the POST response as well
+        response = jsonify(result)
+        origin = request.headers.get('Origin', 'http://localhost:3000')
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
         
-        return jsonify(result), 200
+        return response, 200
         
     except Exception as e:
-        print(f"[ERROR] detect_hand failed: {e}")
-        traceback.print_exc()
-        return jsonify({
+        current_app.logger.error(f"detect_hand failed: {e}")
+        current_app.logger.error(traceback.format_exc())
+        
+        response = jsonify({
             'success': False,
             'hand_detected': False,
             'error': str(e)
-        }), 500
+        })
+        origin = request.headers.get('Origin', 'http://localhost:3000')
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        
+        return response, 500

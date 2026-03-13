@@ -111,6 +111,14 @@ This alert was triggered through the MedGuardian Emergency SOS feature.
         print(f"🆘 SOS triggered by {user.username} at {datetime.now()}")
         print(f"   Notified: {', '.join(contacts_notified) if contacts_notified else 'None'}")
         
+        # Add to immutable audit log
+        from app.services.audit_service import audit_service
+        audit_service.log_action(
+            user_id=user.id,
+            action='EMERGENCY_CAMERA_REQUEST', # Re-using this code for high urgency alert
+            details=f"Emergency SOS triggered. Notified: {', '.join(contacts_notified) if contacts_notified else 'None'}"
+        )
+        
         return jsonify({
             'success': True,
             'message': 'Emergency SOS activated!',

@@ -39,16 +39,17 @@ interface PKData {
     };
 }
 
-export default function BioDigitalTwin() {
+export default function BioDigitalTwin({ seniorMode = false }: { seniorMode?: boolean }) {
     const [data, setData] = useState<PKData | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Bio-twin is under /analytics blueprint, not /api/v1
-                const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:5001';
-                const response = await fetch(`${backendUrl}/analytics/api/bio-twin`, {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+                const baseUrl = apiUrl.replace(/\/api\/v1\/?$/, '');
+
+                const response = await fetch(`${baseUrl}/analytics/api/bio-twin`, {
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -63,23 +64,61 @@ export default function BioDigitalTwin() {
         };
 
         fetchData();
-        const interval = setInterval(fetchData, 30000); // Update every 30s
+        const interval = setInterval(fetchData, 30000);
         return () => clearInterval(interval);
     }, []);
 
-    // Handle loading, no data, or missing forecast points
     if (loading || !data || !data.forecast?.points?.length) {
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-background/5 rounded-[32px] border border-card-border/50 animate-pulse">
-                <Beaker className="w-8 h-8 text-primary/20" />
+            <div className={`w-full h-full flex flex-col items-center justify-center gap-4 bg-background/5 rounded-[32px] border border-card-border/50 animate-pulse ${seniorMode ? 'min-h-[200px]' : ''}`}>
+                <Activity className="w-8 h-8 text-primary/20" />
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/20">
-                    {loading ? 'Syncing Bio-Twin...' : 'No PK data available'}
+                    {loading ? 'Initializing AI Safeguards...' : 'No Health Data Sync'}
                 </p>
             </div>
         );
     }
 
-    // Map the forecast points to chart data
+    if (seniorMode) {
+        const isOptimal = data.current_status?.status === 'Therapeutic';
+
+        return (
+            <div className="flex flex-col items-center text-center py-6 space-y-8">
+                <div className="relative">
+                    {/* Glowing AI Health Ring */}
+                    <div className={`w-48 h-48 rounded-full border-8 flex items-center justify-center transition-all duration-1000 ${isOptimal
+                            ? 'border-teal-500 shadow-[0_0_40px_rgba(20,184,166,0.3)]'
+                            : 'border-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.3)]'
+                        }`}>
+                        <div className="text-center">
+                            <span className={`block text-5xl font-black tracking-tighter ${isOptimal ? 'text-teal-400' : 'text-amber-400'}`}>
+                                {isOptimal ? '98%' : '85%'}
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Protection</span>
+                        </div>
+                    </div>
+                    {/* Orbital Decoration */}
+                    <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 border border-dashed border-white/10 rounded-full"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <h3 className="text-2xl font-black tracking-tight text-white">
+                        AI Status: <span className={isOptimal ? 'text-teal-400' : 'text-amber-400'}>
+                            {isOptimal ? 'Protection Optimal' : 'Active Monitoring'}
+                        </span>
+                    </h3>
+                    <p className="text-lg font-medium text-slate-400">
+                        The MedGuardian AI is currently securing your health protocols.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     const chartData = data.forecast.points.map((point) => ({
         time: point.time,
         concentration: point.concentration

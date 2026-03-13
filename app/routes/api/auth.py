@@ -11,7 +11,12 @@ from app.extensions import db
 @api_v1.route('/auth/ping', methods=['GET'])
 def api_ping():
     """Simple ping to verify API is reachable"""
-    return jsonify({'success': True, 'message': 'pong', 'db_url': current_app.config.get('SQLALCHEMY_DATABASE_URI', 'NOT SET')[:50] + '...'}), 200
+    db_url = current_app.config.get('SQLALCHEMY_DATABASE_URI') or 'NOT SET'
+    return jsonify({
+        'success': True, 
+        'message': 'pong', 
+        'db_url': str(db_url)[:50] + '...'
+    }), 200
 
 @api_v1.route('/auth/db-test', methods=['GET'])
 def api_db_test():
@@ -25,10 +30,10 @@ def api_db_test():
 @api_v1.route('/auth/login', methods=['POST'])
 def api_login():
     """Login via REST API"""
-    print(f"[DEBUG] api_login called", file=sys.stderr, flush=True)
+    current_app.logger.debug(f"api_login called")
     try:
         data = request.get_json()
-        print(f"[DEBUG] Request data: {data}", file=sys.stderr, flush=True)
+        current_app.logger.debug(f"Request data: {data}")
         if not data:
             return jsonify({'success': False, 'message': 'No data provided'}), 400
         
@@ -36,9 +41,9 @@ def api_login():
         password = data.get('password')
         remember = data.get('remember', False)
         
-        print(f"[DEBUG] Querying user: {username}", file=sys.stderr, flush=True)
+        current_app.logger.debug(f"Querying user: {username}")
         user = User.query.filter((User.username == username) | (User.email == username)).first()
-        print(f"[DEBUG] User found: {user}", file=sys.stderr, flush=True)
+        current_app.logger.debug(f"User found: {user}")
         
         if not user or not user.check_password(password):
             return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
@@ -54,8 +59,8 @@ def api_login():
             }
         }), 200
     except Exception as e:
-        traceback.print_exc()
-        print(f"[CRITICAL] Login error: {e}", file=sys.stderr, flush=True)
+        current_app.logger.error(f"Login error: {e}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'message': 'Login failed', 'error': str(e)}), 500
 
 
@@ -70,7 +75,7 @@ def api_logout():
 def api_register():
     """Register via REST API"""
     data = request.get_json()
-    print(f"DEBUG: api_register hit with data: {data}")
+    current_app.logger.debug(f"api_register hit with data: {data}")
     if not data:
         return jsonify({'success': False, 'message': 'No data provided'}), 400
     

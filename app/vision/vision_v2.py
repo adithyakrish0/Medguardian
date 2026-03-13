@@ -19,6 +19,8 @@ import numpy as np
 import base64
 import json
 
+import threading
+
 # Conditional import for YOLO (may not be installed on Render free tier)
 YOLO = None
 try:
@@ -26,75 +28,71 @@ try:
 except ImportError:
     YOLO = None
 
-# Check if vision is disabled (Render free tier)
-VISION_DISABLED = os.getenv('VISION_DISABLED', 'false').lower() == 'true'
-
 logger = logging.getLogger(__name__)
 
 
 class VisionEngineV2:
     """
     Triple-Layer Verification Engine for Medication Detection.
-    
-    All three layers must PASS for a medication to be marked as "Verified":
-    
-    Layer 1: Object Detection (YOLO-World)
-        - Purpose: Find pill bottle/medication in frame
-        - Constraint: Must exceed 85% confidence
-        
-    Layer 2: Feature Matching (ORB)
-        - Purpose: Compare keypoints against reference image
-        - Constraint: Must find >15 reliable feature matches
-        
-    Layer 3: Color Histogram Analysis
-        - Purpose: Verify color distribution (e.g., red vs blue pill)
-        - Constraint: Histogram correlation must be >0.8
     """
     
     # Layer thresholds (tunable)
-    YOLO_CONFIDENCE_THRESHOLD = 0.60  # Lowered to 0.60 to handle "generic bottle" shapes better
-    ORB_MATCH_THRESHOLD = 15          # Balanced: 15 matches (was 25, too strict)
-    HISTOGRAM_CORRELATION_THRESHOLD = 0.65 # Reduced from 0.8 to handle lighting changes
+    YOLO_CONFIDENCE_THRESHOLD = 0.60
+    ORB_MATCH_THRESHOLD = 15
+    HISTOGRAM_CORRELATION_THRESHOLD = 0.65
     
     def __init__(self):
-        print(f"DEBUG: VisionEngineV2.__init__ called. VISION_DISABLED={VISION_DISABLED}, YOLO={'available' if YOLO else 'None'}")
-        self.vision_available = not VISION_DISABLED and YOLO is not None
+        vision_disabled = os.getenv('VISION_DISABLED', 'false').lower() == 'true'
+        print(f"DEBUG: VisionEngineV2.__init__ called. VISION_DISABLED={vision_disabled}, YOLO={'available' if YOLO else 'None'}")
         
-        # Initialize YOLO-World (only if available)
+        self.vision_available = not vision_disabled and YOLO is not None
+        self.models_loaded = False  # Flag to track async loading status
+        self.detector = None
+        self.hand_detector = None
+
+        # ORB for precision fingerprinting (Layer 2) - Fast, can init immediately
+        self.orb = cv2.ORB_create(nfeatures=2000)
+        self.bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+        
+        # Start async model loading
         if self.vision_available:
-            try:
-                device = 'cuda' if torch.cuda.is_available() else 'cpu'
-                # Medicine detector
-                self.detector = YOLO('yolov8s-worldv2.pt') 
-                self.detector.to(device)
-                self.detector.set_classes(["medicine package", "medicine bottle", "pill strip", "inhaler"])
-                
-                # Hand detector (separate instance for robust hand detection)
-                self.hand_detector = YOLO('yolov8s-worldv2.pt')
-                self.hand_detector.to(device)
-                self.hand_detector.set_classes(["human hand", "hand", "pill bottle", "medicine bottle", "bottle"])
-                
-                logger.info(f"YOLO-World initialized on {device} (medicine + hand detectors)")
-                print(f"DEBUG: YOLO-World initialized on {device}")
-            except Exception as e:
-                logger.error(f"Failed to load YOLO-World: {e}")
-                print(f"DEBUG: Failed to load YOLO-World: {e}")
-                import traceback
-                traceback.print_exc()
-                self.detector = None
-                self.hand_detector = None
-                self.vision_available = False
+            logger.info("Starting Vision Models initialization in background thread...")
+            thread = threading.Thread(target=self._load_models, daemon=True)
+            thread.start()
         else:
-            self.detector = None
-            self.hand_detector = None
-            if VISION_DISABLED:
+            if vision_disabled:
                 logger.info("Vision system DISABLED (VISION_DISABLED=true)")
             else:
                 logger.warning("Vision system unavailable (ultralytics not installed)")
 
-        # ORB for precision fingerprinting (Layer 2)
-        self.orb = cv2.ORB_create(nfeatures=2000)
-        self.bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    def _load_models(self):
+        """Load heavy YOLO models in a background thread."""
+        try:
+            print("DEBUG: Background thread started loading YOLO models...")
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            
+            # Medicine detector
+            self.detector = YOLO('yolov8s-worldv2.pt') 
+            self.detector.to(device)
+            self.detector.set_classes(["medicine package", "medicine bottle", "pill strip", "inhaler"])
+            
+            # Hand detector (separate instance for robust hand detection)
+            self.hand_detector = YOLO('yolov8s-worldv2.pt')
+            self.hand_detector.to(device)
+            self.hand_detector.set_classes(["human hand", "hand", "pill bottle", "medicine bottle", "bottle"])
+            
+            self.models_loaded = True
+            logger.info(f"YOLO-World initialized on {device} (medicine + hand detectors)")
+            print(f"DEBUG: YOLO-World background loading COMPLETE on {device}")
+            
+        except Exception as e:
+            logger.error(f"Failed to load YOLO-World in background: {e}")
+            print(f"DEBUG: Failed to load YOLO-World: {e}")
+            import traceback
+            traceback.print_exc()
+            self.models_loaded = False
+            # We don't verify self.vision_available = False here to allow retries if we wanted, 
+            # but effectively vision is broken.
 
     def compute_color_histogram(self, image: np.ndarray) -> np.ndarray:
         """
@@ -168,8 +166,11 @@ class VisionEngineV2:
         Returns:
             Dict with hand detection result and optional bounding box
         """
-        if not self.vision_available or self.hand_detector is None:
-            return {'success': False, 'hand_detected': False, 'error': 'Vision unavailable'}
+        if not self.vision_available:
+             return {'success': False, 'hand_detected': False, 'error': 'Vision unavailable'}
+             
+        if not self.models_loaded:
+             return {'success': False, 'hand_detected': False, 'error': 'Vision system initializing... please wait.'}
         
         try:
             # Decode image
@@ -260,6 +261,15 @@ class VisionEngineV2:
                 'is_verified': False,
                 'error': 'Vision system unavailable on this server. Use localhost for camera verification.',
                 'vision_disabled': True,
+                'detections': []
+            }
+            
+        if not self.models_loaded:
+             return {
+                'success': False,
+                'is_verified': False,
+                'error': 'Vision system initializing... please wait.',
+                'vision_disabled': False,
                 'detections': []
             }
         
@@ -406,19 +416,19 @@ class VisionEngineV2:
         # Build status message
         if is_verified:
             if 'features' in layers_passed:
-                message = "✅ Verified by Label Scan (Trusted)"
+                message = "Verified by Label Scan (Trusted)"
             elif 'embedding' in layers_passed:
-                message = "✅ Verified by Deep Visual Identity"
+                message = "Verified by Deep Visual Identity"
             elif passed_count == checked_count:
-                message = "✅ Perfect Match (100%)"
+                message = "Perfect Match (100%)"
             else:
-                message = f"✅ Verified (Majority Match: {passed_count}/{checked_count})"
+                message = f"Verified (Majority Match: {passed_count}/{checked_count})"
         else:
             # Orientation Guidance Logic
             if 'detection' in layers_passed and 'histogram' in layers_passed and 'embedding' not in layers_passed:
-                message = "🔄 Rotate bottle to show the front/label"
+                message = "Please rotate bottle to show the front/label"
             elif 'detection' in layers_passed and 'histogram' not in layers_passed:
-                message = "💡 Please improve lighting or centering"
+                message = "Lighting/Centering issue - please adjust"
             else:
                 failed_layers = [l for l in layers_checked if l not in layers_passed]
                 message = f"⏳ Mismatch ({', '.join(failed_layers)} failed)"

@@ -113,15 +113,15 @@ class AutoVerificationService:
         session['high_confidence_count'] = 0
         session['last_feedback_time'] = datetime.now()
         
-        logger.info(f"🔍 Detection monitoring started for session {session_id}")
-        logger.info(f"⏰ Detection window: {self.detection_window} seconds (until {end_time.strftime('%H:%M:%S')})")
+        logger.info(f"[Detection] Monitoring started for session {session_id}")
+        logger.info(f"[Detection] Window: {self.detection_window} seconds (until {end_time.strftime('%H:%M:%S')})")
         
         try:
             # Monitor session until timeout or completion
             while datetime.now() < end_time and session['status'] == 'active':
                 # Check if already auto-logged by SocketIO handler
                 if session.get('auto_logged'):
-                    logger.info(f"✅ Session {session_id} auto-logged successfully")
+                    logger.info(f"[Detection] Session {session_id} auto-logged successfully")
                     break
                 
                 # Periodic voice feedback (every 15 seconds)
@@ -145,7 +145,7 @@ class AutoVerificationService:
             
             # Session ended - check final status
             if session.get('auto_logged'):
-                logger.info(f"✅ Detection monitoring complete: AUTO-LOGGED for session {session_id}")
+                logger.info(f"[Detection] Complete: AUTO-LOGGED for session {session_id}")
             elif session['status'] == 'stopped':
                 logger.info(f"🛑 Detection monitoring stopped manually: {session_id}")
             else:
@@ -154,12 +154,12 @@ class AutoVerificationService:
                 self._handle_no_detection(session)
             
         except Exception as e:
-            logger.error(f"❌ Detection monitoring error for {session_id}: {e}", exc_info=True)
+            logger.error(f"[Detection] ERROR for {session_id}: {e}", exc_info=True)
             self._handle_detection_error(session, str(e))
         
         finally:
             session['status'] = 'completed'
-            logger.info(f"🏁 Detection monitoring ended for {session_id}")
+            logger.info(f"[Detection] Ended for {session_id}")
 
     
     def _auto_log_medication(self, session: Dict, confidence: float):
@@ -200,7 +200,7 @@ class AutoVerificationService:
                     'success': True,
                     'medication_name': medication.name,
                     'confidence': float(confidence),
-                    'message': f'✓ {medication.name} verified and logged automatically!',
+                    'message': f'{medication.name} verified and logged automatically!',
                     'voice_text': f'Medication verified. Thank you!'
                 }, room=f'user_{session["user_id"]}')
                 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { apiFetch } from '@/lib/api';
-import { Camera, RefreshCcw, Scan as ScanIcon, Brain, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Camera, RefreshCcw, Scan as ScanIcon, Brain, CheckCircle2, AlertCircle, AlertTriangle, X, XCircle } from 'lucide-react';
 
 interface VerificationResult {
     success: boolean;
@@ -247,7 +247,9 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                 : `Zero-Trash Layer-4 Radar • ${medicationName}`}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors font-bold">✕</button>
+                    <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors font-bold">
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center min-h-[400px]">
@@ -291,7 +293,7 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                             </div>
                                         )}
                                         {errorMsg && (
-                                            <div className="bg-red-500/80 backdrop-blur px-2 py-1 rounded text-[10px] text-white font-bold border border-red-500/20">
+                                            <div className="bg-red-50 dark:bg-red-900/20/80 backdrop-blur px-2 py-1 rounded text-[10px] text-white font-bold border border-red-500/20">
                                                 ERROR: {errorMsg}
                                             </div>
                                         )}
@@ -385,7 +387,7 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                         <h3 className="text-3xl font-black text-red-600 uppercase tracking-tighter">Safety Lockdown</h3>
                                         <p className="text-lg font-bold opacity-80">{result.message || "Unusual activity detected. Access restricted for safety."}</p>
                                     </div>
-                                    <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl text-sm font-medium text-red-700">
+                                    <div className="p-6 bg-red-50 dark:bg-red-900/10 border border-red-500/20 rounded-3xl text-sm font-medium text-red-700 dark:text-red-400">
                                         Your caregiver has been notified. Please stay calm and wait for assistance.
                                     </div>
                                     <div className="flex flex-col gap-3">
@@ -423,9 +425,10 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
 
                                         {/* Auto-close countdown for verified medications */}
                                         {result.verified && autoCloseCountdown !== null && (
-                                            <div className="mt-4 p-4 bg-primary/10 rounded-2xl border border-primary/30 animate-pulse">
+                                            <div className="mt-4 p-4 bg-primary/10 rounded-2xl border border-primary/30 animate-pulse flex items-center justify-center gap-2">
+                                                <CheckCircle2 className="w-5 h-5 text-primary" />
                                                 <p className="text-lg font-black text-primary">
-                                                    ✓ Auto-closing in {autoCloseCountdown}...
+                                                    Auto-closing in {autoCloseCountdown}...
                                                 </p>
                                             </div>
                                         )}
@@ -433,7 +436,7 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
 
 
                                     <div className="grid grid-cols-2 gap-4 w-full pt-4">
-                                        <div className={`p-4 rounded-2xl border transition-all ${result.verified ? 'bg-primary/5 border-white/5' : 'bg-red-500/5 border-white/5'
+                                        <div className={`p-4 rounded-2xl border transition-all ${result.verified ? 'bg-primary/5 border-white/5' : 'bg-red-50 dark:bg-red-900/5 border-white/5'
                                             }`}>
                                             <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">DNA Match</p>
                                             <p className={`text-2xl font-black ${result.verified ? 'text-primary' : 'text-red-500'}`}>
@@ -444,18 +447,18 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                             <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">Stage 4 Lock</p>
                                             <div className="flex flex-col gap-1 mt-1">
                                                 <div className="flex items-center gap-2 text-xs font-bold">
-                                                    <span className={result.details?.layer1_detection ? "text-green-500" : "text-red-500"}>
-                                                        {result.details?.layer1_detection ? "✅" : "❌"} Shape
+                                                    <span className={result.details?.layer1_detection ? "text-green-500 flex items-center gap-1" : "text-red-500 flex items-center gap-1"}>
+                                                        {result.details?.layer1_detection ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} Shape
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-2 text-xs font-bold">
-                                                    <span className={result.details?.layer2_features ? "text-green-500" : "text-red-500"}>
-                                                        {result.details?.layer2_features ? "✅" : "❌"} Texture
+                                                    <span className={result.details?.layer2_features ? "text-green-500 flex items-center gap-1" : "text-red-500 flex items-center gap-1"}>
+                                                        {result.details?.layer2_features ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} Texture
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-2 text-xs font-bold">
-                                                    <span className={result.details?.layer3_histogram ? "text-green-500" : "text-red-500"}>
-                                                        {result.details?.layer3_histogram ? "✅" : "❌"} Color
+                                                    <span className={result.details?.layer3_histogram ? "text-green-500 flex items-center gap-1" : "text-red-500 flex items-center gap-1"}>
+                                                        {result.details?.layer3_histogram ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} Color
                                                     </span>
                                                 </div>
                                             </div>
@@ -470,7 +473,7 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
                                                 setResult(null);
                                                 setHandDetected(false); // Reset hand detection state
                                             }}
-                                            className="flex-1 py-4 border border-white/10 bg-white/5 rounded-2xl font-bold hover:bg-white/10 transition-all"
+                                            className="flex-1 py-4 border border-white/10 bg-white dark:bg-gray-800/5 rounded-2xl font-bold hover:bg-white dark:bg-gray-800/10 transition-all"
                                         >
                                             Retry Radar
                                         </button>

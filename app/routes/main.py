@@ -14,7 +14,8 @@ main = Blueprint('main', __name__)
 
 @main.route('/')
 def index():
-    return render_template('index.html')
+    # Redirect to Next.js frontend on port 3000 in development
+    return redirect('http://localhost:3000')
 
 @main.route('/dashboard')
 @login_required

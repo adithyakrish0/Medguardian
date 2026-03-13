@@ -22,15 +22,15 @@ export const getSocket = () => {
         }
 
         socket.on('connect', () => {
-            console.log('✅ Connected to MedGuardian Socket Relay');
+            console.log('[Socket] Connected to MedGuardian Socket Relay');
         });
 
         socket.on('disconnect', () => {
-            console.log('🔌 Disconnected from MedGuardian Socket Relay');
+            console.log('[Socket] Disconnected from MedGuardian Socket Relay');
         });
 
         socket.on('error', (err) => {
-            console.error('❌ Socket Error:', err);
+            console.error('[Socket] ERROR:', err);
         });
     }
     return socket;
@@ -43,13 +43,13 @@ export const connectSocket = (userId: number) => {
     // This ensures room join happens as soon as the connection is established
     if (!s.connected) {
         s.once('connect', () => {
-            console.log(`📡 [Socket] Re-joining room user_${userId} after (re)connect`);
+            console.log(`[Socket] Re-joining room user_${userId} after (re)connect`);
             s.emit('join', { room: `user_${userId}` });
         });
         s.connect();
     } else {
         // If already connected, join the room immediately
-        console.log(`📡 [Socket] Joining room user_${userId} immediately`);
+        console.log(`[Socket] Joining room user_${userId} immediately`);
         s.emit('join', { room: `user_${userId}` });
     }
 

@@ -97,7 +97,7 @@ export default function ExplainabilityModal({
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            className="p-2 hover:bg-white dark:bg-gray-800/10 rounded-lg transition-colors"
                         >
                             <X className="w-5 h-5 text-gray-400" />
                         </button>
@@ -111,11 +111,11 @@ export default function ExplainabilityModal({
                                 <p className="text-gray-400">Calculating SHAP values...</p>
                             </div>
                         ) : error ? (
-                            <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
+                            <div className="p-6 bg-red-50 dark:bg-red-900/10 border border-red-500/20 rounded-2xl text-center">
                                 <p className="text-red-400">{error}</p>
                                 <button
                                     onClick={fetchExplanation}
-                                    className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-300"
+                                    className="mt-4 px-4 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-500/10 dark:hover:bg-red-900/20/30 rounded-lg text-red-300"
                                 >
                                     Retry
                                 </button>
@@ -140,7 +140,7 @@ export default function ExplainabilityModal({
 
                                 {/* SHAP Waterfall Plot */}
                                 {data.waterfall_plot && (
-                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                                    <div className="bg-white dark:bg-gray-800/5 border border-white/10 rounded-2xl p-4">
                                         <div className="flex items-center gap-2 mb-4">
                                             <Info className="w-4 h-4 text-purple-400" />
                                             <span className="text-sm font-bold text-white">SHAP Waterfall Plot</span>
@@ -200,7 +200,7 @@ export default function ExplainabilityModal({
                                 </div>
 
                                 {/* Base Value Info */}
-                                <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                                <div className="p-4 bg-white dark:bg-gray-800/5 rounded-xl border border-white/10">
                                     <p className="text-xs text-gray-500">
                                         <strong>Base value:</strong> {(data.base_value * 100).toFixed(1)}% —
                                         This is the average prediction across all patients.

@@ -1,6 +1,6 @@
 import sys
 import traceback
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from flask_login import login_required, current_user
 from . import api_v1
 from app.services.analytics_service import analytics_service
@@ -31,8 +31,8 @@ def get_adherence(senior_id=None):
             'data': data
         })
     except Exception as e:
-        print(f"❌ [ANALYTICS] Critical error in get_adherence: {str(e)}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
+        current_app.logger.error(f"[ANALYTICS] Critical error in get_adherence: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_v1.route('/analytics/fleet', methods=['GET'])
@@ -49,8 +49,8 @@ def get_fleet_analytics():
             'data': data
         })
     except Exception as e:
-        print(f"❌ [ANALYTICS] Critical error in get_fleet_analytics: {str(e)}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
+        current_app.logger.error(f"[ANALYTICS] Critical error in get_fleet_analytics: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_v1.route('/analytics/anomalies', methods=['GET'])
@@ -78,7 +78,7 @@ def get_anomalies(senior_id=None):
             'data': data
         })
     except Exception as e:
-        print(f"❌ [ANALYTICS] Critical error in get_anomalies: {str(e)}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
+        current_app.logger.error(f"[ANALYTICS] Critical error in get_anomalies: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 

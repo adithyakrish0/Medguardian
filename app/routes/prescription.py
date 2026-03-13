@@ -19,35 +19,112 @@ def scanner():
 @login_required
 def scan():
     """
-    Scan prescription image and extract medications
-    Accepts: base64 image data
-    Returns: extracted medication data
+    Scan prescription image and extract medications.
+    Pipeline: Gemini OCR → BioBERT NER validation & enrichment.
     """
     try:
         data = request.get_json()
-        
+
         if not data or 'image' not in data:
             return jsonify({'success': False, 'error': 'No image provided'})
-        
+
         # Get base64 image data (remove data:image/jpeg;base64, prefix if present)
         image_data = data['image']
         if ',' in image_data:
             image_data = image_data.split(',')[1]
-        
-        # Import gemini service (lazy import to avoid startup issues)
+
+        # ── Stage 1: Gemini OCR ──────────────────────────────────
         from app.services.gemini_service import gemini_service
-        
+
         if not gemini_service.is_configured():
             return jsonify({
-                'success': False, 
+                'success': False,
                 'error': 'Gemini API not configured. Please add GEMINI_API_KEY to .env'
             })
-        
-        # Extract prescription data
+
         result = gemini_service.extract_prescription_data(image_data)
-        
+
+        if not result.get('success'):
+            return jsonify(result)
+
+        # ── Stage 2: NER validation & enrichment ─────────────────
+        try:
+            from backend.ml.medication_ner import medication_ner
+
+            gemini_data = result.get('data', {})
+            medications = gemini_data.get('medications', [])
+            notes = gemini_data.get('notes', '')
+
+            # Build a combined text block from all name fields + notes
+            name_texts = [med.get('name', '') for med in medications]
+            combined_text = '. '.join(name_texts)
+            if notes:
+                combined_text += '. ' + notes
+
+            # Run NER over the combined text
+            ner_entities = medication_ner.extract_medications(combined_text)
+            ner_names = {ent['text'].lower() for ent in ner_entities}
+
+            # Validate each Gemini medication against NER results
+            for med in medications:
+                med_name = med.get('name', '').strip()
+                med_name_lower = med_name.lower()
+
+                # Check if NER confirms this is a real medication
+                matched = any(
+                    ner_name in med_name_lower or med_name_lower in ner_name
+                    for ner_name in ner_names
+                )
+
+                if matched:
+                    # Find the best matching NER entity for confidence
+                    best_conf = max(
+                        (ent['confidence'] for ent in ner_entities
+                         if ent['text'].lower() in med_name_lower
+                         or med_name_lower in ent['text'].lower()),
+                        default=0.0,
+                    )
+                    med['ner_validated'] = True
+                    med['ner_confidence'] = round(best_conf, 4)
+                else:
+                    med['ner_validated'] = False
+                    med['ner_confidence'] = 0.0
+
+            # Check if NER found medications that Gemini missed
+            gemini_names = {m.get('name', '').lower() for m in medications}
+            for ent in ner_entities:
+                ent_lower = ent['text'].lower()
+                already_found = any(
+                    ent_lower in gn or gn in ent_lower
+                    for gn in gemini_names
+                )
+                if not already_found and ent['confidence'] > 0.7:
+                    medications.append({
+                        'name': ent['text'],
+                        'dosage': '',
+                        'frequency': '',
+                        'instructions': '',
+                        'ner_validated': True,
+                        'ner_confidence': round(ent['confidence'], 4),
+                        'source': 'ner_only',
+                    })
+
+            gemini_data['medications'] = medications
+
+            # Include raw NER entities for transparency
+            result['ner_entities'] = [
+                {'text': e['text'], 'confidence': round(e['confidence'], 4), 'label': e['label']}
+                for e in ner_entities
+            ]
+
+        except Exception as ner_err:
+            # NER failure is non-fatal — return Gemini results with a warning
+            import logging
+            logging.getLogger(__name__).warning("NER post-processing failed: %s", ner_err)
+            result['ner_warning'] = f"NER validation unavailable: {ner_err}"
+
         return jsonify(result)
-        
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -148,7 +225,9 @@ def add_from_scan():
         })
         
     except Exception as e:
+        from flask import current_app
         import traceback
-        traceback.print_exc()
+        current_app.logger.error(f"Failed to add medications: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': f'Failed to add medications: {str(e)}'})
 

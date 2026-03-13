@@ -47,7 +47,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                                         : 'bg-primary/90 border-primary/20 text-white'
                                 }`}
                         >
-                            <div className="p-2 bg-white/20 rounded-xl">
+                            <div className="p-2 bg-white dark:bg-gray-800/20 rounded-xl">
                                 {toast.type === 'success' && <CheckCircle2 className="w-5 h-5" />}
                                 {toast.type === 'error' && <AlertCircle className="w-5 h-5" />}
                                 {toast.type === 'info' && <Info className="w-5 h-5" />}
@@ -55,7 +55,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                             <p className="flex-1 font-black tracking-tight">{toast.message}</p>
                             <button
                                 onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                                className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                                className="p-1 hover:bg-white dark:bg-gray-800/10 rounded-lg transition-colors"
                             >
                                 <X className="w-4 h-4 opacity-50" />
                             </button>

@@ -2,7 +2,11 @@
 # CRITICAL: eventlet monkey-patching MUST be the very first import
 # =============================================================================
 import eventlet
-eventlet.monkey_patch()
+import sys
+
+# Only monkey patch if we are running as the server, not during migrations or simple scripts
+if 'flask' not in sys.argv[0] or 'run' in sys.argv:
+    eventlet.monkey_patch()
 
 import os
 from app import create_app, db
@@ -22,7 +26,7 @@ if __name__ == "__main__":
     # Check if SocketIO initialized successfully
     if socketio.server is not None:
         print("Starting server with SocketIO support on 0.0.0.0...")
-        socketio.run(app, debug=debug_mode, port=5001, host='0.0.0.0', allow_unsafe_werkzeug=True, use_reloader=False)
+        socketio.run(app, debug=debug_mode, port=5000, host='0.0.0.0', allow_unsafe_werkzeug=True, use_reloader=False)
     else:
         print("⚠️ SocketIO not initialized, starting on 0.0.0.0 without real-time features...")
-        app.run(debug=debug_mode, port=5001, host='0.0.0.0')
+        app.run(debug=debug_mode, port=5000, host='0.0.0.0', use_reloader=False)

@@ -1,6 +1,6 @@
 "use client";
 
-import { SkeletonCaregiverView } from "@/components/SkeletonLoaders";
+import { SkeletonCaregiverView } from "@/components/ui/SkeletonLoaders";
 
 export default function CaregiverLoading() {
     return <SkeletonCaregiverView />;

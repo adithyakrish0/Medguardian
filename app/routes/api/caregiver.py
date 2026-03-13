@@ -58,8 +58,8 @@ def get_seniors():
             'data': seniors_data
         }), 200
     except Exception as e:
-        print(f"❌ [CAREGIVER] Critical error in get_seniors: {str(e)}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
+        current_app.logger.error(f"❌ [CAREGIVER] Critical error in get_seniors: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_v1.route('/caregiver/add-senior', methods=['POST'])
@@ -69,204 +69,212 @@ def add_senior():
     if current_user.role != 'caregiver':
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
-    data = request.get_json()
-    senior_username = data.get('username')
-    
-    if not senior_username:
-        return jsonify({'success': False, 'message': 'Username is required'}), 400
+    try:
+        data = request.get_json()
+        senior_username = data.get('username')
         
-    senior = User.query.filter_by(username=senior_username).first()
-    
-    if not senior:
-        return jsonify({'success': False, 'message': 'Senior not found'}), 404
+        if not senior_username:
+            return jsonify({'success': False, 'message': 'Username is required'}), 400
+            
+        senior = User.query.filter_by(username=senior_username).first()
         
-    if senior.role != 'senior':
-        return jsonify({'success': False, 'message': 'User is not a senior citizen'}), 400
+        if not senior:
+            return jsonify({'success': False, 'message': 'Senior not found'}), 404
+            
+        if senior.role != 'senior':
+            return jsonify({'success': False, 'message': 'User is not a senior citizen'}), 400
+            
+        existing = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            senior_id=senior.id
+        ).first()
         
-    existing = CaregiverSenior.query.filter_by(
-        caregiver_id=current_user.id,
-        senior_id=senior.id
-    ).first()
-    
-    if existing:
-        return jsonify({'success': False, 'message': 'Senior already in fleet'}), 400
+        if existing:
+            return jsonify({'success': False, 'message': 'Senior already in fleet'}), 400
+            
+        relationship = CaregiverSenior(
+            caregiver_id=current_user.id,
+            senior_id=senior.id,
+            relationship_type='primary'
+        )
         
-    relationship = CaregiverSenior(
-        caregiver_id=current_user.id,
-        senior_id=senior.id,
-        relationship_type='primary'
-    )
-    
-    db.session.add(relationship)
-    db.session.commit()
-    
-    # Audit log
-    from app.services.audit_service import audit_service
-    audit_service.log_action(
-        user_id=current_user.id,
-        action='add_senior_request',
-        target_id=senior.id,
-        details=f"Caregiver requested connection with senior {senior.username}"
-    )
-    
-    return jsonify({
-        'success': True,
-        'message': f'Connection request sent to {senior_username}. They must approve it before you can see their data.',
-        'senior': {
-            'id': senior.id,
-            'name': senior_username
-        }
-    })
+        db.session.add(relationship)
+        db.session.commit()
+        
+        # Audit log
+        from app.services.audit_service import audit_service
+        audit_service.log_action(
+            user_id=current_user.id,
+            action='add_senior_request',
+            target_id=senior.id,
+            details=f"Caregiver requested connection with senior {senior.username}"
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Connection request sent to {senior_username}. They must approve it before you can see their data.',
+            'senior': {
+                'id': senior.id,
+                'name': senior_username
+            }
+        })
+    except Exception as e:
+        current_app.logger.error(f"❌ [CAREGIVER] Error adding senior: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_v1.route('/caregiver/alerts', methods=['GET'])
 @login_required
 def get_alerts():
     """Get alerts for all managed seniors"""
     if current_user.role != 'caregiver':
-        return jsonify({'error': 'Access denied'}), 403
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
     
-    alerts = []
-    relationships = CaregiverSenior.query.filter_by(
-        caregiver_id=current_user.id,
-        status='accepted'
-    ).all()
-    
-    today = datetime.now().date()
-    now = datetime.now()
-    
-    for rel in relationships:
-        senior = rel.senior
-        medications = Medication.query.filter_by(user_id=senior.id).all()
-        today_logs = MedicationLog.query.filter(
-            MedicationLog.user_id == senior.id,
-            db.func.date(MedicationLog.taken_at) == today
+    try:
+        alerts = []
+        relationships = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            status='accepted'
         ).all()
         
-        handled_med_ids = [log.medication_id for log in today_logs]
+        today = datetime.now().date()
+        now = datetime.now()
         
-        for med in medications:
-            reminder_times = med.get_reminder_times() if hasattr(med, 'get_reminder_times') else []
-            missed_times = []
+        for rel in relationships:
+            senior = rel.senior
+            medications = Medication.query.filter_by(user_id=senior.id).all()
+            today_logs = MedicationLog.query.filter(
+                MedicationLog.user_id == senior.id,
+                db.func.date(MedicationLog.taken_at) == today
+            ).all()
             
-            for time_str in reminder_times:
-                try:
-                    hour, minute = map(int, time_str.split(':'))
-                    scheduled_time = datetime(now.year, now.month, now.day, hour, minute)
-                    if now > scheduled_time + timedelta(minutes=60): # Consistent with scheduler's 60m window
-                        # Check if there is a 'missed' log for this med today
-                        is_missed = any(l.medication_id == med.id and l.get_status() == 'missed' for l in today_logs)
-                        # An alert is needed if no log exists OR if the log is a 'missed' dose
-                        if med.id not in handled_med_ids or is_missed:
-                            missed_times.append(time_str)
-                except: continue
+            handled_med_ids = [log.medication_id for log in today_logs]
             
-            if missed_times:
-                alerts.append({
-                    'senior_name': senior.username,
-                    'senior_id': senior.id,
-                    'medication_name': med.name,
-                    'medication_id': med.id,
-                    'missed_times': missed_times,
-                    'priority': med.priority or 'normal',
-                    'type': 'missed_dose'
-                })
-    
-    priority_order = {'critical': 0, 'high': 1, 'normal': 2, 'low': 3}
-    alerts.sort(key=lambda x: priority_order.get(x['priority'], 2))
-    
-    return jsonify({
-        'success': True,
-        'alerts': alerts,
-        'count': len(alerts),
-        'timestamp': now.isoformat()
-    })
+            for med in medications:
+                reminder_times = med.get_reminder_times() if hasattr(med, 'get_reminder_times') else []
+                missed_times = []
+                
+                for time_str in reminder_times:
+                    try:
+                        hour, minute = map(int, time_str.split(':'))
+                        scheduled_time = datetime(now.year, now.month, now.day, hour, minute)
+                        if now > scheduled_time + timedelta(minutes=60): # Consistent with scheduler's 60m window
+                            # Check if there is a 'missed' log for this med today
+                            is_missed = any(l.medication_id == med.id and l.get_status() == 'missed' for l in today_logs)
+                            # An alert is needed if no log exists OR if the log is a 'missed' dose
+                            if med.id not in handled_med_ids or is_missed:
+                                missed_times.append(time_str)
+                    except: continue
+                
+                if missed_times:
+                    alerts.append({
+                        'senior_name': senior.username,
+                        'senior_id': senior.id,
+                        'medication_name': med.name,
+                        'medication_id': med.id,
+                        'missed_times': missed_times,
+                        'priority': med.priority or 'normal',
+                        'type': 'missed_dose'
+                    })
+        
+        priority_order = {'critical': 0, 'high': 1, 'normal': 2, 'low': 3}
+        alerts.sort(key=lambda x: priority_order.get(x['priority'], 2))
+        
+        return jsonify({
+            'success': True,
+            'alerts': alerts,
+            'count': len(alerts),
+            'timestamp': now.isoformat()
+        })
+    except Exception as e:
+        current_app.logger.error(f"❌ [CAREGIVER] Error getting alerts: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_v1.route('/caregiver/recent-logs', methods=['GET'])
 @login_required
 def get_recent_logs():
     """Get today's medication schedule with status (TAKEN, SKIPPED, or MISSED) for all linked seniors"""
-    from datetime import datetime, timedelta
-    
     if current_user.role != 'caregiver':
-        return jsonify({'error': 'Access denied'}), 403
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
     
-    relationships = CaregiverSenior.query.filter_by(
-        caregiver_id=current_user.id,
-        status='accepted'
-    ).all()
-    senior_ids = [rel.senior_id for rel in relationships]
-    
-    if not senior_ids:
-        return jsonify({'success': True, 'logs': []})
-    
-    now = datetime.now()
-    today_start = datetime.combine(now.date(), datetime.min.time())
-    
-    logs_data = []
-    
-    # Get all seniors and their medications
-    for senior_id in senior_ids:
-        senior = User.query.get(senior_id)
-        if not senior:
-            continue
-            
-        medications = Medication.query.filter_by(user_id=senior_id).all()
+    try:
+        relationships = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            status='accepted'
+        ).all()
+        senior_ids = [rel.senior_id for rel in relationships]
         
-        for med in medications:
-            reminder_times = med.get_reminder_times()
+        if not senior_ids:
+            return jsonify({'success': True, 'logs': []})
+        
+        now = datetime.now()
+        logs_data = []
+        
+        # Get all seniors and their medications
+        for senior_id in senior_ids:
+            senior = User.query.get(senior_id)
+            if not senior:
+                continue
+                
+            medications = Medication.query.filter_by(user_id=senior_id).all()
             
-            for time_str in reminder_times:
-                try:
-                    h, m = map(int, time_str.split(':'))
-                    scheduled_dt = datetime.combine(now.date(), datetime.min.time().replace(hour=h, minute=m))
-                    
-                    # Skip future doses
-                    if scheduled_dt > now:
+            for med in medications:
+                reminder_times = med.get_reminder_times()
+                
+                for time_str in reminder_times:
+                    try:
+                        h, m = map(int, time_str.split(':'))
+                        scheduled_dt = datetime.combine(now.date(), datetime.min.time().replace(hour=h, minute=m))
+                        
+                        # Skip future doses
+                        if scheduled_dt > now:
+                            continue
+                        
+                        # Check if there's a log for this specific dose
+                        window_start = scheduled_dt - timedelta(hours=1)
+                        window_end = scheduled_dt + timedelta(hours=2)
+                        
+                        log = MedicationLog.query.filter(
+                            MedicationLog.user_id == senior_id,
+                            MedicationLog.medication_id == med.id,
+                            MedicationLog.taken_at >= window_start,
+                            MedicationLog.taken_at <= window_end
+                        ).first()
+                        
+                        if log:
+                            status = log.get_status()
+                            actual_time = log.taken_at
+                        else:
+                            status = 'missed'
+                            actual_time = scheduled_dt
+                        
+                        logs_data.append({
+                            'id': f"{med.id}-{time_str}",
+                            'senior_id': senior_id,
+                            'senior_name': senior.username,
+                            'medication_id': med.id,
+                            'medication_name': med.name,
+                            'scheduled_time': time_str,
+                            'taken_at': actual_time.isoformat(),
+                            'taken_correctly': status == 'verified',
+                            'status': status,
+                            'notes': log.notes if log else None
+                        })
+                    except:
                         continue
-                    
-                    # Check if there's a log for this specific dose
-                    # A log is considered matching if it's within 2 hours of the scheduled time
-                    window_start = scheduled_dt - timedelta(hours=1)
-                    window_end = scheduled_dt + timedelta(hours=2)
-                    
-                    log = MedicationLog.query.filter(
-                        MedicationLog.user_id == senior_id,
-                        MedicationLog.medication_id == med.id,
-                        MedicationLog.taken_at >= window_start,
-                        MedicationLog.taken_at <= window_end
-                    ).first()
-                    
-                    if log:
-                        # Dose exists in DB (verified, skipped, or missed)
-                        status = log.get_status()
-                        actual_time = log.taken_at
-                    else:
-                        # No log = MISSED (time has passed with no action and not yet backfilled/processed)
-                        status = 'missed'
-                        actual_time = scheduled_dt
-                    
-                    logs_data.append({
-                        'id': f"{med.id}-{time_str}",
-                        'senior_id': senior_id,
-                        'senior_name': senior.username,
-                        'medication_id': med.id,
-                        'medication_name': med.name,
-                        'scheduled_time': time_str,
-                        'taken_at': actual_time.isoformat(),
-                        'taken_correctly': status == 'verified',
-                        'status': status,  # 'verified', 'skipped', or 'missed'
-                        'notes': log.notes if log else None
-                    })
-                except (ValueError, AttributeError):
-                    continue
-    
-    # Sort by time (most recent first)
-    logs_data.sort(key=lambda x: x['taken_at'], reverse=True)
-    
-    return jsonify({
-        'success': True,
-        'logs': logs_data[:20]  # Limit to 20 most recent
-    })
+        
+        # Sort by time (most recent first)
+        logs_data.sort(key=lambda x: x['taken_at'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'logs': logs_data[:20]
+        })
+    except Exception as e:
+        current_app.logger.error(f"❌ [CAREGIVER] Error getting recent logs: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_v1.route('/caregiver/send-reminder/<int:senior_id>/<int:medication_id>', methods=['POST'])
 @login_required
@@ -333,89 +341,101 @@ def send_reminder(senior_id, medication_id):
 def remove_senior(senior_id):
     """Disconnect a senior from the caregiver's fleet"""
     if current_user.role != 'caregiver':
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
         
-    relationship = CaregiverSenior.query.filter_by(
-        caregiver_id=current_user.id,
-        senior_id=senior_id
-    ).first()
-    
-    if not relationship:
-        return jsonify({'success': False, 'message': 'Senior not found in your fleet'}), 404
+    try:
+        relationship = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            senior_id=senior_id
+        ).first()
         
-    db.session.delete(relationship)
-    db.session.commit()
-    
-    return jsonify({
-        'success': True,
-        'message': 'Successfully disconnected senior from fleet'
-    })
+        if not relationship:
+            return jsonify({'success': False, 'message': 'Senior not found in your fleet'}), 404
+            
+        db.session.delete(relationship)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Successfully disconnected senior from fleet'
+        })
+    except Exception as e:
+        current_app.logger.error(f"❌ [CAREGIVER] Error removing senior: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 @api_v1.route('/caregiver/request-camera/<int:senior_id>', methods=['POST'])
 @login_required
 def request_camera(senior_id):
     """Caregiver requests to see senior's camera for emergency/checkup"""
     if current_user.role != 'caregiver':
-        return jsonify({'error': 'Access denied'}), 403
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
     
-    relationship = CaregiverSenior.query.filter_by(
-        caregiver_id=current_user.id,
-        senior_id=senior_id,
-        status='accepted'
-    ).first()
-    
-    if not relationship:
-        return jsonify({'error': 'Senior not found in your care list'}), 404
-    
-    senior = relationship.senior
-    
-    # Send real-time request to senior
-    from app.services.notification_service import notification_service
-    notification_service.send_socketio_event('camera_request', {
-        'caregiver_id': current_user.id,
-        'caregiver_name': current_user.username,
-        'timestamp': datetime.now().isoformat()
-    }, room=f'user_{senior_id}')
+    try:
+        relationship = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            senior_id=senior_id,
+            status='accepted'
+        ).first()
+        
+        if not relationship:
+            return jsonify({'success': False, 'error': 'Senior not found in your care list'}), 404
+        
+        senior = relationship.senior
+        
+        # Send real-time request to senior
+        from app.services.notification_service import notification_service
+        notification_service.send_socketio_event('camera_request', {
+            'caregiver_id': current_user.id,
+            'caregiver_name': current_user.username,
+            'timestamp': datetime.now().isoformat()
+        }, room=f'user_{senior_id}')
 
-    return jsonify({
-        'success': True,
-        'message': 'Camera request sent successfully'
-    })
+        return jsonify({
+            'success': True,
+            'message': 'Camera request sent successfully'
+        })
+    except Exception as e:
+        current_app.logger.error(f"❌ [CAREGIVER] Error requesting camera: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
     
 @api_v1.route('/caregiver/export/fleet/pdf', methods=['GET'])
 @login_required
 def export_fleet_pdf():
     """Export summary report for the entire managed fleet (Proxied API)"""
     if current_user.role != 'caregiver':
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
         
-    # Get all accepted seniors
-    relationships = CaregiverSenior.query.filter_by(
-        caregiver_id=current_user.id,
-        status='accepted'
-    ).all()
-    
-    fleet_data = []
-    for rel in relationships:
-        senior = rel.senior
-        logs = MedicationLog.query.filter_by(user_id=senior.id).all()
-        meds = Medication.query.filter_by(user_id=senior.id).all()
-        fleet_data.append({
-            'senior': senior,
-            'logs': logs,
-            'medications': meds
-        })
+    try:
+        # Get all accepted seniors
+        relationships = CaregiverSenior.query.filter_by(
+            caregiver_id=current_user.id,
+            status='accepted'
+        ).all()
         
-    if not fleet_data:
-        return jsonify({'success': False, 'message': 'No seniors in fleet to export'}), 404
+        fleet_data = []
+        for rel in relationships:
+            senior = rel.senior
+            logs = MedicationLog.query.filter_by(user_id=senior.id).all()
+            meds = Medication.query.filter_by(user_id=senior.id).all()
+            fleet_data.append({
+                'senior': senior,
+                'logs': logs,
+                'medications': meds
+            })
+            
+        if not fleet_data:
+            return jsonify({'success': False, 'message': 'No seniors in fleet to export'}), 404
+            
+        from app.services.audit_service import audit_service
+        audit_service.log_action(
+            user_id=current_user.id,
+            action='FLEET_PDF_EXPORT',
+            details=f"Caregiver exported clinical summary for {len(fleet_data)} seniors"
+        )
         
-    from app.services.audit_service import audit_service
-    audit_service.log_action(
-        user_id=current_user.id,
-        action='FLEET_PDF_EXPORT',
-        details=f"Caregiver exported clinical summary for {len(fleet_data)} seniors"
-    )
-    
-    return export_fleet_to_pdf(fleet_data, current_user)
+        return export_fleet_to_pdf(fleet_data, current_user)
+    except Exception as e:
+        current_app.logger.error(f"❌ [CAREGIVER] Error exporting fleet PDF: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_v1.route('/caregiver/telemetry-fleet', methods=['GET'])
 @login_required

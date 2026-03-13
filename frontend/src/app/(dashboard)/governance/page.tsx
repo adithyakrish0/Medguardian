@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Lock, Activity, Eye, FileText, ChevronRight, Search, Filter, AlertTriangle, Fingerprint } from 'lucide-react';
+import { ShieldCheck, Lock, Activity, Eye, FileText, ChevronRight, Search, Filter, AlertTriangle, Fingerprint, ChevronLeft } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
 export default function GovernancePage() {
@@ -39,61 +39,61 @@ export default function GovernancePage() {
     const actionIcons: Record<string, any> = {
         'EMERGENCY_CAMERA_REQUEST': Eye,
         'FLEET_PDF_EXPORT': FileText,
+        'DATA_EXPORT_CSV': FileText,
         'MEDICATION_PROTOCOL_CHANGE': Activity,
         'CAREGIVER_CONNECTION_REQUEST': ShieldCheck,
         'LOGIN': Lock,
     };
 
     return (
-        <div className="space-y-10 pb-20">
-            {/* Header section with glassmorphism */}
-            <div className="relative p-10 rounded-[32px] overflow-hidden">
-                <div className="absolute inset-0 bg-primary/10 backdrop-blur-3xl border border-primary/20" />
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
-                                <ShieldCheck className="w-5 h-5" />
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Clinical Integrity</span>
-                        </div>
-                        <h1 className="text-4xl font-black tracking-tight text-foreground mb-3">Governance & Privacy</h1>
-                        <p className="text-foreground/50 max-w-xl font-medium leading-relaxed">
-                            Immutable clinical audit trail for data transparency, medical compliance, and emergency session accountability.
-                        </p>
+        <div className="max-w-6xl mx-auto space-y-8 pb-20 pt-16 lg:pt-0">
+            {/* Header section */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div>
+                    <button
+                        onClick={() => window.history.back()}
+                        className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-blue-400 transition-all mb-4 group"
+                    >
+                        <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        Back to Dashboard
+                    </button>
+                    <h1 className="text-2xl font-bold text-gray-100 mb-2">
+                        Governance & Privacy
+                    </h1>
+                    <p className="text-gray-400 font-medium max-w-xl">
+                        Immutable clinical audit trail for data transparency and medical compliance
+                    </p>
+                </div>
+
+                <div className="bg-gray-800 border border-gray-700 p-4 rounded-xl flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 border border-green-500/20">
+                        <Fingerprint className="w-5 h-5" />
                     </div>
-                    <div className="flex flex-col gap-4">
-                        <div className="bg-background/50 backdrop-blur-xl border border-card-border p-4 rounded-2xl flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
-                                <Fingerprint className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Privacy Status</p>
-                                <p className="text-sm font-black text-foreground">Bank-Level Security</p>
-                            </div>
-                        </div>
+                    <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Security Level</p>
+                        <p className="text-sm font-bold text-gray-200">Bank-Level E2EE</p>
                     </div>
                 </div>
             </div>
 
             {/* Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="relative col-span-2">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/20" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                     <input
                         type="text"
                         placeholder="Search clinical audit logs..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-card/50 border border-card-border rounded-2xl py-4 pl-16 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-foreground"
+                        className="w-full bg-gray-800 border border-gray-700 rounded-xl py-2.5 pl-12 pr-4 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
                     />
                 </div>
                 <div className="relative">
-                    <Filter className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/20" />
+                    <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                     <select
                         value={filterAction}
                         onChange={(e) => setFilterAction(e.target.value)}
-                        className="w-full bg-card/50 border border-card-border rounded-2xl py-4 pl-16 pr-10 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-black text-xs uppercase tracking-widest appearance-none text-foreground"
+                        className="w-full bg-gray-800 border border-gray-700 rounded-xl py-2.5 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-bold text-[10px] uppercase tracking-widest appearance-none text-gray-400"
                     >
                         <option value="all">All Actions</option>
                         <option value="EMERGENCY_CAMERA_REQUEST">Emergency Camera</option>
@@ -104,12 +104,12 @@ export default function GovernancePage() {
             </div>
 
             {/* Audit Trail */}
-            <div className="bg-card border border-card-border rounded-[32px] overflow-hidden shadow-2xl shadow-black/5">
-                <div className="p-8 border-b border-card-border bg-secondary/5 flex items-center justify-between">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-foreground/60 flex items-center gap-3">
-                        <Activity className="w-4 h-4" /> Real-time Audit Trail
+            <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-2xl">
+                <div className="p-6 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between">
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 flex items-center gap-3">
+                        <Activity className="w-4 h-4 text-blue-500" /> Real-time Audit Trail
                     </h2>
-                    <span className="text-[10px] font-bold bg-primary/10 text-primary px-3 py-1 rounded-full uppercase">
+                    <span className="text-[10px] font-bold bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full uppercase border border-blue-500/20">
                         {filteredLogs.length} Records
                     </span>
                 </div>
@@ -135,43 +135,43 @@ export default function GovernancePage() {
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: index * 0.05 }}
                                     key={log.id}
-                                    className="p-8 flex items-start gap-6 hover:bg-secondary/5 transition-all group"
+                                    className="p-6 flex items-start gap-4 hover:bg-gray-700/30 transition-all group"
                                 >
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${isCritical
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all ${isCritical
                                         ? 'bg-red-500/10 border-red-500/20 text-red-500 shadow-lg shadow-red-500/10'
-                                        : 'bg-primary/10 border-primary/20 text-primary'
+                                        : 'bg-blue-500/10 border-blue-500/20 text-blue-400'
                                         }`}>
-                                        <Icon className="w-6 h-6" />
+                                        <Icon className="w-5 h-5" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-1">
-                                            <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                                            <h3 className="text-base font-bold text-gray-100 flex items-center gap-2">
                                                 {log.action.replace(/_/g, ' ')}
                                                 {isCritical && (
-                                                    <span className="px-2 py-0.5 rounded-md bg-red-500 text-[8px] uppercase text-white font-black animate-pulse">Critical</span>
+                                                    <span className="px-2 py-0.5 rounded-md bg-red-500/20 text-[8px] uppercase text-red-400 font-bold animate-pulse border border-red-500/30">Critical Access</span>
                                                 )}
                                             </h3>
-                                            <span className="text-xs font-bold text-foreground/30">{new Date(log.created_at).toLocaleString()}</span>
+                                            <span className="text-xs font-bold text-gray-500">{new Date(log.created_at).toLocaleString()}</span>
                                         </div>
-                                        <p className="text-sm text-foreground/60 font-medium leading-relaxed mb-4">
+                                        <p className="text-sm text-gray-400 font-medium leading-relaxed mb-4">
                                             {log.details || 'No additional details provided for this event.'}
                                         </p>
-                                        <div className="flex items-center gap-6">
+                                        <div className="flex items-center gap-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                                                <span className="text-[10px] font-black uppercase text-foreground/30 tracking-widest flex items-center gap-2">
-                                                    IP: <span className="text-foreground/50">{log.ip_address}</span>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/40" />
+                                                <span className="text-[10px] font-bold uppercase text-gray-500 tracking-widest flex items-center gap-2">
+                                                    IP: <span className="text-gray-400">{log.ip_address}</span>
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                                                <span className="text-[10px] font-black uppercase text-foreground/30 tracking-widest flex items-center gap-2 truncate max-w-[200px]">
-                                                    UA: <span className="text-foreground/50">{log.user_agent}</span>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/40" />
+                                                <span className="text-[10px] font-bold uppercase text-gray-500 tracking-widest flex items-center gap-2 truncate max-w-[200px]">
+                                                    UA: <span className="text-gray-400">{log.user_agent}</span>
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
-                                    <button className="p-3 rounded-xl bg-white/5 opacity-0 group-hover:opacity-100 transition-all text-foreground/30 hover:text-primary">
+                                    <button className="p-3 rounded-xl bg-white dark:bg-gray-800/5 opacity-0 group-hover:opacity-100 transition-all text-foreground/30 hover:text-primary">
                                         <ChevronRight className="w-5 h-5" />
                                     </button>
                                 </motion.div>
@@ -192,13 +192,13 @@ export default function GovernancePage() {
             </div>
 
             {/* Compliance Footer */}
-            <div className="p-10 bg-yellow-500/5 border border-yellow-500/10 rounded-[32px] flex items-start gap-6">
-                <div className="w-14 h-14 rounded-2xl bg-yellow-500/10 flex items-center justify-center text-yellow-500 shrink-0">
-                    <AlertTriangle className="w-6 h-6" />
+            <div className="p-8 bg-amber-500/5 border border-amber-500/10 rounded-xl flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0 border border-amber-500/20">
+                    <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                    <h4 className="text-foreground font-black uppercase text-xs tracking-widest mb-1">Clinical Compliance Notice</h4>
-                    <p className="text-sm text-foreground/60 font-medium leading-relaxed">
+                    <h4 className="text-gray-200 font-bold uppercase text-[10px] tracking-widest mb-1">Clinical Compliance Notice</h4>
+                    <p className="text-xs text-gray-400 font-medium leading-relaxed">
                         This audit log is an immutable record of clinical operations. Deletion or modification of these records is restricted to system administrators for security and medical governance purposes. All emergency session recordings are retained for 90 days in accordance with health data regulations.
                     </p>
                 </div>

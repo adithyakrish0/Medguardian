@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { X, Save, Loader2, Bell, Clock, Plus } from 'lucide-react';
+import { X, Save, Loader2, Bell, Clock, Plus, Sunrise, Sun, Sunset, Moon } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
 interface EditMedicationModalProps {
@@ -27,10 +27,10 @@ interface EditMedicationModalProps {
 }
 
 const TIME_SLOTS = [
-    { key: 'morning', label: 'Morning', time: '8:00 AM', icon: '🌅' },
-    { key: 'afternoon', label: 'Afternoon', time: '2:00 PM', icon: '☀️' },
-    { key: 'evening', label: 'Evening', time: '6:00 PM', icon: '🌆' },
-    { key: 'night', label: 'Night', time: '9:00 PM', icon: '🌙' },
+    { key: 'morning', label: 'Morning', time: '8:00 AM', icon: Sunrise },
+    { key: 'afternoon', label: 'Afternoon', time: '2:00 PM', icon: Sun },
+    { key: 'evening', label: 'Evening', time: '6:00 PM', icon: Sunset },
+    { key: 'night', label: 'Night', time: '9:00 PM', icon: Moon },
 ];
 
 export default function EditMedicationModal({ medication, isOpen, onClose, onSaved }: EditMedicationModalProps) {
@@ -184,7 +184,7 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-8">
                     {error && (
-                        <div className="bg-red-500/10 text-red-400 px-4 py-3 rounded-lg text-sm font-medium">
+                        <div className="bg-red-50 dark:bg-red-900/10 text-red-400 px-4 py-3 rounded-lg text-sm font-medium">
                             {error}
                         </div>
                     )}
@@ -271,7 +271,9 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                                         : 'bg-white/5 hover:bg-white/10'
                                         }`}
                                 >
-                                    <div className="text-2xl mb-1">{slot.icon}</div>
+                                    <div className="flex justify-center mb-2">
+                                        <slot.icon className={`w-8 h-8 ${formData[slot.key as keyof typeof formData] ? 'text-primary' : 'text-white/40'}`} />
+                                    </div>
                                     <div className={`font-medium text-sm ${formData[slot.key as keyof typeof formData] ? 'text-primary' : 'text-white/70'}`}>
                                         {slot.label}
                                     </div>
@@ -326,7 +328,7 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                                 className={`w-11 h-6 rounded-full transition-all relative ${formData.reminder_enabled ? 'bg-primary' : 'bg-white/20'
                                     }`}
                             >
-                                <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${formData.reminder_enabled ? 'translate-x-5' : ''
+                                <span className={`absolute top-1 left-1 w-4 h-4 bg-white dark:bg-gray-800 rounded-full shadow transition-transform ${formData.reminder_enabled ? 'translate-x-5' : ''
                                     }`} />
                             </button>
                         </div>
@@ -335,7 +337,7 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                     {/* SECTION 3: Additional */}
                     <div>
                         <div className="flex items-center gap-2 mb-4">
-                            <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">3</span>
+                            <span className="w-5 h-5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-400 flex items-center justify-center text-xs font-bold">3</span>
                             <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wide">Additional Details</h3>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

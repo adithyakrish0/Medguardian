@@ -31,7 +31,7 @@ export default function DisconnectConfirmModal({ isOpen, onClose, onConfirm, sen
                 className="relative w-full max-w-lg medical-card p-12 bg-card border border-card-border overflow-hidden rounded-[48px] shadow-3xl"
             >
                 {/* Decorative Elements */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+                <div className="absolute top-0 right-0 w-64 h-64 bg-red-50 dark:bg-red-900/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
 
                 <button
                     onClick={onClose}
@@ -41,14 +41,14 @@ export default function DisconnectConfirmModal({ isOpen, onClose, onConfirm, sen
                 </button>
 
                 <div className="flex flex-col items-center text-center mb-10">
-                    <div className="w-20 h-20 rounded-[28px] bg-red-500/10 flex items-center justify-center mb-6 text-red-500 border border-red-500/20">
+                    <div className="w-20 h-20 rounded-[28px] bg-red-50 dark:bg-red-900/10 flex items-center justify-center mb-6 text-red-500 border border-red-500/20">
                         <Trash2 className="w-10 h-10" />
                     </div>
                     <h2 className="text-4xl font-black text-foreground tracking-tight mb-3 italic">Security Protocol</h2>
                     <p className="text-lg font-bold text-foreground">Disconnect {seniorName}?</p>
                 </div>
 
-                <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-[28px] mb-10 flex items-start gap-4">
+                <div className="bg-red-50 dark:bg-red-900/10 border border-red-500/20 p-6 rounded-[28px] mb-10 flex items-start gap-4">
                     <ShieldAlert className="w-6 h-6 text-red-500 shrink-0 mt-1" />
                     <p className="text-sm font-bold text-red-500 leading-relaxed">
                         WARNING: You will lose access to all real-time health telemetry and medication compliance data for this patient.
@@ -74,7 +74,7 @@ export default function DisconnectConfirmModal({ isOpen, onClose, onConfirm, sen
                     <button
                         onClick={onClose}
                         disabled={loading}
-                        className="w-full py-5 bg-background border border-card-border text-foreground/40 rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-white/5 transition-all mt-2"
+                        className="w-full py-5 bg-background border border-card-border text-foreground/40 rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-white dark:bg-gray-800/5 transition-all mt-2"
                     >
                         Cancel
                     </button>

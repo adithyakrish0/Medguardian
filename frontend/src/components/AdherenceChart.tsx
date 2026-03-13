@@ -70,14 +70,14 @@ export default function AdherenceChart({ data, variant = 'full' }: AdherenceChar
                                 dataKey="date"
                                 axisLine={false}
                                 tickLine={false}
-                                tick={{ fill: '#ffffff40', fontSize: 10, fontWeight: 'bold' }}
+                                tick={{ fill: '#ffffff80', fontSize: 10, fontWeight: 'bold' }}
                                 dy={10}
                                 interval={data.length > 7 ? (data.length > 15 ? 4 : 2) : 0}
                             />
                             <YAxis
                                 axisLine={false}
                                 tickLine={false}
-                                tick={{ fill: '#ffffff40', fontSize: 10, fontWeight: 'bold' }}
+                                tick={{ fill: '#ffffff80', fontSize: 10, fontWeight: 'bold' }}
                                 domain={[0, 100]}
                                 ticks={[0, 50, 100]}
                             />
@@ -92,7 +92,7 @@ export default function AdherenceChart({ data, variant = 'full' }: AdherenceChar
                                     <div className="bg-slate-900/95 border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-md">
                                         <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-2">{data.date}</p>
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-2 h-2 rounded-full ${data.isLocked ? 'bg-white/20' : 'bg-primary'}`} />
+                                            <div className={`w-2 h-2 rounded-full ${data.isLocked ? 'bg-white dark:bg-gray-800/20' : 'bg-primary'}`} />
                                             <p className="text-sm font-black text-white">
                                                 {data.isLocked ? 'DATA LOCKED' : `ADHERENCE: ${data.adherence}%`}
                                             </p>

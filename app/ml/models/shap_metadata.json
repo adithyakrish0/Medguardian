@@ -1,0 +1,25 @@
+{
+  "feature_names": [
+    "hour_of_day",
+    "day_of_week",
+    "days_since_start",
+    "consecutive_missed",
+    "rolling_7day_adherence",
+    "time_delta_minutes",
+    "priority_encoded"
+  ],
+  "feature_descriptions": {
+    "hour_of_day": "Scheduled Hour",
+    "day_of_week": "Day of Week",
+    "days_since_start": "Days Since Start",
+    "consecutive_missed": "Consecutive Missed",
+    "rolling_7day_adherence": "7-Day Adherence",
+    "time_delta_minutes": "Response Time (min)",
+    "priority_encoded": "Medication Priority"
+  },
+  "model_type": "GradientBoostingClassifier",
+  "trained_at": "2026-03-01T13:52:09.959494",
+  "model_loaded": true,
+  "n_samples": 500,
+  "accuracy": 0.964
+}

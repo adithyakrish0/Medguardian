@@ -6,7 +6,7 @@ try:
     import torch
 except ImportError:
     torch = None
-    print("⚠️ PyTorch not available - Vision features will be disabled")
+    print("[Vision] WARNING: PyTorch not available - Vision features will be disabled")
 
 import logging
 from typing import Optional
@@ -73,14 +73,14 @@ class ModelManager:
             logger.info(f"Loading YOLO model from {model_path}...")
             self._yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
             self._yolo_model_path = model_path
-            logger.info("✓ YOLO model loaded successfully (cached for future use)")
+            logger.info("[Vision] YOLO model loaded successfully (cached for future use)")
             return self._yolo_model
             
         except Exception as e:
             logger.error(f"Failed to load YOLO model: {e}")
             self._yolo_model = None
             self._yolo_model_path = None
-            raise
+            return None
     
     def is_model_loaded(self) -> bool:
         """Check if YOLO model is currently loaded"""
@@ -99,17 +99,18 @@ class ModelManager:
             # Force garbage collection
             import gc
             gc.collect()
-            if torch.cuda.is_available():
+            if torch is not None and torch.cuda.is_available():
                 torch.cuda.empty_cache()
     
     def get_model_info(self) -> dict:
         """Get information about loaded models"""
+        cuda_available = torch.cuda.is_available() if torch is not None else False
         return {
             'yolo_loaded': self._yolo_model is not None,
             'yolo_model_path': self._yolo_model_path,
             'tesseract_available': self._tesseract_available,
-            'cuda_available': torch.cuda.is_available(),
-            'device': 'cuda' if torch.cuda.is_available() else 'cpu'
+            'cuda_available': cuda_available,
+            'device': 'cuda' if cuda_available else 'cpu'
         }
 
 

@@ -4,7 +4,7 @@
  * TypeScript client for refill prediction and alert management.
  */
 
-import { apiFetch } from './api';
+import { apiFetch } from '../api';
 
 // Types
 
@@ -120,13 +120,13 @@ export async function getRefillSummary(): Promise<RefillSummary> {
 export function getAlertLevelStyle(level: string) {
     switch (level) {
         case 'critical':
-            return { text: 'text-red-500', bg: 'bg-red-500/20', border: 'border-red-500/30', icon: '🔴' };
+            return { text: 'text-critical', bg: 'bg-critical/10', border: 'border-critical/30', icon: 'AlertCircle' };
         case 'warning':
-            return { text: 'text-yellow-500', bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', icon: '🟡' };
+            return { text: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/30', icon: 'AlertTriangle' };
         case 'info':
-            return { text: 'text-blue-500', bg: 'bg-blue-500/20', border: 'border-blue-500/30', icon: '🔵' };
+            return { text: 'text-primary-600', bg: 'bg-primary-50', border: 'border-primary-100', icon: 'Info' };
         default:
-            return { text: 'text-green-500', bg: 'bg-green-500/20', border: 'border-green-500/30', icon: '🟢' };
+            return { text: 'text-success', bg: 'bg-success/10', border: 'border-success/30', icon: 'CheckCircle' };
     }
 }
 

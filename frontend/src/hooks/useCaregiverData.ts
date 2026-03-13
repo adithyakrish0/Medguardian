@@ -13,7 +13,7 @@ export function useCaregiverData() {
 
     const fetchData = useCallback(async () => {
         const startTime = performance.now();
-        console.time('⏱️ CAREGIVER_DATA_LOAD');
+        console.time('CAREGIVER_DATA_LOAD');
 
         try {
             setLoading(true);
@@ -23,8 +23,8 @@ export function useCaregiverData() {
             }
 
             const duration = performance.now() - startTime;
-            console.log(`🚀 Caregiver data loaded in ${duration.toFixed(0)}ms`);
-            console.timeEnd('⏱️ CAREGIVER_DATA_LOAD');
+            console.log(`Caregiver data loaded in ${duration.toFixed(0)}ms`);
+            console.timeEnd('CAREGIVER_DATA_LOAD');
 
         } catch (err: any) {
             console.error('Caregiver fetch error:', err);
