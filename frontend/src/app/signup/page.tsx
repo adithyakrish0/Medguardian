@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { DM_Sans } from 'next/font/google';
 import { apiFetch } from '@/lib/api';
 import {
     Eye,
@@ -12,18 +13,16 @@ import {
     User,
     Mail,
     Loader2,
-    ShieldCheck,
     ArrowRight,
     UserCircle,
     ShieldHalf,
-    LockKeyhole,
-    Activity,
-    Server,
     CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+const dmSans = DM_Sans({ subsets: ['latin'], weight: ['400', '500', '700', '800'] });
 
 export default function SignupPage() {
     const [username, setUsername] = useState('');
@@ -62,189 +61,170 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="flex min-h-screen bg-slate-950 overflow-hidden font-sans">
-            {/* Left Side: Brand & Trust (Visual Anchor) */}
-            <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-slate-900 via-slate-950 to-blue-900/20 px-16 py-16 md:flex">
-                {/* Neural Mesh Background */}
-                <div className="absolute inset-0 z-0">
-                    <NeuralMesh count={40} />
-                </div>
+        <div className={`flex h-screen w-full overflow-hidden ${dmSans.className}`} style={{ background: '#070d1a' }}>
+            {/* LEFT PANEL (Decorative, 45%) */}
+            <div className="relative hidden lg:flex w-[45%] h-full flex-col justify-between p-12">
+                
+                {/* Enhanced Gradient orbs - Seamless implementation */}
+                <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '20%', 
+                    transform: 'translate(-50%, -50%)',
+                    width: '600px',
+                    height: '600px',
+                    borderRadius: '50%',
+                    filter: 'blur(140px)',
+                    background: 'radial-gradient(circle, rgba(37,99,235,0.45) 0%, rgba(6,182,212,0.2) 40%, transparent 70%)',
+                    pointerEvents: 'none'
+                }} />
 
+                <div style={{
+                    position: 'absolute',
+                    bottom: '10%',
+                    left: '10%',
+                    width: '300px',
+                    height: '300px', 
+                    borderRadius: '50%',
+                    filter: 'blur(100px)',
+                    background: 'radial-gradient(circle, rgba(124,58,237,0.3) 0%, transparent 70%)',
+                    pointerEvents: 'none'
+                }} />
+                
+                {/* Top: Logo */}
+                <Link href="/" className="relative z-10 flex items-center gap-3 hover:opacity-80 transition-opacity">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+                        <span className="text-white font-black text-lg">M</span>
+                    </div>
+                    <span className="text-white font-bold text-xl tracking-tight">MedGuardian</span>
+                </Link>
+                
+                {/* Middle: Headline */}
                 <div className="relative z-10">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-4"
-                    >
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-2xl shadow-blue-500/20">
-                            <span className="text-xl font-black text-white">M</span>
+                    <p className="text-blue-400 text-sm font-semibold uppercase tracking-widest mb-4">AI-Powered Care</p>
+                    <h2 className="text-white font-black text-5xl leading-tight tracking-tight">
+                        Protecting seniors.<br/>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+                            Empowering caregivers.
+                        </span>
+                    </h2>
+                    <p className="text-slate-400 mt-6 text-base leading-relaxed max-w-sm">
+                        Advanced AI monitors medication adherence 24/7, detects anomalies, and keeps your loved ones safe.
+                    </p>
+                </div>
+                
+                {/* Bottom: Feature pills */}
+                <div className="relative z-10 flex flex-col gap-4">
+                    {['LSTM Anomaly Detection', 'YOLO Vision Verification', 'Real-time Caregiver Alerts'].map(feat => (
+                        <div key={feat} className="flex items-center gap-3 group">
+                            <div className="w-2 h-2 rounded-full bg-blue-400 group-hover:scale-125 transition-transform" />
+                            <span className="text-slate-300 text-sm font-medium group-hover:text-white transition-colors">{feat}</span>
                         </div>
-                        <span className="text-2xl font-black tracking-tighter text-white">MedGuardian</span>
-                    </motion.div>
-
-                    <div className="mt-32 max-w-lg">
-                        <motion.h2
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="text-6xl font-black leading-[1.1] tracking-tighter text-white"
-                        >
-                            Secure. <br />
-                            <span className="text-blue-500">Intelligent.</span> <br />
-                            Care.
-                        </motion.h2>
-                        <motion.p
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className="mt-8 text-xl font-medium leading-relaxed text-slate-400"
-                        >
-                            Deploying the world's most advanced AI protocols for elderly medication safety.
-                        </motion.p>
-                    </div>
-                </div>
-
-                {/* Trust Badges */}
-                <div className="relative z-10">
-                    <div className="h-px w-full bg-white/5 mb-8" />
-                    <div className="grid grid-cols-3 gap-8">
-                        {[
-                            { icon: LockKeyhole, label: "End-to-End Encrypted" },
-                            { icon: Server, label: "Zero-Trust Protocol" },
-                            { icon: ShieldCheck, label: "HIPAA Ready" }
-                        ].map((badge, i) => (
-                            <motion.div
-                                key={badge.label}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5 + i * 0.1 }}
-                                className="flex flex-col items-center gap-3 text-center"
-                            >
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-blue-400">
-                                    <badge.icon className="h-5 w-5" />
-                                </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{badge.label}</span>
-                            </motion.div>
-                        ))}
-                    </div>
+                    ))}
                 </div>
             </div>
 
-            {/* Right Side: The Form */}
-            <div className="relative flex w-full items-center justify-center px-6 py-12 md:w-1/2 md:px-16 lg:px-24">
-                {/* Background Decor for Mobile */}
-                <div className="absolute inset-0 z-0 bg-slate-950 md:hidden">
-                    <div className="absolute top-0 h-64 w-full bg-gradient-to-b from-blue-900/20 to-transparent" />
-                </div>
-
-                <div className="relative z-10 w-full max-w-md">
-                    <div className="mb-12">
-                        <motion.h1
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-4xl font-black tracking-tighter text-white"
-                        >
-                            Initialize Profile
-                        </motion.h1>
-                        <p className="mt-3 text-sm font-medium text-slate-500">
-                            Already part of the network?{' '}
+            {/* RIGHT PANEL (Form, 55%) */}
+            <div className="relative flex flex-1 h-full items-center justify-center p-8">
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full max-w-[400px]"
+                >
+                    <div className="mb-8">
+                        <h1 className="text-3xl font-black text-white tracking-tight">Create account</h1>
+                        <p className="text-slate-400 mt-2 font-medium">
+                            Already have an account?{' '}
                             <Link href="/login" className="font-bold text-blue-400 hover:text-blue-300 transition-colors">
-                                Authenticate here
+                                Sign in
                             </Link>
                         </p>
                     </div>
 
-                    <form onSubmit={handleSignup} className="space-y-8">
+                    <form onSubmit={handleSignup} className="space-y-4">
                         {error && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-xs font-bold text-red-400"
-                            >
+                            <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3.5 text-xs font-bold text-red-400">
                                 {error}
-                            </motion.div>
+                            </div>
                         )}
 
-                        {/* Role Selector Cards */}
-                        <div className="space-y-4">
-                            <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Security Role</Label>
-                            <div className="grid grid-cols-2 gap-4">
-                                {[
-                                    { id: 'senior', label: "I am a Senior", subtext: "Manage my meds", icon: UserCircle },
-                                    { id: 'caregiver', label: "I am a Caregiver", subtext: "Monitor loved one", icon: ShieldHalf }
-                                ].map((choice) => (
-                                    <button
-                                        key={choice.id}
-                                        type="button"
-                                        onClick={() => setRole(choice.id as any)}
-                                        className={`group relative flex flex-col items-center gap-4 rounded-3xl border p-6 transition-all duration-300 ${role === choice.id
-                                                ? 'border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/50 shadow-[0_0_30px_rgba(37,99,235,0.15)]'
-                                                : 'border-white/5 bg-white/5 hover:border-white/10'
-                                            }`}
-                                    >
-                                        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-colors ${role === choice.id ? 'bg-blue-500 text-white' : 'bg-slate-900 text-slate-500 group-hover:text-blue-400'
-                                            }`}>
-                                            <choice.icon className="h-6 w-6" />
+                        {/* Role Selector (Horizontal, Compact) */}
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            {[
+                                { id: 'senior', label: "Senior", subtext: "Manage meds", icon: UserCircle },
+                                { id: 'caregiver', label: "Caregiver", subtext: "Monitor patients", icon: ShieldHalf }
+                            ].map((choice) => (
+                                <button
+                                    key={choice.id}
+                                    type="button"
+                                    onClick={() => setRole(choice.id as any)}
+                                    className={`group relative flex items-center h-[72px] gap-3 rounded-xl border px-4 transition-all duration-300 ${role === choice.id
+                                        ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_20px_rgba(37,99,235,0.1)]'
+                                        : 'border-white/10 bg-[#111827] hover:border-white/20'
+                                        }`}
+                                >
+                                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${role === choice.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-900 text-slate-500 group-hover:text-blue-400'
+                                        }`}>
+                                        <choice.icon className="h-6 w-6" />
+                                    </div>
+                                    <div className="text-left overflow-hidden">
+                                        <div className={`text-sm font-black tracking-tight ${role === choice.id ? 'text-white' : 'text-slate-400'}`}>
+                                            {choice.label}
                                         </div>
-                                        <div className="text-center">
-                                            <div className={`text-sm font-black tracking-tight ${role === choice.id ? 'text-white' : 'text-slate-400'}`}>
-                                                {choice.label}
-                                            </div>
-                                            <div className={`text-[10px] font-bold mt-1 opacity-50 ${role === choice.id ? 'text-blue-100' : 'text-slate-500'}`}>
-                                                {choice.subtext}
-                                            </div>
+                                        <div className={`text-[10px] font-bold mt-0.5 whitespace-nowrap opacity-50 ${role === choice.id ? 'text-blue-200' : 'text-slate-600'}`}>
+                                            {choice.subtext}
                                         </div>
-                                        {role === choice.id && (
-                                            <motion.div
-                                                layoutId="activeRole"
-                                                className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500"
-                                            >
-                                                <CheckCircle2 className="h-4 w-4 text-white" />
-                                            </motion.div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
+                                    </div>
+                                    {role === choice.id && (
+                                        <motion.div
+                                            layoutId="activeRoleSplit"
+                                            className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 border-2 border-[#070d1a]"
+                                        >
+                                            <CheckCircle2 className="h-3 w-3 text-white" />
+                                        </motion.div>
+                                    )}
+                                </button>
+                            ))}
                         </div>
 
-                        {/* Inputs */}
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <Label htmlFor="username" className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Identity Name</Label>
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="username" className="text-[11px] font-black uppercase tracking-wider text-slate-500 ml-1">Username</Label>
                                 <div className="relative group">
-                                    <User className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-400 transition-colors" />
+                                    <User className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                                     <Input
                                         id="username"
                                         type="text"
                                         required
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
-                                        placeholder="Enter your system ID"
-                                        className="h-14 rounded-2xl border-white/5 bg-white/5 pl-12 text-sm font-semibold tracking-tight text-white transition-all focus:border-teal-500/50 focus:ring-teal-500/50"
+                                        placeholder="Choose a username"
+                                        className="h-11 rounded-xl border-white/10 bg-[#111827] pl-11 text-sm font-medium text-white transition-all focus:border-blue-500/50 focus:ring-blue-500/50 placeholder:text-slate-600"
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="email" className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Secure Email</Label>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="email" className="text-[11px] font-black uppercase tracking-wider text-slate-500 ml-1">Email Address</Label>
                                 <div className="relative group">
-                                    <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-400 transition-colors" />
+                                    <Mail className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                                     <Input
                                         id="email"
                                         type="email"
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="Primary access vector"
-                                        className="h-14 rounded-2xl border-white/5 bg-white/5 pl-12 text-sm font-semibold tracking-tight text-white transition-all focus:border-teal-500/50 focus:ring-teal-500/50"
+                                        placeholder="your@email.com"
+                                        className="h-11 rounded-xl border-white/10 bg-[#111827] pl-11 text-sm font-medium text-white transition-all focus:border-blue-500/50 focus:ring-blue-500/50 placeholder:text-slate-600"
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="password" className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Access Key</Label>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="password" className="text-[11px] font-black uppercase tracking-wider text-slate-500 ml-1">Password</Label>
                                 <div className="relative group">
-                                    <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-400 transition-colors" />
+                                    <Lock className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                                     <Input
                                         id="password"
                                         type={showPassword ? "text" : "password"}
@@ -252,12 +232,12 @@ export default function SignupPage() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Minimum 8 characters"
-                                        className="h-14 rounded-2xl border-white/5 bg-white/5 pl-12 pr-12 text-sm font-semibold tracking-tight text-white transition-all focus:border-teal-500/50 focus:ring-teal-500/50"
+                                        className="h-11 rounded-xl border-white/10 bg-[#111827] pl-11 pr-11 text-sm font-medium text-white transition-all focus:border-blue-500/50 focus:ring-blue-500/50 placeholder:text-slate-600"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                                     >
                                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                                     </button>
@@ -265,70 +245,23 @@ export default function SignupPage() {
                             </div>
                         </div>
 
-                        {/* Submit Button */}
-                        <motion.div
-                            whileHover={{ scale: 1.01 }}
-                            whileTap={{ scale: 0.98 }}
+                        <Button
+                            type="submit"
+                            disabled={loading}
+                            className="h-11 w-full bg-blue-600 text-sm font-black uppercase tracking-widest text-white rounded-xl shadow-lg shadow-blue-600/20 hover:bg-blue-500 hover:shadow-blue-600/30 transition-all flex items-center justify-center gap-2 group disabled:opacity-70 mt-6"
                         >
-                            <Button
-                                type="submit"
-                                disabled={loading}
-                                className="relative h-14 w-full overflow-hidden rounded-2xl bg-blue-600 text-sm font-black uppercase tracking-[0.2em] text-white shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-500 hover:shadow-[0_0_40px_rgba(37,99,235,0.4)]"
-                            >
-                                <AnimatePresence mode="wait">
-                                    {loading ? (
-                                        <motion.div
-                                            key="loading"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            className="flex items-center gap-3"
-                                        >
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                            Initializing...
-                                        </motion.div>
-                                    ) : (
-                                        <motion.div
-                                            key="idle"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            className="flex items-center gap-2"
-                                        >
-                                            Establish Connection <ArrowRight className="h-4 w-4" />
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-1000 -translate-x-full group-hover:translate-x-full" />
-                            </Button>
-                        </motion.div>
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Create Account <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></>}
+                        </Button>
                     </form>
-                </div>
+
+                    <div className="mt-10 text-center text-sm text-slate-500">
+                        Already have an account?{' '}
+                        <Link href="/login" className="font-bold text-blue-400 hover:text-blue-300 transition-colors">
+                            Sign in
+                        </Link>
+                    </div>
+                </motion.div>
             </div>
-        </div>
-    );
-}
-
-// Sub-component for Neural Background
-function NeuralMesh({ count }: { count: number }) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-    if (!mounted) return null;
-
-    return (
-        <div className="absolute inset-0 opacity-30">
-            {[...Array(count)].map((_, i) => (
-                <div
-                    key={i}
-                    className="absolute h-px w-px bg-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
-                    style={{
-                        top: `${Math.random() * 100}%`,
-                        left: `${Math.random() * 100}%`,
-                        animation: `pulse ${2 + Math.random() * 4}s infinite ease-in-out`,
-                        animationDelay: `${Math.random() * 5}s`
-                    }}
-                />
-            ))}
         </div>
     );
 }

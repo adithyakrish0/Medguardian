@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useMedications } from '@/hooks/useMedications';
 import AIVerificationModal from '@/components/AIVerificationModal';
 import AddMedicationModal from '@/components/AddMedicationModal';
@@ -8,651 +8,534 @@ import EditMedicationModal from '@/components/EditMedicationModal';
 import { apiFetch } from '@/lib/api';
 import { useUser } from '@/hooks/useUser';
 import {
-    Pill,
-    Plus,
-    Camera,
-    Settings,
-    AlertTriangle,
-    Clock,
-    CheckCircle2,
-    Calendar,
-    ArrowRight,
-    ArrowLeft,
-    Users,
-    Brain,
-    MoreVertical,
-    Pencil,
-    Trash2,
-    RefreshCw,
-    Loader2
+    Pill, Plus, Camera, AlertTriangle, Clock,
+    CheckCircle2, Calendar, Users, Brain,
+    MoreVertical, Pencil, Trash2, RefreshCw,
+    Loader2, ChevronLeft, Shield, Zap,
+    Activity, TrendingUp, Info, Star, Heart
 } from 'lucide-react';
 import AIFeedModal from '@/components/AIFeedModal';
 import { useToast } from '@/components/NiceToast';
 import { SeniorOnly } from '@/components/RoleGuard';
+import { motion, AnimatePresence } from 'framer-motion';
 
+// ─── Tokens ───────────────────────────────────────────────
+const T = {
+    bg:       '#070c14',
+    surface:  '#0d1525',
+    card:     '#0f1c2e',
+    cardHi:   '#122035',
+    border:   '#182338',
+    borderHi: '#253550',
+    text:     '#f1f5f9',
+    sub:      '#94a3b8',
+    muted:    '#4a607a',
+    faint:    '#0a1628',
+    blue:     '#3b82f6',
+    blueDim:  '#172038',
+    red:      '#ef4444',
+    redDim:   '#1f0a0a',
+    green:    '#22c55e',
+    greenDim: '#0a1f0a',
+    amber:    '#f59e0b',
+    amberDim: '#1a1100',
+    violet:   '#8b5cf6',
+    violetDim:'#1a1230',
+};
+
+const cv = {
+    hidden:  { opacity: 0, y: 14 },
+    visible: (i: number) => ({
+        opacity: 1, y: 0,
+        transition: { delay: i * 0.06, duration: 0.36, ease: 'easeOut' as const }
+    }),
+};
+
+// ─── Shared MenuBtn ───────────────────────────────────────
+function MenuBtn({ icon, label, color, onClick }: { icon: React.ReactNode; label: string; color: string; onClick: () => void }) {
+    return (
+        <button onClick={onClick}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-left transition-colors"
+            style={{ color }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = T.faint; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}>
+            <span style={{ color }}>{icon}</span>{label}
+        </button>
+    );
+}
+
+// ─── Med card row ─────────────────────────────────────────
+function MedRow({ med, i, onVerify, onFeed, onEdit, onDelete, onMenuOpen, isMenuOpen }: any) {
+    const high = med.priority === 'high';
+    return (
+        <motion.div key={med.id} custom={i} initial="hidden" animate="visible" variants={cv}
+            className="rounded-2xl transition-colors group"
+            style={{
+                background: T.card,
+                border: `1px solid ${T.border}`,
+                borderLeft: `3px solid ${high ? T.red : T.blue}`,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = T.cardHi)}
+            onMouseLeave={e => (e.currentTarget.style.background = T.card)}>
+
+            {/* Top row */}
+            <div className="px-5 py-4 flex items-center gap-4">
+                {/* Icon */}
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: high ? T.redDim : T.blueDim }}>
+                    <Pill className="w-5 h-5" style={{ color: high ? T.red : T.blue }} />
+                </div>
+
+                {/* Name + meta */}
+                <div className="flex-1 min-w-0">
+                    <p className="text-[17px] font-semibold truncate" style={{ color: T.text }}>{med.name}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-[13px]" style={{ color: T.muted }}>{med.dosage}</span>
+                        <span className="w-[3px] h-[3px] rounded-full" style={{ background: T.faint }} />
+                        <span className="text-[13px]" style={{ color: T.muted }}>{med.frequency}</span>
+                        {med.ai_trained ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg font-medium"
+                                style={{ background: T.greenDim, color: T.green, border: `1px solid ${T.green}22` }}>
+                                <CheckCircle2 className="w-[10px] h-[10px]" /> AI ready
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg font-medium"
+                                style={{ background: T.amberDim, color: T.amber, border: `1px solid ${T.amber}22` }}>
+                                <AlertTriangle className="w-[10px] h-[10px]" /> Needs training
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => onVerify({ id: med.id, name: med.name })}
+                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-colors hover:bg-blue-500"
+                        style={{ background: T.blue }}>
+                        <Camera className="w-3.5 h-3.5" /> Verify
+                    </button>
+                    {!med.ai_trained && (
+                        <button onClick={() => onFeed(med)}
+                            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors"
+                            style={{ background: T.greenDim, color: T.green, border: `1px solid ${T.green}25` }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#0d2b0d'; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = T.greenDim; }}>
+                            <Brain className="w-3.5 h-3.5" /> Train AI
+                        </button>
+                    )}
+                    <button onClick={e => onMenuOpen(med.id, e)}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors"
+                        style={{ color: T.muted }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = T.faint; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}>
+                        <MoreVertical className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Subtle bottom meta strip */}
+            <div className="px-5 pb-3 flex items-center gap-4"
+                style={{ borderTop: `1px solid ${T.border}` }}>
+                <div className="flex items-center gap-1.5 mt-2">
+                    <Clock className="w-3 h-3" style={{ color: T.muted }} />
+                    <span className="text-[11px]" style={{ color: T.muted }}>
+                        {med.scheduled_times?.join(', ') || 'No schedule set'}
+                    </span>
+                </div>
+                {med.notes && (
+                    <div className="flex items-center gap-1.5 mt-2 min-w-0">
+                        <Info className="w-3 h-3 shrink-0" style={{ color: T.muted }} />
+                        <span className="text-[11px] truncate" style={{ color: T.muted }}>{med.notes}</span>
+                    </div>
+                )}
+                <div className="ml-auto mt-2">
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-md"
+                        style={{
+                            background: med.priority === 'high' ? T.redDim : T.faint,
+                            color: med.priority === 'high' ? T.red : T.muted,
+                            border: `1px solid ${med.priority === 'high' ? T.red + '22' : T.border}`,
+                        }}>
+                        {med.priority === 'high' ? 'High priority' : 'Standard'}
+                    </span>
+                </div>
+            </div>
+        </motion.div>
+    );
+}
+
+// ─── Insight banner ───────────────────────────────────────
+function InsightBanner({ medications }: { medications: any[] }) {
+    const trained   = medications.filter(m => m.ai_trained).length;
+    const high      = medications.filter(m => m.priority === 'high').length;
+    const pct       = medications.length > 0 ? Math.round((trained / medications.length) * 100) : 0;
+
+    let msg = '';
+    let color = T.blue;
+    let Icon  = Star;
+
+    if (high > 0) {
+        msg   = `You have ${high} high-priority medication${high > 1 ? 's' : ''}. Verify these first every day.`;
+        color = T.red; Icon = AlertTriangle;
+    } else if (pct === 100) {
+        msg   = 'All medications are AI-trained. Camera verification will be most accurate.';
+        color = T.green; Icon = CheckCircle2;
+    } else if (trained === 0) {
+        msg   = 'Train your medications so the AI can verify them accurately through the camera.';
+        color = T.amber; Icon = Brain;
+    } else {
+        msg   = `${trained} of ${medications.length} medications are AI-trained. Train the rest for better accuracy.`;
+        color = T.blue; Icon = TrendingUp;
+    }
+
+    return (
+        <motion.div custom={1} initial="hidden" animate="visible" variants={cv}
+            className="rounded-2xl px-5 py-4 flex items-start gap-4"
+            style={{ background: T.card, border: `1px solid ${T.border}`, borderLeft: `3px solid ${color}` }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                style={{ background: color + '18' }}>
+                <Icon className="w-5 h-5" style={{ color }} />
+            </div>
+            <div>
+                <p className="text-[13px] font-semibold mb-0.5" style={{ color }}>AI training status</p>
+                <p className="text-[13px] leading-relaxed" style={{ color: T.sub }}>{msg}</p>
+            </div>
+            <div className="shrink-0 text-right ml-4">
+                <p className="text-[28px] font-semibold leading-none" style={{ color }}>{pct}%</p>
+                <p className="text-[11px] mt-0.5" style={{ color: T.muted }}>trained</p>
+            </div>
+        </motion.div>
+    );
+}
+
+// ─── Adherence tip ────────────────────────────────────────
+const tips = [
+    { title: 'Best time to take statins', body: 'Medications like Atorvastatin work best when taken in the evening, as cholesterol production peaks at night.' },
+    { title: 'Food interactions matter', body: 'Some medications absorb better with food, while others need an empty stomach. Check with your pharmacist.' },
+    { title: 'Never skip a dose', body: 'Missing doses can reduce effectiveness or cause withdrawal effects. Set alarms to stay consistent.' },
+    { title: 'Store correctly', body: 'Most medications should be stored away from heat, light, and moisture. Bathroom cabinets are often not ideal.' },
+];
+
+function MedicationTip({ i }: { i: number }) {
+    const tip = tips[i % tips.length];
+    return (
+        <motion.div custom={99} initial="hidden" animate="visible" variants={cv}
+            className="rounded-2xl px-5 py-4 flex items-start gap-4"
+            style={{ background: T.card, border: `1px solid ${T.border}`, borderLeft: `3px solid ${T.violet}` }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: T.violetDim }}>
+                <Heart className="w-5 h-5" style={{ color: T.violet }} />
+            </div>
+            <div>
+                <p className="text-[12px] font-semibold mb-1" style={{ color: T.violet }}>Health tip</p>
+                <p className="text-[14px] font-semibold mb-1" style={{ color: T.text }}>{tip.title}</p>
+                <p className="text-[13px] leading-relaxed" style={{ color: T.sub }}>{tip.body}</p>
+            </div>
+        </motion.div>
+    );
+}
+
+// ─── Quick action row ─────────────────────────────────────
+function QuickActions({ onAdd, medications, onVerify }: any) {
+    const nextUntrained = medications.find((m: any) => !m.ai_trained);
+    return (
+        <motion.div custom={50} initial="hidden" animate="visible" variants={cv}
+            className="rounded-2xl p-5"
+            style={{ background: T.card, border: `1px solid ${T.border}` }}>
+            <p className="text-[13px] font-semibold mb-4" style={{ color: T.muted }}>Quick actions</p>
+            <div className="grid grid-cols-2 gap-3">
+                <button onClick={onAdd}
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-colors"
+                    style={{ background: T.blueDim, border: `1px solid ${T.blue}22` }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#1e2f4a'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = T.blueDim; }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: T.blue + '25' }}>
+                        <Plus className="w-4 h-4" style={{ color: T.blue }} />
+                    </div>
+                    <div>
+                        <p className="text-[13px] font-semibold" style={{ color: T.text }}>Add medication</p>
+                        <p className="text-[11px]" style={{ color: T.muted }}>Register a new drug</p>
+                    </div>
+                </button>
+
+                {nextUntrained ? (
+                    <button onClick={() => onVerify({ id: nextUntrained.id, name: nextUntrained.name })}
+                        className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-colors"
+                        style={{ background: T.greenDim, border: `1px solid ${T.green}22` }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#0d2b0d'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = T.greenDim; }}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: T.green + '25' }}>
+                            <Camera className="w-4 h-4" style={{ color: T.green }} />
+                        </div>
+                        <div>
+                            <p className="text-[13px] font-semibold" style={{ color: T.text }}>Verify next dose</p>
+                            <p className="text-[11px] truncate max-w-[100px]" style={{ color: T.muted }}>{nextUntrained.name}</p>
+                        </div>
+                    </button>
+                ) : (
+                    <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl"
+                        style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: T.greenDim }}>
+                            <CheckCircle2 className="w-4 h-4" style={{ color: T.green }} />
+                        </div>
+                        <div>
+                            <p className="text-[13px] font-semibold" style={{ color: T.text }}>All verified</p>
+                            <p className="text-[11px]" style={{ color: T.muted }}>Nothing pending</p>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+}
+
+// ─── Main Page ────────────────────────────────────────────
 export default function MedicationsPage() {
     const [selectedSeniorId, setSelectedSeniorId] = useState<number | undefined>(undefined);
     const { medications, loading: medsLoading, error, markAsTaken, refresh } = useMedications(selectedSeniorId);
     const { user, loading: userLoading } = useUser();
     const { showToast } = useToast();
-    const [verifyingMed, setVerifyingMed] = useState<{ id: number, name: string } | null>(null);
-    const [feedingMed, setFeedingMed] = useState<any | null>(null);
+    const [verifyingMed, setVerifyingMed] = useState<{ id: number; name: string } | null>(null);
+    const [feedingMed, setFeedingMed]     = useState<any | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [editingMed, setEditingMed] = useState<any | null>(null);
-    const [deletingMed, setDeletingMed] = useState<any | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
+    const [editingMed, setEditingMed]     = useState<any | null>(null);
+    const [deletingMed, setDeletingMed]   = useState<any | null>(null);
+    const [isDeleting, setIsDeleting]     = useState(false);
+    const [openMenuId, setOpenMenuId]     = useState<number | null>(null);
+    const [menuPos, setMenuPos]           = useState({ x: 0, y: 0 });
 
-    const handleAddMedication = async (data: any) => {
-        try {
-            const response = await apiFetch('/medications', {
-                method: 'POST',
-                body: JSON.stringify(data)
-            });
-            if (response.success) {
-                refresh();
-            }
-        } catch (err) {
-            console.error('Error adding medication:', err);
-        }
+    useEffect(() => {
+        if (!openMenuId) return;
+        const h = () => setOpenMenuId(null);
+        window.addEventListener('scroll', h, true);
+        return () => window.removeEventListener('scroll', h, true);
+    }, [openMenuId]);
+
+    const handleOpenMenu = (id: number, e: React.MouseEvent) => {
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const below = window.innerHeight - r.bottom;
+        setMenuPos({ x: r.right - 180, y: below < 160 ? r.top - 170 : r.bottom + 6 });
+        setOpenMenuId(openMenuId === id ? null : id);
     };
 
-    const handleDeleteMedication = async (medId: number) => {
+    const handleAdd    = async (data: any) => { try { const r = await apiFetch('/medications', { method: 'POST', body: JSON.stringify(data) }); if (r.success) refresh(); } catch { } };
+    const handleDelete = async (id: number) => {
         setIsDeleting(true);
         try {
-            const response = await apiFetch(`/medications/${medId}`, {
-                method: 'DELETE'
-            });
-            if (response.success) {
-                showToast('Medication deleted successfully', 'success');
-                refresh();
-                setDeletingMed(null);
-            } else {
-                showToast(response.error || 'Failed to delete medication', 'error');
-            }
-        } catch (err) {
-            console.error('Error deleting medication:', err);
-            showToast('A network error occurred while deleting', 'error');
-        } finally {
-            setIsDeleting(false);
-        }
+            const r = await apiFetch(`/medications/${id}`, { method: 'DELETE' });
+            if (r.success) { showToast('Medication removed', 'success'); refresh(); setDeletingMed(null); }
+            else showToast(r.error || 'Failed', 'error');
+        } catch { showToast('Network error', 'error'); }
+        finally { setIsDeleting(false); }
     };
 
-    if (medsLoading || userLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-4" />
-                <p className="font-bold text-gray-500 uppercase tracking-widest text-xs animate-pulse">Synchronizing Inventory...</p>
+    if (medsLoading || userLoading) return (
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+            <Loader2 className="w-7 h-7 animate-spin" style={{ color: T.blue }} />
+            <p className="text-[13px]" style={{ color: T.muted }}>Loading medications…</p>
+        </div>
+    );
+    if (error) return (
+        <div className="flex items-start gap-3 px-5 py-4 rounded-2xl"
+            style={{ background: T.redDim, border: `1px solid ${T.red}25` }}>
+            <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+            <div>
+                <p className="text-[14px] font-semibold text-red-400">Couldn't load medications</p>
+                <p className="text-[13px] mt-1" style={{ color: T.muted }}>{error}</p>
             </div>
-        );
-    }
+        </div>
+    );
 
-    if (error) {
-        return (
-            <div className="bg-red-50 dark:bg-red-900/10 border-l-4 border-red-500 p-8 rounded-r-3xl text-red-700 dark:text-red-400">
-                <div className="flex items-center gap-3 mb-2">
-                    <AlertTriangle className="w-6 h-6" />
-                    <p className="font-black text-xl">System Synchronization Error</p>
-                </div>
-                <p className="font-medium opacity-80">{error}</p>
-            </div>
-        );
-    }
+    const trained   = medications.filter(m => m.ai_trained).length;
+    const untrained = medications.filter(m => !m.ai_trained).length;
 
     return (
         <SeniorOnly>
-            <div className="w-full max-w-6xl mx-auto px-12 lg:px-24 py-12">
-                {user?.role === 'caregiver' ? (
-                    <CaregiverMedicationsView
-                        medications={medications}
-                        onAdd={() => setIsAddModalOpen(true)}
-                        onVerify={(med: { id: number; name: string }) => setVerifyingMed(med)}
-                        onSeniorChange={(id: number | undefined) => setSelectedSeniorId(id)}
-                        selectedSeniorId={selectedSeniorId}
-                        onFeed={setFeedingMed}
-                        onEdit={setEditingMed}
-                        onDelete={setDeletingMed}
-                    />
-                ) : (
-                    <SeniorMedicationsView
-                        medications={medications}
-                        onAdd={() => setIsAddModalOpen(true)}
-                        onVerify={(med: { id: number; name: string }) => setVerifyingMed(med)}
-                        onFeed={setFeedingMed}
-                        onEdit={setEditingMed}
-                        onDelete={setDeletingMed}
-                    />
-                )}
+            <div className="w-full max-w-3xl mx-auto px-5 py-8 space-y-5">
 
-                {/* Modals */}
-                <AddMedicationModal
-                    isOpen={isAddModalOpen}
-                    onClose={() => setIsAddModalOpen(false)}
-                    onAdd={handleAddMedication}
-                />
-
-                {editingMed && (
-                    <EditMedicationModal
-                        medication={editingMed}
-                        isOpen={!!editingMed}
-                        onClose={() => setEditingMed(null)}
-                        onSaved={() => {
-                            setEditingMed(null);
-                            refresh();
-                        }}
-                    />
-                )}
-
-                {deletingMed && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeletingMed(null)} />
-                        <div className="relative bg-card border border-card-border rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 fade-in duration-200">
-                            <div className="text-center">
-                                <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-red-900/10 flex items-center justify-center mx-auto mb-4">
-                                    <Trash2 className="w-8 h-8 text-red-500" />
-                                </div>
-                                <h2 className="text-2xl font-black text-foreground mb-2">Delete Medication?</h2>
-                                <p className="text-foreground/60 mb-6">
-                                    Are you sure you want to delete <strong>{deletingMed.name}</strong>? This action cannot be undone.
-                                </p>
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setDeletingMed(null)}
-                                        className="flex-1 py-3 px-4 bg-foreground/10 text-foreground rounded-xl font-bold hover:bg-foreground/20 transition-all"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        disabled={isDeleting}
-                                        onClick={() => handleDeleteMedication(deletingMed.id)}
-                                        className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                    >
-                                        {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
+                {/* ── Header ── */}
+                <div>
+                    <a href="/dashboard"
+                        className="inline-flex items-center gap-1.5 text-[12px] font-medium mb-5 transition-colors"
+                        style={{ color: T.muted }}
+                        onMouseEnter={e => (e.currentTarget.style.color = T.sub)}
+                        onMouseLeave={e => (e.currentTarget.style.color = T.muted)}>
+                        <ChevronLeft className="w-3.5 h-3.5" /> Back to Dashboard
+                    </a>
+                    <div className="flex items-end justify-between gap-4">
+                        <div>
+                            <h1 className="text-[30px] font-semibold tracking-[-0.6px]" style={{ color: T.text }}>
+                                My Medications
+                            </h1>
+                            <p className="text-[14px] mt-1" style={{ color: T.muted }}>
+                                {medications.length} active &nbsp;·&nbsp;
+                                <span style={{ color: T.green }}>{trained} trained</span>
+                                {untrained > 0 && <>, &nbsp;<span style={{ color: T.amber }}>{untrained} need training</span></>}
+                            </p>
                         </div>
+                        <button onClick={() => setIsAddModalOpen(true)}
+                            className="flex items-center gap-2 px-5 py-3 rounded-xl text-[14px] font-semibold text-white transition-colors hover:bg-blue-500"
+                            style={{ background: T.blue }}>
+                            <Plus className="w-4 h-4" /> Add Medication
+                        </button>
+                    </div>
+                </div>
+
+                {/* ── Stat strip ── */}
+                {medications.length > 0 && (
+                    <motion.div custom={0} initial="hidden" animate="visible" variants={cv}
+                        className="grid grid-cols-3 gap-3">
+                        {[
+                            { label: 'Total medications', value: medications.length, color: T.blue,  icon: Pill },
+                            { label: 'AI ready',          value: trained,            color: T.green, icon: Shield },
+                            { label: 'Need training',     value: untrained,          color: T.amber, icon: Brain },
+                        ].map(s => (
+                            <div key={s.label} className="rounded-2xl px-5 py-4 relative overflow-hidden"
+                                style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                                <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: s.color }} />
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-6 h-6 rounded-md flex items-center justify-center"
+                                        style={{ background: s.color + '18' }}>
+                                        <s.icon className="w-3 h-3" style={{ color: s.color }} />
+                                    </div>
+                                </div>
+                                <p className="text-[30px] font-semibold leading-none" style={{ color: T.text }}>{s.value}</p>
+                                <p className="text-[12px] mt-1.5" style={{ color: T.muted }}>{s.label}</p>
+                            </div>
+                        ))}
+                    </motion.div>
+                )}
+
+                {/* ── Insight banner ── */}
+                {medications.length > 0 && <InsightBanner medications={medications} />}
+
+                {/* ── Med list ── */}
+                {medications.length === 0 ? (
+                    <motion.div custom={2} initial="hidden" animate="visible" variants={cv}
+                        className="flex flex-col items-center justify-center py-24 rounded-2xl gap-4 text-center"
+                        style={{ background: T.card, border: `1px dashed ${T.border}` }}>
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                            style={{ background: T.blueDim }}>
+                            <Pill className="w-7 h-7" style={{ color: T.blue }} />
+                        </div>
+                        <div>
+                            <p className="text-[18px] font-semibold mb-1" style={{ color: T.text }}>No medications yet</p>
+                            <p className="text-[14px]" style={{ color: T.muted }}>Add your first medication to get started.</p>
+                        </div>
+                        <button onClick={() => setIsAddModalOpen(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white mt-2"
+                            style={{ background: T.blue }}>
+                            <Plus className="w-4 h-4" /> Add Medication
+                        </button>
+                    </motion.div>
+                ) : (
+                    <div className="space-y-3">
+                        {medications.map((med: any, i: number) => (
+                            <MedRow key={med.id} med={med} i={i + 2}
+                                onVerify={setVerifyingMed}
+                                onFeed={setFeedingMed}
+                                onEdit={setEditingMed}
+                                onDelete={setDeletingMed}
+                                onMenuOpen={handleOpenMenu}
+                                isMenuOpen={openMenuId === med.id} />
+                        ))}
                     </div>
                 )}
 
-                {verifyingMed && (
-                    <AIVerificationModal
-                        medicationId={verifyingMed.id}
-                        medicationName={verifyingMed.name}
-                        onClose={() => setVerifyingMed(null)}
-                        onVerified={async () => {
-                            await markAsTaken(verifyingMed.id, true, 'vision_v2');
-                            setVerifyingMed(null);
-                            refresh();
-                        }}
-                    />
+                {/* ── Quick actions ── */}
+                {medications.length > 0 && (
+                    <QuickActions onAdd={() => setIsAddModalOpen(true)} medications={medications} onVerify={setVerifyingMed} />
                 )}
 
+                {/* ── Add another button ── */}
+                {medications.length > 0 && (
+                    <div className="flex justify-center">
+                        <button onClick={() => setIsAddModalOpen(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium transition-colors"
+                            style={{ background: T.surface, color: T.blue, border: `1px solid ${T.border}` }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = T.blue + '50'; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = T.border; }}>
+                            <Plus className="w-3.5 h-3.5" /> Add Another Medication
+                        </button>
+                    </div>
+                )}
+
+                {/* ── Health tip ── */}
+                {medications.length > 0 && <MedicationTip i={new Date().getDate()} />}
+
+                {/* ── Dropdown menu ── */}
+                <AnimatePresence>
+                    {openMenuId && (
+                        <>
+                            <div className="fixed inset-0 z-[100]" onClick={() => setOpenMenuId(null)} />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.96, y: -4 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.96 }}
+                                transition={{ duration: 0.12 }}
+                                className="fixed z-[101] rounded-xl py-1.5 min-w-[180px]"
+                                style={{ top: menuPos.y, left: menuPos.x, background: T.card, border: `1px solid ${T.borderHi}`, boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}>
+                                {medications.filter((m: any) => m.id === openMenuId).map((med: any) => (
+                                    <div key={med.id}>
+                                        <MenuBtn icon={<Pencil className="w-3.5 h-3.5" />} label="Edit details" color={T.sub} onClick={() => { setEditingMed(med); setOpenMenuId(null); }} />
+                                        {med.ai_trained && <MenuBtn icon={<RefreshCw className="w-3.5 h-3.5" />} label="Retrain AI" color={T.green} onClick={() => { setFeedingMed(med); setOpenMenuId(null); }} />}
+                                        <div className="my-1 mx-3 h-px" style={{ background: T.border }} />
+                                        <MenuBtn icon={<Trash2 className="w-3.5 h-3.5" />} label="Delete" color={T.red} onClick={() => { setDeletingMed(med); setOpenMenuId(null); }} />
+                                    </div>
+                                ))}
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
+
+                {/* ── Modals ── */}
+                <AddMedicationModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAdd} />
+                {editingMed && <EditMedicationModal medication={editingMed} isOpen={!!editingMed} onClose={() => setEditingMed(null)} onSaved={() => { setEditingMed(null); refresh(); }} />}
+
+                <AnimatePresence>
+                    {deletingMed && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-black/75" onClick={() => setDeletingMed(null)} />
+                            <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
+                                className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+                                style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                                <div className="w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: T.redDim }}>
+                                    <Trash2 className="w-5 h-5" style={{ color: T.red }} />
+                                </div>
+                                <h2 className="text-[17px] font-semibold text-center mb-1" style={{ color: T.text }}>Remove medication?</h2>
+                                <p className="text-[13px] text-center mb-6" style={{ color: T.muted }}>
+                                    <strong style={{ color: T.sub }}>{deletingMed.name}</strong> will be permanently deleted.
+                                </p>
+                                <div className="flex gap-2.5">
+                                    <button onClick={() => setDeletingMed(null)}
+                                        className="flex-1 py-3 rounded-xl text-[13px] font-medium transition-colors"
+                                        style={{ background: T.faint, color: T.muted, border: `1px solid ${T.border}` }}>
+                                        Cancel
+                                    </button>
+                                    <button disabled={isDeleting} onClick={() => handleDelete(deletingMed.id)}
+                                        className="flex-1 py-3 rounded-xl text-[13px] font-semibold text-white bg-red-600 hover:bg-red-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                                        {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Delete
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {verifyingMed && (
+                    <AIVerificationModal medicationId={verifyingMed.id} medicationName={verifyingMed.name}
+                        onClose={() => setVerifyingMed(null)}
+                        onVerified={async () => { await markAsTaken(verifyingMed.id, true, 'vision_v2'); setVerifyingMed(null); refresh(); }} />
+                )}
                 {feedingMed && (
-                    <AIFeedModal
-                        medicationId={feedingMed.id}
-                        medicationName={feedingMed.name}
+                    <AIFeedModal medicationId={feedingMed.id} medicationName={feedingMed.name}
                         onClose={() => setFeedingMed(null)}
-                        onComplete={() => {
-                            setFeedingMed(null);
-                            refresh();
-                        }}
-                    />
+                        onComplete={() => { setFeedingMed(null); refresh(); }} />
                 )}
             </div>
         </SeniorOnly>
-    );
-}
-
-function SeniorMedicationsView({ medications, onAdd, onVerify, onFeed, onEdit, onDelete }: any) {
-    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-    const [menuPosition, setMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-    // Close menu on scroll (standard UX for fixed position dropdowns)
-    useEffect(() => {
-        if (!openMenuId) return;
-        const handleScroll = () => setOpenMenuId(null);
-        window.addEventListener('scroll', handleScroll, true);
-        return () => window.removeEventListener('scroll', handleScroll, true);
-    }, [openMenuId]);
-
-    const handleOpenMenu = (medId: number, event: React.MouseEvent) => {
-        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        const menuHeight = 160; // Approximate menu height
-        const spaceBelow = window.innerHeight - rect.bottom;
-
-        // If not enough space below, position above the button
-        const y = spaceBelow < menuHeight
-            ? rect.top - menuHeight - 8
-            : rect.bottom + 8;
-
-        setMenuPosition({ x: rect.right - 180, y });
-        setOpenMenuId(openMenuId === medId ? null : medId);
-    };
-
-
-    return (
-        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Header with Back Button */}
-            <div className="flex flex-col items-center">
-                {/* Back Button - styled pill */}
-                <a
-                    href="/dashboard"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 rounded-full text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all text-sm font-medium mb-8"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Dashboard</span>
-                </a>
-
-                {/* Title */}
-                <h1 className="text-4xl md:text-5xl font-bold text-gray-100 tracking-tight text-center">
-                    My Medicines
-                </h1>
-                <p className="text-lg font-medium text-gray-400 max-w-xl mx-auto text-center mt-3">
-                    Your daily medications to stay healthy and strong.
-                </p>
-            </div>
-
-            {/* List */}
-            <div className="grid gap-4 overflow-visible">
-                {medications.length === 0 ? (
-                    <div className="text-center py-24 bg-gray-800/50 border border-gray-700 border-dashed rounded-xl">
-                        <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Pill className="h-10 w-10 text-blue-400" />
-                        </div>
-                        <p className="text-gray-200 text-xl font-bold">No medicines yet</p>
-                        <p className="text-gray-500 text-sm mt-2 mb-8">Add your first medication to get started.</p>
-                        <button
-                            onClick={onAdd}
-                            className="px-8 py-4 bg-blue-600 text-white rounded-xl text-lg font-bold shadow-xl shadow-blue-900/20 hover:bg-blue-700 transition-all flex items-center gap-3 mx-auto cursor-pointer"
-                        >
-                            <Plus className="w-5 h-5" />
-                            Add Medicine
-                        </button>
-                    </div>
-                ) : (
-                    medications.map((med: any) => (
-                        <div
-                            key={med.id}
-                            className="bg-gray-800 border border-gray-700 rounded-xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:bg-gray-700/50 transition-all group relative overflow-visible"
-                        >
-                            {/* Left: Icon + Info */}
-                            <div className="flex gap-5 items-center flex-1">
-                                <div className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-lg relative shrink-0 ${med.priority === 'high'
-                                    ? 'bg-red-500/10 text-red-500 border border-red-500/20'
-                                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                    }`}>
-                                    <Pill className="w-7 h-7" />
-                                    {med.priority === 'high' && (
-                                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-gray-800"></span>
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="min-w-0">
-                                    <h3 className="text-2xl font-bold text-gray-100 truncate">{med.name}</h3>
-                                    <div className="flex items-center gap-3 text-sm font-medium text-gray-400 mt-1 flex-wrap">
-                                        <span className="flex items-center gap-1.5">
-                                            <Activity className="w-4 h-4 text-blue-400" />
-                                            {med.dosage}
-                                        </span>
-                                        <span className="w-1 h-1 bg-gray-600 rounded-full hidden md:block" />
-                                        <span>{med.frequency}</span>
-                                        {!med.ai_trained && (
-                                            <>
-                                                <span className="w-1 h-1 bg-gray-600 rounded-full hidden md:block" />
-                                                <span className="text-amber-400 flex items-center gap-1">
-                                                    <AlertTriangle className="w-3 h-3" />
-                                                    Needs Training
-                                                </span>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Right: Actions */}
-                            <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
-                                {/* Check with Camera - Primary Action */}
-                                <button
-                                    onClick={() => onVerify({ id: med.id, name: med.name })}
-                                    className="flex-1 md:flex-none px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-900/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                                >
-                                    <Camera className="w-5 h-5" />
-                                    <span>Check with Camera</span>
-                                </button>
-
-                                {/* Neural Train (if not trained) */}
-                                {!med.ai_trained && (
-                                    <button
-                                        onClick={() => onFeed(med)}
-                                        className="px-4 py-3 bg-amber-500/10 text-amber-400 rounded-xl font-bold border border-amber-500/30 hover:bg-amber-500 hover:text-white transition-all flex items-center gap-2 cursor-pointer"
-                                    >
-                                        <Brain className="w-5 h-5" />
-                                        <span className="hidden lg:inline">Train AI</span>
-                                    </button>
-                                )}
-
-                                {/* Action Menu (3-dot) */}
-                                <div className="relative">
-                                    <button
-                                        onClick={(e) => handleOpenMenu(med.id, e)}
-                                        className="p-3 hover:bg-foreground/10 rounded-xl transition-all"
-                                    >
-                                        <MoreVertical className="w-5 h-5 text-foreground/60" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))
-                )}
-
-                {/* Fixed Position Dropdown Menu - rendered outside the card */}
-                {openMenuId && (
-                    <>
-                        <div
-                            className="fixed inset-0 z-[100]"
-                            onClick={() => setOpenMenuId(null)}
-                        />
-                        <div
-                            className="fixed z-[101] bg-card border border-card-border rounded-xl shadow-2xl py-2 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
-                            style={{ top: menuPosition.y, left: menuPosition.x }}
-                        >
-                            {medications.filter((m: any) => m.id === openMenuId).map((med: any) => (
-                                <div key={med.id}>
-                                    <button
-                                        onClick={() => { onEdit(med); setOpenMenuId(null); }}
-                                        className="w-full px-4 py-2.5 text-left hover:bg-foreground/5 transition-colors flex items-center gap-3 text-foreground"
-                                    >
-                                        <Pencil className="w-4 h-4 text-primary" />
-                                        <span className="font-medium">Edit Details</span>
-                                    </button>
-                                    {med.ai_trained && (
-                                        <button
-                                            onClick={() => { onFeed(med); setOpenMenuId(null); }}
-                                            className="w-full px-4 py-2.5 text-left hover:bg-foreground/5 transition-colors flex items-center gap-3 text-foreground"
-                                        >
-                                            <RefreshCw className="w-4 h-4 text-amber-500" />
-                                            <span className="font-medium">Retrain AI</span>
-                                        </button>
-                                    )}
-                                    <hr className="my-2 border-card-border" />
-                                    <button
-                                        onClick={() => { onDelete(med); setOpenMenuId(null); }}
-                                        className="w-full px-4 py-2.5 text-left hover:bg-red-50 dark:bg-red-900/10 transition-colors flex items-center gap-3 text-red-500"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        <span className="font-medium">Delete</span>
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
-
-            {/* Bottom Add Button */}
-            {medications.length > 0 && (
-                <div className="flex justify-center pt-8">
-                    <button
-                        onClick={onAdd}
-                        className="px-8 py-3 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl font-bold hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2 cursor-pointer"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Add Another Medicine
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function CaregiverMedicationsView({ medications, onAdd, onVerify, onSeniorChange, selectedSeniorId, onFeed, onEdit, onDelete }: any) {
-    const [seniors, setSeniors] = useState<any[]>([]);
-    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-    const [menuPosition, setMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-    // Close menu on scroll (standard UX for fixed position dropdowns)
-    useEffect(() => {
-        if (!openMenuId) return;
-        const handleScroll = () => setOpenMenuId(null);
-        window.addEventListener('scroll', handleScroll, true);
-        return () => window.removeEventListener('scroll', handleScroll, true);
-    }, [openMenuId]);
-
-    const handleOpenMenu = (medId: number, event: React.MouseEvent) => {
-        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        const menuHeight = 160; // Approximate menu height
-        const spaceBelow = window.innerHeight - rect.bottom;
-
-        // If not enough space below, position above the button
-        const y = spaceBelow < menuHeight
-            ? rect.top - menuHeight - 8
-            : rect.bottom + 8;
-
-        setMenuPosition({ x: rect.right - 180, y });
-        setOpenMenuId(openMenuId === medId ? null : medId);
-    };
-
-    useEffect(() => {
-        const fetchSeniors = async () => {
-            try {
-                const response = await apiFetch('/caregiver/seniors');
-                if (response.success) {
-                    setSeniors(response.data);
-                    if (!selectedSeniorId && response.data.length > 0) {
-                        onSeniorChange(response.data[0].id);
-                    }
-                }
-            } catch (err) {
-                console.error('Failed to fetch seniors:', err);
-            }
-        };
-        fetchSeniors();
-    }, []);
-
-    return (
-        <div className="space-y-16">
-            {/* Back Button */}
-            <div className="flex justify-center mb-8">
-                <a
-                    href="/dashboard"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 rounded-full text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all text-sm font-medium"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Dashboard</span>
-                </a>
-            </div>
-
-            {/* Senior Switcher */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-gray-800 border border-gray-700 p-8 rounded-xl gap-10 mb-12 shadow-sm">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-                        <Users className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-100">Identity Management</h3>
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">Switch between patient records</p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:w-64">
-                        <select
-                            value={selectedSeniorId ?? ''}
-                            onChange={(e) => onSeniorChange(e.target.value ? Number(e.target.value) : undefined)}
-                            className="w-full bg-gray-900 border border-gray-700 text-gray-200 px-6 py-3 pr-12 rounded-xl font-bold appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
-                        >
-                            <option value="" disabled className="bg-gray-900 text-white">Select a Patient</option>
-                            {seniors.map((s: any) => (
-                                <option key={s.id} value={s.id} className="bg-gray-900 text-white">{s.name} (ID: {s.id})</option>
-                            ))}
-                        </select>
-                        {/* Dropdown Arrow */}
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                <div>
-                    <div className="flex items-center gap-2 mb-2 text-blue-400 font-bold text-xs uppercase tracking-widest">
-                        <Clock className="w-3.5 h-3.5" />
-                        Live Prescription Radar
-                    </div>
-                    <h1 className="text-3xl lg:text-4xl font-bold text-gray-100 tracking-tight">Active Protocols</h1>
-                    <p className="text-gray-400 mt-4 max-w-lg font-medium text-sm leading-relaxed">
-                        Precision monitoring system for patient adherence. AI vision fingerprints ensure verification accuracy across all dispensing cycles.
-                    </p>
-                </div>
-                <button
-                    onClick={onAdd}
-                    className="group px-8 py-4 bg-blue-600 text-white rounded-xl font-bold shadow-xl shadow-blue-900/20 hover:bg-blue-700 transition-all flex items-center gap-3 cursor-pointer"
-                >
-                    <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                    Register New Protocol
-                </button>
-            </div>
-
-            {/* List Section */}
-            <div className="grid gap-8 overflow-visible">
-                {medications.length === 0 ? (
-                    <div className="text-center py-12">
-                        <Pill className="mx-auto h-12 w-12 text-gray-500 mb-4" />
-                        <p className="text-gray-400 text-lg font-medium">System Inventory Empty</p>
-                        <p className="text-gray-500 text-sm mt-1">Awaiting initial serialized prescription data</p>
-                    </div>
-                ) : (
-                    medications.map((med: any) => (
-                        <div key={med.id} className="bg-gray-800 border border-gray-700 rounded-xl p-6 flex flex-col md:flex-row justify-between items-center group hover:bg-gray-700/50 transition-all overflow-visible shadow-sm">
-                            <div className="flex gap-6 items-center">
-                                <div className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-inner relative ${med.priority === 'high' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                    }`}>
-                                    <Pill className="w-8 h-8" />
-                                    {med.priority === 'high' && (
-                                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-gray-800"></span>
-                                        </span>
-                                    )}
-                                </div>
-                                <div>
-                                    <h3 className="text-2xl font-bold text-gray-100 tracking-tight mb-1">{med.name}</h3>
-                                    <div className="flex items-center gap-4 text-xs font-medium text-gray-400 uppercase tracking-widest">
-                                        <span className="flex items-center gap-1.5 bg-gray-900 px-2 py-0.5 rounded-lg border border-gray-700">
-                                            <Activity className="w-3.5 h-3.5" />
-                                            {med.dosage}
-                                        </span>
-                                        <span className="w-1 h-1 bg-gray-600 rounded-full" />
-                                        <span className="flex items-center gap-1.5">
-                                            <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                                            {med.frequency}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="mt-8 md:mt-0 flex gap-4 w-full md:w-auto">
-                                <button
-                                    onClick={() => onVerify({ id: med.id, name: med.name })}
-                                    className="flex-1 md:flex-none px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-3 group/btn cursor-pointer"
-                                >
-                                    <Camera className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
-                                    <span>Radar Verification</span>
-                                    <ArrowRight className="w-4 h-4 opacity-0 group-hover/btn:opacity-100 group-hover/btn:translate-x-1 transition-all" />
-                                </button>
-                                {!med.ai_trained && (
-                                    <button
-                                        onClick={() => onFeed(med)}
-                                        className="px-6 py-3 bg-blue-500/10 text-blue-400 rounded-xl font-bold border border-blue-500/20 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer"
-                                        title="Neural Training Required"
-                                    >
-                                        <Brain className="w-5 h-5" />
-                                        <span>Feed AI</span>
-                                    </button>
-                                )}
-                                <div className="relative">
-                                    <button
-                                        onClick={(e) => handleOpenMenu(med.id, e)}
-                                        className="p-3 bg-gray-900 border border-gray-700 text-gray-400 hover:text-blue-400 rounded-xl transition-all hover:bg-gray-700 shadow-sm cursor-pointer"
-                                    >
-                                        <MoreVertical className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))
-                )}
-
-                {/* Fixed Position Dropdown Menu - rendered outside the card */}
-                {openMenuId && (
-                    <>
-                        <div
-                            className="fixed inset-0 z-[100]"
-                            onClick={() => setOpenMenuId(null)}
-                        />
-                        <div
-                            className="fixed z-[101] bg-card border border-card-border rounded-xl shadow-2xl py-2 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
-                            style={{ top: menuPosition.y, left: menuPosition.x }}
-                        >
-                            {medications.filter((m: any) => m.id === openMenuId).map((med: any) => (
-                                <div key={med.id}>
-                                    <button
-                                        onClick={() => { onEdit(med); setOpenMenuId(null); }}
-                                        className="w-full px-4 py-2.5 text-left hover:bg-foreground/5 transition-colors flex items-center gap-3 text-foreground"
-                                    >
-                                        <Pencil className="w-4 h-4 text-primary" />
-                                        <span className="font-medium">Edit Details</span>
-                                    </button>
-                                    {med.ai_trained && (
-                                        <button
-                                            onClick={() => { onFeed(med); setOpenMenuId(null); }}
-                                            className="w-full px-4 py-2.5 text-left hover:bg-foreground/5 transition-colors flex items-center gap-3 text-foreground"
-                                        >
-                                            <RefreshCw className="w-4 h-4 text-amber-500" />
-                                            <span className="font-medium">Retrain AI</span>
-                                        </button>
-                                    )}
-                                    <hr className="my-2 border-card-border" />
-                                    <button
-                                        onClick={() => { onDelete(med); setOpenMenuId(null); }}
-                                        className="w-full px-4 py-2.5 text-left hover:bg-red-50 dark:bg-red-900/10 transition-colors flex items-center gap-3 text-red-500"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        <span className="font-medium">Delete</span>
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
-        </div>
-    );
-}
-
-// Sub-component for icons that aren't imported or for better organization
-function Activity(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-        </svg>
     );
 }

@@ -14,6 +14,8 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
+        'pool_size': 2,
+        'max_overflow': 0,
     }
     
     # Vision system configuration (V2.0 Zero-Trash)

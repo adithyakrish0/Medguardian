@@ -1,368 +1,449 @@
 "use client";
 
-/**
- * Model Explainability Dashboard
- * 
- * SHAP-based global feature importance and scenario comparison.
- */
-
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import {
     Brain, BarChart3, RefreshCw, Loader2, AlertCircle,
-    TrendingUp, Eye, Zap, HelpCircle, ChevronLeft
+    TrendingUp, Eye, HelpCircle, ChevronLeft, Cpu,
+    ArrowUp, ArrowDown, Minus, Info, Sparkles
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
-    getGlobalExplanation,
-    getExplainerStatus,
-    compareScenarios,
-    GlobalExplanationResponse,
-    ExplainerStatusResponse,
-    ComparisonResponse,
-    getRiskLevelStyle,
-    formatContribution
+    getGlobalExplanation, getExplainerStatus, compareScenarios,
+    GlobalExplanationResponse, ExplainerStatusResponse, ComparisonResponse,
+    getRiskLevelStyle, formatContribution
 } from '@/lib/api/explain';
-
-import { SkeletonDashboard } from '@/components/ui/SkeletonLoaders';
+import { PageLoader } from '@/components/ui/SkeletonLoaders';
 import { PageTransition } from '@/components/animations/PageTransition';
+
+// ─── Design tokens — matches war-room / anomalies / medications ───
+const T = {
+    bg:      '#070c14',
+    surface: '#0d1525',
+    card:    '#0f1c2e',
+    cardHi:  '#122035',
+    border:  '#182338',
+    borderHi:'#1f2e47',
+    text:    '#e2e8f0',
+    muted:   '#4a607a',
+    faint:   '#0a1628',
+    // accent palette — intentionally NOT the usual purple-on-dark AI cliché
+    indigo:  '#6366f1',
+    indigoDim:'#12142e',
+    indigoBorder:'#6366f122',
+    teal:    '#14b8a6',
+    tealDim: '#071a18',
+    tealBorder:'#14b8a622',
+    rose:    '#f43f5e',
+    roseDim: '#200a10',
+    roseBorder:'#f43f5e22',
+    amber:   '#f59e0b',
+    amberDim:'#1a1100',
+};
+
+const cardV: Variants = {
+    hidden: { opacity: 0, y: 12 },
+    visible: (i: number) => ({ 
+        opacity: 1, 
+        y: 0, 
+        transition: { delay: i * 0.06, duration: 0.32, ease: 'easeOut' } 
+    }),
+};
+
+// ─── Contribution badge ───────────────────────────────────────────
+function ContribBadge({ value, label }: { value: number; label: string }) {
+    const positive = value > 0;
+    const neutral  = Math.abs(value) < 0.5;
+    const color    = neutral ? T.muted : positive ? T.teal : T.rose;
+    const bg       = neutral ? T.faint : positive ? T.tealDim : T.roseDim;
+    const border   = neutral ? T.border : positive ? T.tealBorder : T.roseBorder;
+    const Icon     = neutral ? Minus : positive ? ArrowUp : ArrowDown;
+    return (
+        <div className="flex flex-col items-end gap-1">
+            <p className="text-[10px] font-medium" style={{ color: T.muted }}>{label}</p>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[12px] font-semibold"
+                style={{ background: bg, color, border: `1px solid ${border}` }}>
+                <Icon className="w-3 h-3" />
+                {formatContribution(value)}
+            </span>
+        </div>
+    );
+}
 
 export default function ExplainabilityPage() {
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
-    const [status, setStatus] = useState<ExplainerStatusResponse | null>(null);
+    const [loading, setLoading]       = useState(true);
+    const [status, setStatus]         = useState<ExplainerStatusResponse | null>(null);
     const [globalData, setGlobalData] = useState<GlobalExplanationResponse | null>(null);
     const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError]           = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
         try {
-            setLoading(true);
-            setError(null);
-
-            const statusResult = await getExplainerStatus();
-            setStatus(statusResult);
-
-            if (!statusResult.model_loaded) {
-                setError('Adherence model not trained. Run: python app/scripts/train_ml_pipeline.py');
+            setLoading(true); setError(null);
+            const st = await getExplainerStatus();
+            setStatus(st);
+            if (!st.model_loaded) {
+                setError('Model not trained. Run: python app/scripts/train_ml_pipeline.py');
                 return;
             }
+            const g = await getGlobalExplanation(200);
+            if (g.success) setGlobalData(g);
 
-            const globalResult = await getGlobalExplanation(200);
-            if (globalResult.success) {
-                setGlobalData(globalResult);
-            }
-
-            const comparisonResult = await compareScenarios(
-                { hour: 6, day_of_week: 6, is_weekend: 1, priority: 0 },
-                { hour: 9, day_of_week: 1, is_weekend: 0, priority: 1 }
+            const c = await compareScenarios(
+                { hour: 6,  day_of_week: 6, is_weekend: 1, priority: 0 },
+                { hour: 9,  day_of_week: 1, is_weekend: 0, priority: 1 }
             );
-            if (comparisonResult.success) {
-                setComparison(comparisonResult);
-            }
-
-        } catch (err: any) {
-            setError(err.message || 'Failed to load');
-        } finally {
-            setLoading(false);
-        }
+            if (c.success) setComparison(c);
+        } catch (e: any) { setError(e.message || 'Failed to load'); }
+        finally { setLoading(false); }
     }, []);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-    if (loading && !globalData) {
-        return (
-            <PageTransition>
-                <div className="min-h-screen bg-gray-900 p-6 space-y-8 pt-16 lg:pt-4">
-                    <header className="space-y-4">
-                        <div className="h-4 bg-white dark:bg-gray-800/5 rounded-full w-24 animate-pulse" />
-                        <div className="h-10 bg-white dark:bg-gray-800/10 rounded-full w-64 animate-pulse" />
-                    </header>
-                    <SkeletonDashboard />
-                </div>
-            </PageTransition>
-        );
-    }
+    if (loading && !globalData) return (
+        <PageTransition>
+            <PageLoader message="Loading AI insights..." />
+        </PageTransition>
+    );
 
     return (
         <PageTransition>
-            <div className="max-w-6xl mx-auto space-y-8 pb-20 pt-16 lg:pt-0">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative">
-                    <div className="relative">
-                        <button
-                            onClick={() => router.back()}
-                            className="flex items-center gap-2 text-[10px] font-black text-slate-500 hover:text-blue-400 transition-all mb-4 group uppercase tracking-[0.2em]"
-                        >
-                            <ChevronLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
-                            RETURN_TO_COMMAND_CENTER
+            <div className="max-w-5xl mx-auto pb-24 space-y-7">
+
+                {/* ── Header ── */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 pt-2">
+                    <div>
+                        <button onClick={() => router.back()}
+                            className="inline-flex items-center gap-1.5 text-[12px] font-medium mb-5 transition-colors group"
+                            style={{ color: T.muted }}
+                            onMouseEnter={e => (e.currentTarget.style.color = '#94a3b8')}
+                            onMouseLeave={e => (e.currentTarget.style.color = T.muted)}>
+                            <ChevronLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                            Back
                         </button>
-                        <div className="absolute -left-4 bottom-0 w-1 h-12 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
-                        <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-                            NEURAL_EXPLAINER_ENGINE <span className="text-purple-400 not-italic">v4.2</span>
+                        <h1 className="text-[26px] font-semibold tracking-[-0.4px]" style={{ color: T.text }}>
+                            AI Explainability
                         </h1>
-                        <p className="text-[10px] font-black tracking-[0.3em] text-slate-500 uppercase">
-                            CORE_ANALYSIS: <span className="text-teal-400 font-black">ACTIVE_INFERENCE</span>
+                        <p className="text-[13px] mt-1" style={{ color: T.muted }}>
+                            SHAP feature importance · Why the model makes each prediction
                         </p>
                     </div>
-
-                    <button
-                        onClick={fetchData}
-                        disabled={loading}
-                        className="flex items-center gap-3 px-6 py-3.5 bg-white/5 border border-white/10 hover:bg-white hover:text-slate-950 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 group"
-                    >
-                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-                        RESYNC_NEURAL_WEIGHTS
+                    <button onClick={fetchData} disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] text-[13px] font-medium transition-colors"
+                        style={{ background: T.surface, color: T.muted, border: `1px solid ${T.border}` }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = T.borderHi; (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = T.border; (e.currentTarget as HTMLElement).style.color = T.muted; }}>
+                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
                     </button>
                 </div>
 
-                {/* Status Dashboard */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2 p-6 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-6 backdrop-blur-md relative overflow-hidden group shadow-xl">
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-transparent pointer-events-none" />
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border backdrop-blur-md shadow-inner transition-all ${status?.model_loaded ? 'bg-purple-500/10 border-purple-500/30' : 'bg-amber-500/10 border-amber-500/30'
-                            }`}>
-                            <Brain className={`w-7 h-7 ${status?.model_loaded ? 'text-purple-400' : 'text-amber-400'}`} />
+                {/* ── Error ── */}
+                <AnimatePresence>
+                    {error && (
+                        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                            className="flex items-start gap-3 px-4 py-3.5 rounded-xl text-[13px]"
+                            style={{ background: T.roseDim, border: `1px solid ${T.roseBorder}`, color: '#fda4af' }}>
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span className="flex-1 font-normal">{error}</span>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ── Model status strip ── */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Model status */}
+                    <div className="md:col-span-2 rounded-xl px-5 py-4 flex items-center gap-4"
+                        style={{ background: T.surface, border: `1px solid ${T.border}`, borderLeft: `2px solid ${status?.model_loaded ? T.indigo : T.amber}` }}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ background: status?.model_loaded ? T.indigoDim : T.amberDim }}>
+                            <Brain className="w-5 h-5" style={{ color: status?.model_loaded ? T.indigo : T.amber }} />
                         </div>
-                        <div>
-                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">INFERENCE_SYNC_STATUS</p>
-                            <h3 className="text-white font-black text-lg uppercase tracking-tight">
-                                {status?.model_loaded ? 'CORE_SYNCHRONIZED' : 'WEIGHT_MISMATCH_DETECTED'}
-                            </h3>
-                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1.5 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <p className="text-[14px] font-medium" style={{ color: T.text }}>
+                                    {status?.model_loaded ? 'Model loaded' : 'Model not loaded'}
+                                </p>
+                                {status?.model_loaded && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-medium"
+                                        style={{ background: T.indigoDim, color: T.indigo, border: `1px solid ${T.indigoBorder}` }}>
+                                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: T.indigo }} />
+                                        Active
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-[12px] truncate" style={{ color: T.muted }}>
                                 {status?.model_loaded
-                                    ? `${status.model_type} • ${status.features.length}_FEATURE_MATRIX_STABLE`
-                                    : 'AWAITING_MODEL_INITIALIZATION'}
+                                    ? `${status.model_type} · ${status.features.length} features tracked`
+                                    : 'Train the ML pipeline to enable explainability'}
                             </p>
                         </div>
                     </div>
-
-                    <div className="p-6 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md shadow-xl flex flex-col justify-center">
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2">LATENCY_VAL</p>
-                        <div className="flex items-end gap-2">
-                            <span className="text-3xl font-black italic text-teal-400 leading-none">12.4</span>
-                            <span className="text-[10px] font-black text-slate-600 mb-1">ms/INF</span>
+                    {/* Latency */}
+                    <div className="rounded-xl px-5 py-4 flex items-center gap-4"
+                        style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ background: T.tealDim }}>
+                            <Cpu className="w-5 h-5" style={{ color: T.teal }} />
+                        </div>
+                        <div>
+                            <p className="text-[12px]" style={{ color: T.muted }}>Inference latency</p>
+                            <p className="text-[22px] font-semibold leading-tight" style={{ color: T.teal }}>
+                                12.4 <span className="text-[12px] font-normal" style={{ color: T.muted }}>ms</span>
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                {error && (
-                    <div className="p-5 bg-red-500/5 border border-red-500/20 rounded-2xl flex items-center gap-4 backdrop-blur-md animate-pulse">
-                        <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                            <AlertCircle className="w-5 h-5 text-red-400" />
-                        </div>
-                        <div>
-                            <p className="text-[9px] font-black text-red-500 uppercase tracking-[0.2em] mb-0.5">PROTOCOL_ERROR</p>
-                            <p className="text-red-200 text-xs font-bold tracking-tight">{error}</p>
-                        </div>
+                {/* ── Loading / no model ── */}
+                {loading && !globalData ? (
+                    <div className="flex flex-col items-center justify-center py-24 gap-4 rounded-2xl"
+                        style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+                        <div className="w-8 h-8 border-2 rounded-full animate-spin"
+                            style={{ borderColor: `${T.indigo}30`, borderTopColor: T.indigo }} />
+                        <p className="text-[13px]" style={{ color: T.muted }}>Loading model data…</p>
                     </div>
-                )}
-
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-24 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md shadow-2xl">
-                        <div className="relative">
-                            <div className="w-20 h-20 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
-                            <Brain className="w-8 h-8 text-purple-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                ) : !status?.model_loaded ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center rounded-2xl"
+                        style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                            style={{ background: T.amberDim }}>
+                            <Brain className="w-7 h-7" style={{ color: T.amber }} />
                         </div>
-                        <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.4em] mt-8 animate-pulse">DECONSTRUCTING_NEURAL_PATHS...</p>
-                    </div>
-                ) : status?.model_loaded === false ? (
-                    <div className="text-center py-24 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-500/5 rounded-full blur-[100px]" />
-                        <div className="relative z-10">
-                            <Brain className="mx-auto h-20 w-20 text-slate-700 mb-8" />
-                            <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">NEURAL_STUB_INACTIVE</h2>
-                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-4 max-w-md mx-auto leading-relaxed">
-                                The SHAP explainability model requires sufficient adherence history to establish weights.
-                                Log more telemetry and resync later.
-                            </p>
-                            <button
-                                onClick={fetchData}
-                                className="mt-10 px-8 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-slate-950 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
-                            >
-                                FORCE_RESCAN
-                            </button>
-                        </div>
+                        <p className="text-[15px] font-medium" style={{ color: T.text }}>Model not yet trained</p>
+                        <p className="text-[13px] max-w-xs leading-relaxed" style={{ color: T.muted }}>
+                            The SHAP explainability model needs sufficient adherence history to generate insights.
+                        </p>
+                        <button onClick={fetchData}
+                            className="mt-1 px-4 py-2.5 rounded-[9px] text-[13px] font-medium"
+                            style={{ background: T.faint, color: T.muted, border: `1px solid ${T.border}` }}>
+                            Check again
+                        </button>
                     </div>
                 ) : globalData ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Feature Importance */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-md shadow-xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4">
-                                <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">N={globalData.samples_analyzed}</span>
-                            </div>
-                            <div className="flex items-center gap-4 mb-10">
-                                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                                    <BarChart3 className="w-5 h-5 text-blue-400" />
-                                </div>
-                                <h2 className="text-lg font-black text-white uppercase tracking-tighter italic">SHAP_VALUE_DISTRIBUTION</h2>
-                            </div>
+                    <div className="space-y-5">
 
-                            <div className="space-y-6">
-                                {globalData.features.map((feature, index) => (
-                                    <motion.div
-                                        key={feature.feature}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.05 }}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-[10px] font-black text-white uppercase tracking-widest">{feature.feature}</span>
-                                            <span className="text-[10px] font-black text-blue-400 italic">{(feature.percentage).toFixed(1)}%_VAR</span>
+                        {/* ── Feature importance + SHAP plot ── */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+                            {/* Feature importance bars */}
+                            <motion.div custom={0} initial="hidden" animate="visible" variants={cardV}
+                                className="rounded-xl p-6"
+                                style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                                <div className="flex items-start justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0"
+                                            style={{ background: T.indigoDim }}>
+                                            <BarChart3 className="w-4 h-4" style={{ color: T.indigo }} />
                                         </div>
-                                        <div className="h-2.5 bg-black/40 rounded-full border border-white/5 p-0.5 overflow-hidden">
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${feature.percentage}%` }}
-                                                transition={{ delay: index * 0.05 + 0.2, duration: 0.8, ease: "easeOut" }}
-                                                className="h-full bg-gradient-to-r from-blue-600 to-teal-400 rounded-full relative"
-                                            >
-                                                <div className="absolute inset-0 bg-white/20 animate-shimmer" />
-                                            </motion.div>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-
-                            <div className="mt-10 p-5 bg-black/40 border border-white/10 rounded-2xl">
-                                <div className="flex items-start gap-4">
-                                    <HelpCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
-                                        Analysis prioritized by mean absolute SHAP value impact across active patient nodes.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Summary Plot */}
-                        {globalData.summary_plot && (
-                            <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-md shadow-xl relative overflow-hidden flex flex-col">
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl">
-                                        <Eye className="w-5 h-5 text-purple-400" />
-                                    </div>
-                                    <h2 className="text-lg font-black text-white uppercase tracking-tighter italic">NEURAL_DECODER_VISUAL</h2>
-                                </div>
-                                <div className="bg-black/40 rounded-2xl p-4 border border-white/5 flex-1 flex items-center justify-center group overflow-hidden relative shadow-inner">
-                                    <div className="absolute inset-0 bg-[radial-gradient(#ffffff05_1px,transparent_1px)] bg-[size:10px_10px]" />
-                                    <img
-                                        src={globalData.summary_plot}
-                                        alt="SHAP Summary"
-                                        className="w-full h-auto rounded-lg group-hover:scale-105 transition-transform duration-700 relative z-10 mix-blend-screen"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Comparison */}
-                        {comparison && (
-                            <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-2xl p-10 backdrop-blur-md shadow-2xl relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[120px] pointer-events-none" />
-
-                                <div className="flex items-center gap-4 mb-12">
-                                    <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-xl">
-                                        <TrendingUp className="w-5 h-5 text-teal-400" />
-                                    </div>
-                                    <h2 className="text-xl font-black text-white uppercase tracking-tighter italic">RISK_VECTOR_COMPARISON_MATRIX</h2>
-                                </div>
-
-                                <div className="grid lg:grid-cols-2 gap-6 mb-12">
-                                    <div className="p-8 rounded-2xl border border-red-500/20 bg-red-500/5 backdrop-blur-sm group relative overflow-hidden shadow-lg">
-                                        <div className="absolute top-0 right-0 p-4">
-                                            <span className="text-[8px] font-black text-red-900 group-hover:text-red-500 transition-colors uppercase tracking-widest">VECTOR_ALPHA</span>
-                                        </div>
-                                        <div className="flex items-center justify-between mb-6">
-                                            <span className="text-red-400 font-black uppercase tracking-[0.2em] text-[10px]">HIGHEST_FATIGUE_NODE</span>
-                                            <span className="text-4xl font-black text-white italic tracking-tighter">
-                                                {(comparison.high_risk.prediction * 100).toFixed(0)}<span className="text-xs opacity-40 ml-1">%_RISK</span>
-                                            </span>
-                                        </div>
-                                        <div className="p-3 bg-black/40 rounded-xl border border-white/5">
-                                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest leading-none">6 AM • WEEKEND • LOW_PRIORITY_PROFILE</p>
+                                        <div>
+                                            <p className="text-[14px] font-medium" style={{ color: T.text }}>Feature importance</p>
+                                            <p className="text-[11px] mt-0.5" style={{ color: T.muted }}>
+                                                Mean absolute SHAP value
+                                            </p>
                                         </div>
                                     </div>
-
-                                    <div className="p-8 rounded-2xl border border-teal-500/20 bg-teal-500/5 backdrop-blur-sm group relative overflow-hidden shadow-lg">
-                                        <div className="absolute top-0 right-0 p-4">
-                                            <span className="text-[8px] font-black text-teal-900 group-hover:text-teal-500 transition-colors uppercase tracking-widest">VECTOR_BETA</span>
-                                        </div>
-                                        <div className="flex items-center justify-between mb-6">
-                                            <span className="text-teal-400 font-black uppercase tracking-[0.2em] text-[10px]">OPTIMAL_STABILITY_NODE</span>
-                                            <span className="text-4xl font-black text-white italic tracking-tighter">
-                                                {(comparison.low_risk.prediction * 100).toFixed(0)}<span className="text-xs opacity-40 ml-1">%_RISK</span>
-                                            </span>
-                                        </div>
-                                        <div className="p-3 bg-black/40 rounded-xl border border-white/5">
-                                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest leading-none">9 AM • MONDAY • HIGH_PRIORITY_PROFILE</p>
-                                        </div>
-                                    </div>
+                                    <span className="text-[11px] px-2 py-1 rounded-md"
+                                        style={{ background: T.faint, color: T.muted, border: `1px solid ${T.border}` }}>
+                                        n={globalData.samples_analyzed}
+                                    </span>
                                 </div>
 
                                 <div className="space-y-4">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <div className="h-[1px] flex-1 bg-white/10" />
-                                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">DELTA_VARIANCE_INSIGHTS</h3>
-                                        <div className="h-[1px] flex-1 bg-white/10" />
-                                    </div>
+                                    {globalData.features.map((feature, idx) => {
+                                        // colour each bar by rank — top features get indigo, others step down
+                                        const barColor = idx === 0 ? T.indigo : idx === 1 ? T.teal : idx === 2 ? '#8b5cf6' : T.muted;
+                                        return (
+                                            <motion.div key={feature.feature}
+                                                custom={idx} initial="hidden" animate="visible" variants={cardV}>
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="text-[13px] font-medium capitalize"
+                                                        style={{ color: T.text }}>
+                                                        {feature.feature.replace(/_/g, ' ')}
+                                                    </span>
+                                                    <span className="text-[12px] font-semibold tabular-nums"
+                                                        style={{ color: barColor }}>
+                                                        {feature.percentage.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                                <div className="h-1.5 rounded-full overflow-hidden"
+                                                    style={{ background: T.faint }}>
+                                                    <motion.div
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${feature.percentage}%` }}
+                                                        transition={{ delay: idx * 0.05 + 0.2, duration: 0.7, ease: 'easeOut' }}
+                                                        className="h-full rounded-full"
+                                                        style={{ background: barColor }} />
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
 
-                                    {comparison.key_differences.map((diff, index) => (
-                                        <div
-                                            key={diff.feature}
-                                            className="p-6 bg-white/5 border border-white/5 hover:border-white/20 rounded-2xl transition-all group/item shadow-lg"
-                                        >
-                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-1.5 h-6 bg-purple-500/50 rounded-full" />
-                                                    <span className="text-sm font-black text-white uppercase tracking-widest">{diff.feature}</span>
-                                                </div>
-                                                <div className="flex items-center gap-6">
-                                                    <div className="text-right">
-                                                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1">ALPHA_CONTRIB</p>
-                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${diff.high_risk_contribution < 0 ? 'text-red-400' : 'text-teal-400'}`}>
-                                                            {formatContribution(diff.high_risk_contribution)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1">BETA_CONTRIB</p>
-                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${diff.low_risk_contribution < 0 ? 'text-red-400' : 'text-teal-400'}`}>
-                                                            {formatContribution(diff.low_risk_contribution)}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                <div className="mt-5 flex items-start gap-2.5 px-3 py-3 rounded-lg"
+                                    style={{ background: T.faint, border: `1px solid ${T.border}` }}>
+                                    <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: T.muted }} />
+                                    <p className="text-[11px] leading-relaxed" style={{ color: T.muted }}>
+                                        Features ranked by their average impact on adherence predictions across all monitored patients.
+                                    </p>
+                                </div>
+                            </motion.div>
+
+                            {/* SHAP summary plot */}
+                            {globalData.summary_plot && (
+                                <motion.div custom={1} initial="hidden" animate="visible" variants={cardV}
+                                    className="rounded-xl p-6 flex flex-col"
+                                    style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0"
+                                            style={{ background: '#1a0d2e' }}>
+                                            <Eye className="w-4 h-4" style={{ color: '#a78bfa' }} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[14px] font-medium" style={{ color: T.text }}>Global impact plot</p>
+                                            <p className="text-[11px] mt-0.5" style={{ color: T.muted }}>SHAP beeswarm summary</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 rounded-lg overflow-hidden flex items-center justify-center p-3"
+                                        style={{ background: '#fff', minHeight: 220 }}>
+                                        <img src={globalData.summary_plot} alt="SHAP Summary"
+                                            className="w-full h-auto rounded object-contain" />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
+
+                        {/* ── Scenario comparison ── */}
+                        {comparison && (
+                            <motion.div custom={2} initial="hidden" animate="visible" variants={cardV}
+                                className="rounded-xl overflow-hidden"
+                                style={{ background: T.card, border: `1px solid ${T.border}` }}>
+
+                                {/* Section header */}
+                                <div className="px-6 py-5 flex items-center gap-3"
+                                    style={{ borderBottom: `1px solid ${T.border}` }}>
+                                    <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0"
+                                        style={{ background: T.tealDim }}>
+                                        <TrendingUp className="w-4 h-4" style={{ color: T.teal }} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[14px] font-medium" style={{ color: T.text }}>Scenario comparison</p>
+                                        <p className="text-[11px] mt-0.5" style={{ color: T.muted }}>
+                                            What changes between a high-risk and low-risk scenario
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Two scenario cards */}
+                                <div className="grid lg:grid-cols-2 gap-4 p-5">
+                                    {/* High risk */}
+                                    <div className="rounded-xl p-5"
+                                        style={{ background: T.roseDim, border: `1px solid ${T.roseBorder}`, borderLeft: `2px solid ${T.rose}` }}>
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <p className="text-[11px] font-medium mb-0.5" style={{ color: '#fda4af' }}>Scenario A — Higher risk</p>
+                                                <p className="text-[13px]" style={{ color: T.muted }}>6 AM · Weekend · Low priority</p>
                                             </div>
-                                            <div className="p-4 bg-black/40 rounded-xl border border-white/5 relative">
-                                                <div className="absolute top-4 left-4">
-                                                    <Zap className="w-3 h-3 text-purple-500 opacity-30" />
-                                                </div>
-                                                <p className="text-xs font-bold text-slate-400 pl-8 italic">&quot;{diff.insight}&quot;</p>
+                                            <div className="text-right">
+                                                <p className="text-[11px]" style={{ color: T.muted }}>Risk score</p>
+                                                <p className="text-[30px] font-semibold leading-none tracking-tight"
+                                                    style={{ color: T.rose }}>
+                                                    {(comparison.high_risk.prediction * 100).toFixed(0)}
+                                                    <span className="text-[14px] font-normal ml-0.5" style={{ color: T.muted }}>%</span>
+                                                </p>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Low risk */}
+                                    <div className="rounded-xl p-5"
+                                        style={{ background: T.tealDim, border: `1px solid ${T.tealBorder}`, borderLeft: `2px solid ${T.teal}` }}>
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <p className="text-[11px] font-medium mb-0.5" style={{ color: '#5eead4' }}>Scenario B — Lower risk</p>
+                                                <p className="text-[13px]" style={{ color: T.muted }}>9 AM · Monday · High priority</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[11px]" style={{ color: T.muted }}>Risk score</p>
+                                                <p className="text-[30px] font-semibold leading-none tracking-tight"
+                                                    style={{ color: T.teal }}>
+                                                    {(comparison.low_risk.prediction * 100).toFixed(0)}
+                                                    <span className="text-[14px] font-normal ml-0.5" style={{ color: T.muted }}>%</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Key differences */}
+                                <div className="px-5 pb-5 space-y-2.5">
+                                    <p className="text-[12px] font-medium mb-3 flex items-center gap-2"
+                                        style={{ color: T.muted }}>
+                                        <span className="flex-1 h-px" style={{ background: T.border }} />
+                                        Key differences
+                                        <span className="flex-1 h-px" style={{ background: T.border }} />
+                                    </p>
+
+                                    {comparison.key_differences.map((diff, idx) => (
+                                        <motion.div key={diff.feature}
+                                            custom={idx + 3} initial="hidden" animate="visible" variants={cardV}
+                                            className="rounded-xl overflow-hidden"
+                                            style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+                                            <div className="px-5 py-3.5 flex items-center justify-between gap-4">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="w-1 h-5 rounded-full shrink-0"
+                                                        style={{ background: T.indigo }} />
+                                                    <p className="text-[13px] font-medium truncate capitalize"
+                                                        style={{ color: T.text }}>
+                                                        {diff.feature.replace(/_/g, ' ')}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-4 shrink-0">
+                                                    <ContribBadge value={diff.high_risk_contribution} label="Scenario A" />
+                                                    <ContribBadge value={diff.low_risk_contribution} label="Scenario B" />
+                                                </div>
+                                            </div>
+                                            {diff.insight && (
+                                                <div className="px-5 py-2.5 flex items-start gap-2.5"
+                                                    style={{ background: T.faint, borderTop: `1px solid ${T.border}` }}>
+                                                    <Sparkles className="w-3 h-3 shrink-0 mt-0.5" style={{ color: T.indigo }} />
+                                                    <p className="text-[12px] italic leading-relaxed" style={{ color: T.muted }}>
+                                                        {diff.insight}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </motion.div>
                                     ))}
                                 </div>
-                            </div>
+                            </motion.div>
                         )}
+
+                        {/* ── About SHAP ── */}
+                        <motion.div custom={4} initial="hidden" animate="visible" variants={cardV}
+                            className="rounded-xl px-5 py-4 flex items-start gap-4"
+                            style={{ background: T.surface, border: `1px solid ${T.border}`, borderLeft: `2px solid ${T.indigo}` }}>
+                            <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0 mt-0.5"
+                                style={{ background: T.indigoDim }}>
+                                <HelpCircle className="w-4 h-4" style={{ color: T.indigo }} />
+                            </div>
+                            <div>
+                                <p className="text-[13px] font-medium mb-1" style={{ color: T.text }}>
+                                    About SHAP
+                                </p>
+                                <p className="text-[12px] leading-relaxed" style={{ color: T.muted }}>
+                                    <strong style={{ color: '#a5b4fc' }}>SHAP (SHapley Additive exPlanations)</strong> uses
+                                    game theory to explain the contribution of each feature to a prediction.
+                                    Positive values push the score up; negative values push it down.
+                                    This makes every risk prediction transparent and auditable.
+                                </p>
+                            </div>
+                        </motion.div>
+
                     </div>
                 ) : null}
-
-                {/* Info Footer */}
-                <div className="p-8 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md shadow-2xl relative overflow-hidden group">
-                    <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-purple-500/5 rounded-full blur-[100px]" />
-                    <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center shrink-0 border border-white/10 shadow-xl group-hover:scale-110 transition-transform duration-500">
-                            <Brain className="w-10 h-10 text-purple-400" />
-                        </div>
-                        <div>
-                            <h4 className="text-white font-black text-sm uppercase tracking-widest mb-3">SHAP_METHODOLOGY_CORE</h4>
-                            <p className="text-slate-400 text-xs font-bold leading-relaxed tracking-tight max-w-3xl">
-                                <strong className="text-purple-400 italic">SHapley Additive exPlanations</strong> uses game-theoretic modeling to objectively quantify vector weights across predictive nodes. This ensures that every adherence anomaly is backed by transparent, explainable data assets, maintaining full protocol integrity.
-                            </p>
-                        </div>
-                    </div>
-                </div>
             </div>
         </PageTransition>
     );
 }
+

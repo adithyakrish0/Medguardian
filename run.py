@@ -25,8 +25,10 @@ if __name__ == "__main__":
     
     # Check if SocketIO initialized successfully
     if socketio.server is not None:
-        print("Starting server with SocketIO support on 0.0.0.0...")
+        app.logger.info(f"✅ SocketIO initialized successfully (mode: {socketio.async_mode})")
+        app.logger.info("🚀 Starting server with SocketIO support on 0.0.0.0:5000...")
         socketio.run(app, debug=debug_mode, port=5000, host='0.0.0.0', allow_unsafe_werkzeug=True, use_reloader=False)
     else:
-        print("⚠️ SocketIO not initialized, starting on 0.0.0.0 without real-time features...")
+        app.logger.error("❌ SocketIO NOT initialized (socketio.server is None)")
+        app.logger.info("⚠️ Starting legacy Flask app on 0.0.0.0:5000 (No real-time features)...")
         app.run(debug=debug_mode, port=5000, host='0.0.0.0', use_reloader=False)

@@ -41,6 +41,10 @@ def unlink():
     """Unlink Telegram account"""
     current_user.telegram_chat_id = None
     db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        return jsonify({'success': True, 'message': 'Telegram account unlinked successfully.'})
+        
     flash('Telegram account unlinked successfully.', 'success')
     return redirect(url_for('telegram.settings'))
 

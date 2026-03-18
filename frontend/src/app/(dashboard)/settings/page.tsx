@@ -23,7 +23,12 @@ import {
     Loader2,
     ChevronLeft,
     Eye,
-    EyeOff
+    EyeOff,
+    MessageCircle,
+    Send,
+    ExternalLink,
+    Unlink,
+    RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -55,7 +60,20 @@ export default function SettingsPage() {
 
     // Settings state
     const [notifications, setNotifications] = useState(true);
-    const [voiceAlerts, setVoiceAlerts] = useState(true);
+    const [voiceAlerts, setVoiceAlerts] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('voiceAlerts') !== 'false';
+        }
+        return true;
+    });
+
+    const handleVoiceToggle = () => {
+        const newVal = !voiceAlerts;
+        setVoiceAlerts(newVal);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('voiceAlerts', String(newVal));
+        }
+    };
 
     // Populate profile fields from user
     useEffect(() => {
@@ -276,8 +294,113 @@ export default function SettingsPage() {
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Spoken alerts for critical reminders</p>
                             </div>
                         </div>
-                        <Toggle enabled={voiceAlerts} onChange={() => setVoiceAlerts(!voiceAlerts)} />
+                        <Toggle enabled={voiceAlerts} onChange={handleVoiceToggle} />
                     </div>
+                </div>
+            </section>
+
+            {/* Telegram Notifications */}
+            <section className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-lg font-semibold text-gray-200">Telegram Bot</h3>
+                    {user?.telegram_chat_id && (
+                        <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Connected
+                        </span>
+                    )}
+                </div>
+
+                <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none group-hover:bg-sky-500/10 transition-colors" />
+                    
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-6 relative z-10">
+                        <div className="w-14 h-14 rounded-2xl bg-sky-500/10 text-sky-400 flex items-center justify-center shrink-0 border border-sky-500/20 shadow-lg">
+                            <Send className="w-7 h-7" />
+                        </div>
+                        
+                        <div className="flex-1 space-y-1">
+                            <p className="font-bold text-gray-100 text-lg">Real-time Telegram Alerts</p>
+                            <p className="text-sm text-gray-400 leading-relaxed max-w-md">
+                                Receive medication reminders, critical missed dose alerts, and emergency SOS notifications directly on your smartphone.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                            {!user?.telegram_chat_id ? (
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const res = await apiFetch('/telegram/link');
+                                            if (res.success && res.link_url) {
+                                                window.open(res.link_url, '_blank');
+                                                showToast('Opening Telegram...', 'info');
+                                            }
+                                        } catch (err: any) {
+                                            showToast('Failed to get link', 'error');
+                                        }
+                                    }}
+                                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm transition-all shadow-lg shadow-sky-600/20 active:scale-95"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                    Connect Bot
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const res = await apiFetch('/telegram/test', { method: 'POST' });
+                                                if (res.success) showToast('Test ping sent!', 'success');
+                                                else showToast(res.error || 'Test failed', 'error');
+                                            } catch {
+                                                showToast('Test failed', 'error');
+                                            }
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-200 font-bold text-sm transition-colors border border-gray-600"
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                        Test Ping
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (!confirm('Are you sure you want to unlink your Telegram? You will stop receiving alerts.')) return;
+                                            try {
+                                                const res = await apiFetch('/telegram/unlink', { method: 'POST' });
+                                                if (res.success) {
+                                                    showToast('Telegram unlinked', 'success');
+                                                    if (refreshUser) refreshUser();
+                                                }
+                                            } catch {
+                                                showToast('Unlink failed', 'error');
+                                            }
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-sm transition-colors border border-red-500/20"
+                                    >
+                                        <Unlink className="w-4 h-4" />
+                                        Unlink
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {user?.telegram_chat_id && (
+                        <div className="mt-6 pt-6 border-t border-gray-700/50 flex flex-wrap gap-4">
+                            <div className="flex items-center gap-2 text-[11px] font-medium text-gray-500">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                                Reminders Enabled
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] font-medium text-gray-500">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                                SOS Relay Enabled
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] font-medium text-gray-500">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                                Sync Status: Normal
+                            </div>
+                        </div>
+                    )}
                 </div>
             </section>
 

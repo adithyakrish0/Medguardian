@@ -15,19 +15,28 @@ class BaseModel(db.Model):
         """Convert model to dictionary for JSON serialization"""
         result = {}
         
-        for column in self.__table__.columns:
-            value = getattr(self, column.name)
+        try:
+            for column in self.__table__.columns:
+                try:
+                    value = getattr(self, column.name)
+                    
+                    # Skip timestamps if not requested
+                    if not include_timestamps and column.name in ('created_at', 'updated_at'):
+                        continue
+                    
+                    # Handle datetime serialization
+                    if value is not None and (isinstance(value, datetime) or hasattr(value, 'isoformat')):
+                        result[column.name] = value.isoformat()
+                    else:
+                        result[column.name] = value
+                except Exception as col_err:
+                    print(f"⚠️ Error serializing column {column.name}: {str(col_err)}")
+                    result[column.name] = None
+        except Exception as e:
+            print(f"❌ Critical error in to_dict for {self.__class__.__name__}: {str(e)}")
+            # Fallback to a very minimal dict if the whole thing fails
+            result = {'id': getattr(self, 'id', None), 'error': 'serialization_failed'}
             
-            # Skip timestamps if not requested
-            if not include_timestamps and column.name in ('created_at', 'updated_at'):
-                continue
-            
-            # Handle datetime serialization
-            if isinstance(value, datetime):
-                result[column.name] = value.isoformat()
-            else:
-                result[column.name] = value
-        
         return result
     
     def update_from_dict(self, data: dict, allowed_fields: list = None):

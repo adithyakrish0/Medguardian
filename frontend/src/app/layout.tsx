@@ -39,7 +39,7 @@ export default function RootLayout({
         `}} />
       </head>
       <body
-        className={`${jakarta.variable} font-sans antialiased`}
+        className={`${jakarta.variable} font-sans antialiased overflow-x-hidden`}
       >
         <ThemeProvider>
           <ErrorBoundary>

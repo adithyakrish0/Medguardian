@@ -57,24 +57,29 @@ class GNNInteractionDetector:
 
     def load_model(self):
         model_path = os.path.join(self.model_dir, 'gnn_interaction_model.pt')
-        meta_path = os.path.join(self.model_dir, 'gnn_interaction_meta.pkl')
         
-        if os.path.exists(model_path) and os.path.exists(meta_path):
-            with open(meta_path, 'rb') as f:
-                meta = pickle.load(f)
-                self.drug_to_idx = meta['drug_to_idx']
+        if os.path.exists(model_path):
+            try:
+                checkpoint = torch.load(model_path, map_location=self.device)
+                
+                # Extract meta from checkpoint or fallback to pkl
+                self.drug_to_idx = checkpoint.get('drug_to_idx', {})
                 self.idx_to_drug = {v: k for k, v in self.drug_to_idx.items()}
-                self.drug_features_map = meta['drug_features_map']
-                in_features = meta['in_features']
-            
-            self.model = DrugInteractionGNN(in_features).to(self.device)
-            self.model.load_state_dict(torch.load(model_path, map_location=self.device))
-            self.model.eval()
-            logger.info("GNN Interaction Model loaded successfully.")
-            return True
+                self.drug_features_map = checkpoint.get('drug_features_map', {})
+                in_features = checkpoint.get('in_features', 8)
+                
+                self.model = DrugInteractionGNN(in_features).to(self.device)
+                self.model.load_state_dict(checkpoint['model_state_dict'])
+                self.model.eval()
+                
+                logger.info("GNN Interaction Model loaded successfully from checkpoint.")
+                return True
+            except Exception as e:
+                logger.error(f"Error loading GNN model checkpoint: {e}")
+                
         return False
 
-    def predict(self, drug_list):
+    def predict(self, drug_list: list[str]) -> list[dict]:
         """
         Predict interactions for a list of drugs using the GNN.
         """

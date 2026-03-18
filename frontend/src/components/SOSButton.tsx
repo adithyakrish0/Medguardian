@@ -32,34 +32,33 @@ export default function SOSButton() {
 
     if (user?.role === 'caregiver') {
         return (
-            <button
-                className="fixed bottom-8 right-8 z-50 bg-slate-900 border border-white/10 hover:border-red-500/50 text-white rounded-full w-20 h-20 flex flex-col items-center justify-center shadow-2xl backdrop-blur-xl transition-all active:scale-95 group"
-                onClick={() => showToast("Alert Inbox: No active emergencies.", "info")}
-            >
-                <div className="relative">
-                    <Bell className="w-8 h-8 text-slate-400 group-hover:text-red-500 transition-colors" />
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full border-2 border-slate-900 animate-pulse" />
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-slate-500 group-hover:text-red-500 transition-colors">ALERTS</span>
-            </button>
+            <div className="fixed bottom-8 right-8 z-50 group">
+                <button
+                    className="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 hover:border-red-500/40 flex items-center justify-center shadow-lg transition-all active:scale-95 group"
+                    onClick={() => showToast("Alert Inbox: No active emergencies.", "info")}
+                >
+                    <div className="relative">
+                        <Bell className={`w-5 h-5 text-slate-400 group-hover:text-red-400 transition-colors`} />
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border-2 border-slate-800 rounded-full" />
+                    </div>
+                </button>
+            </div>
         );
     }
 
     return (
-        <>
-            {/* SOS Button — fixed bottom-right */}
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 group">
+            {/* SOS Label - Hover Only */}
+            <span className="text-[10px] font-medium text-slate-400 bg-slate-900/80 px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+                Emergency
+            </span>
+
+            {/* Senior SOS Button */}
             <button
                 onClick={() => setShowModal(true)}
-                className="fixed bottom-8 right-8 z-50 bg-red-600 hover:bg-red-700 text-white rounded-full w-24 h-24 flex flex-col items-center justify-center shadow-[0_0_50px_rgba(220,38,38,0.5)] hover:shadow-red-500/60 transition-all active:scale-90 group"
+                className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-[0_4px_20px_rgba(239,68,68,0.3)] transition-all hover:bg-red-600 group/btn active:scale-95"
             >
-                {/* Dramatic Radar Pulse Rings */}
-                <span className="absolute inset-0 rounded-full bg-red-600 animate-ping opacity-40" />
-                <span className="absolute inset-0 rounded-full bg-red-600 animate-ping opacity-20 [animation-delay:0.5s]" />
-
-                <div className="relative z-10 flex flex-col items-center gap-1">
-                    <Phone className="w-8 h-8 fill-current" />
-                    <span className="text-sm font-black uppercase tracking-[0.2em]">SOS</span>
-                </div>
+                <Phone className="w-5 h-5 text-red-600 group-hover/btn:text-white transition-colors" />
             </button>
 
             {/* Confirmation Modal */}
@@ -77,16 +76,16 @@ export default function SOSButton() {
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-gray-800 border border-red-500 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                            className="bg-slate-900 border border-slate-700/60 border-t-2 border-t-red-600 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
                         >
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-                                    <AlertTriangle className="w-5 h-5 text-red-400" />
+                                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400">
+                                    <AlertTriangle className="w-5 h-5" />
                                 </div>
-                                <h3 className="text-lg font-black text-gray-100">Emergency SOS</h3>
+                                <h3 className="text-lg font-semibold text-white">Emergency SOS</h3>
                             </div>
 
-                            <p className="text-sm text-gray-400 mb-6">
+                            <p className="text-sm text-slate-400 font-normal leading-relaxed mb-6">
                                 Send emergency alert to your caregivers? They will be notified immediately.
                             </p>
 
@@ -94,14 +93,14 @@ export default function SOSButton() {
                                 <button
                                     onClick={() => setShowModal(false)}
                                     disabled={sending}
-                                    className="flex-1 py-3 rounded-xl border border-gray-600 text-gray-300 font-bold text-sm hover:bg-gray-700 transition-all disabled:opacity-50"
+                                    className="flex-1 py-3 rounded-xl border border-slate-700 text-slate-300 font-medium text-sm hover:bg-slate-800 transition-all disabled:opacity-50"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleSOS}
                                     disabled={sending}
-                                    className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                                    className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
                                 >
                                     {sending ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -115,6 +114,6 @@ export default function SOSButton() {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </>
+        </div>
     );
 }

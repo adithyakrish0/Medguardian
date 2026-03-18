@@ -1,7 +1,5 @@
-"use client";
-
-import { SkeletonDashboard } from "@/components/ui/SkeletonLoaders";
+import RouteLoader from "@/components/RouteLoader";
 
 export default function DashboardLoading() {
-    return <SkeletonDashboard />;
+    return <RouteLoader />;
 }

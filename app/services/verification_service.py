@@ -59,8 +59,11 @@ class VerificationService:
                 try:
                     des_bytes = base64.b64decode(medication.visual_fingerprint)
                     expected_des = np.frombuffer(des_bytes, np.uint8).reshape(-1, 32)
+                    print(f"[VERIFY] Layer 2 (ORB): Loaded {expected_des.shape[0]} descriptors")
                 except Exception as e:
                     logger.error(f"Failed to decode ORB fingerprint: {e}")
+            else:
+                print(f"[VERIFY] Layer 2 (ORB): No fingerprint stored")
 
             # Layer 3: Color Histogram
             reference_histogram = None
@@ -69,8 +72,11 @@ class VerificationService:
                     reference_histogram = self.vision_engine.decode_histogram_fingerprint(
                         medication.histogram_fingerprint
                     )
+                    print(f"[VERIFY] Layer 3 (Histogram): Loaded ({len(reference_histogram)} bins)")
                 except Exception as e:
                     logger.error(f"Failed to decode histogram fingerprint: {e}")
+            else:
+                print(f"[VERIFY] Layer 3 (Histogram): No fingerprint stored")
 
             # Layer 4: Deep Embedding Matching
             reference_embedding = None
@@ -78,8 +84,11 @@ class VerificationService:
                 try:
                     import json
                     reference_embedding = json.loads(medication.embedding_data)
+                    print(f"[VERIFY] Layer 4 (Embedding): Loaded (type={type(reference_embedding).__name__}, len={len(reference_embedding) if isinstance(reference_embedding, list) else 'N/A'})")
                 except Exception as e:
                     logger.error(f"Failed to load embedding data: {e}")
+            else:
+                print(f"[VERIFY] Layer 4 (Embedding): No embedding stored — was Train AI used?")
 
             # Process via Triple-Layer Vision Engine V2
             result = self.vision_engine.process_frame(
@@ -103,6 +112,9 @@ class VerificationService:
             layers_checked = result.get('layers_checked', [])
             if layers_checked:
                 confidence = len(layers_passed) / len(layers_checked)
+            
+            print(f"[VERIFY] Result: verified={is_verified}, confidence={confidence:.2f}, "
+                  f"layers_checked={layers_checked}, layers_passed={layers_passed}")
             
             # Stage 4: Cognitive Guardrail (Alzheimer's Safety)
             from app.services.cognitive_engine import cognitive_engine

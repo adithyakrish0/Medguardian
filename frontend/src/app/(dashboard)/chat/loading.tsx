@@ -1,7 +1,7 @@
 "use client";
 
-import { SkeletonDashboard } from "@/components/ui/SkeletonLoaders";
+import { PageLoader } from "@/components/ui/SkeletonLoaders";
 
 export default function InsightsLoading() {
-    return <SkeletonDashboard />;
+    return <PageLoader message="Loading conversations..." />;
 }

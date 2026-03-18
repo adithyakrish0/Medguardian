@@ -170,12 +170,15 @@ class AdherenceExplainer:
             logger.error(f"Failed to initialize SHAP explainer: {e}")
     
     def _generate_sample_background(self, n_samples: int = 100) -> pd.DataFrame:
-        """Generate synthetic background data for SHAP calculations."""
+        """Generate synthetic background data for SHAP calculations matching the 7-feature model."""
         np.random.seed(42)
         return pd.DataFrame({
-            'hour': np.random.randint(6, 22, n_samples),
+            'hour_of_day': np.random.randint(6, 22, n_samples),
             'day_of_week': np.random.randint(0, 7, n_samples),
-            'is_weekend': np.random.choice([0, 1], n_samples, p=[0.71, 0.29]),
+            'days_since_start': np.random.randint(1, 365, n_samples),
+            'consecutive_missed': np.random.randint(0, 5, n_samples),
+            'rolling_7day_adherence': np.random.uniform(0.5, 1.0, n_samples),
+            'time_delta_minutes': np.random.randint(-60, 60, n_samples),
             'priority_encoded': np.random.choice([0, 1], n_samples, p=[0.7, 0.3])
         })
     
@@ -189,7 +192,6 @@ class AdherenceExplainer:
         
         Args:
             features: Dict with 'hour', 'day_of_week', 'is_weekend', 'priority'
-            generate_plot: Whether to generate waterfall plot
         
         Returns:
             PredictionExplanation with contributions and optional plot
@@ -197,15 +199,23 @@ class AdherenceExplainer:
         if not self.explainer:
             raise ValueError("Explainer not initialized. Load a model first.")
         
-        # Create feature DataFrame matching training schema
+        # Create feature DataFrame matching training schema (7 features)
         input_data = {}
         for name in self.feature_names:
-            input_data[name] = features.get(name, 0)
-            # Fallback for old feature names if they appear in metadata
-            if name == 'priority_encoded' and 'priority' in features:
-                input_data[name] = features['priority']
-            if name == 'hour_of_day' and 'hour' in features:
-                input_data[name] = features['hour']
+            # Try to get from features, fallback to 0
+            val = features.get(name)
+            
+            # Map legacy names if needed
+            if val is None:
+                if name == 'hour_of_day': val = features.get('hour', 8)
+                elif name == 'priority_encoded': val = features.get('priority', 0)
+                elif name == 'days_since_start': val = features.get('days_active', 30)
+                elif name == 'consecutive_missed': val = features.get('missed_streak', 0)
+                elif name == 'rolling_7day_adherence': val = features.get('adherence_rate', 0.95)
+                elif name == 'time_delta_minutes': val = features.get('latency', 0)
+                else: val = 0
+            
+            input_data[name] = val
 
         X = pd.DataFrame([input_data])
         

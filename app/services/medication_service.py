@@ -104,6 +104,7 @@ class MedicationService:
         import os
         import base64
         import uuid
+        import json
         from flask import current_app
         
         try:
@@ -123,10 +124,16 @@ class MedicationService:
             with open(file_path, 'wb') as f:
                 f.write(image_bytes)
             
-            # 2. Extract AI Neural DNA (Layer 2 & 3)
-            # We use vision_v2 for ORB and Histogram extraction
+            # 2. Extract AI Neural DNA (Layer 2 & 3 & 4)
             visual_fingerprint = vision_v2.get_fingerprint(image_uri)
             histogram_fingerprint = vision_v2.get_histogram_fingerprint(image_uri)
+            
+            # Layer 4: Deep Embedding (Siamese Network)
+            embedding_fingerprint = vision_v2.get_embedding_fingerprint(image_uri)
+            
+            print(f"[TRAIN] Med {medication.id}: ORB={'OK' if visual_fingerprint else 'FAIL'}, "
+                  f"Hist={'OK' if histogram_fingerprint else 'FAIL'}, "
+                  f"Embed={'OK (len=' + str(len(embedding_fingerprint)) + ')' if embedding_fingerprint else 'FAIL'}")
             
             # 3. Update medication record
             medication.reference_image_path = f"uploads/references/{filename}"
@@ -134,11 +141,20 @@ class MedicationService:
             medication.histogram_fingerprint = histogram_fingerprint
             medication.ai_trained = True
             
+            # Layer 4: Save deep embedding
+            if embedding_fingerprint:
+                medication.embedding_data = json.dumps(embedding_fingerprint)
+                print(f"[TRAIN] Saved Layer 4 deep embedding for medication {medication.id}")
+            else:
+                print(f"[TRAIN] WARNING: No embedding extracted for medication {medication.id}")
+            
             db.session.add(medication)
             return True
             
         except Exception as e:
             print(f"Error processing neural training: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     @staticmethod

@@ -298,15 +298,15 @@ class LSTMAnomalyDetector:
 
     # ── Prediction ────────────────────────────────────────────────────────
 
-    def predict(self, patient_id: int, recent_logs: List[Dict]) -> Dict:
+    def predict(self, patient_id: int, features: Optional[np.ndarray] = None) -> float:
         """
-        Predict anomaly using the best available model:
+        Predict anomaly score for a patient using the global LSTM model.
         1. Global PyTorch model (preferred)
         2. Per-patient TF model (fallback)
         """
         # ── Try global PyTorch model first ────────────────────────────────
         if self._global_model is not None:
-            result = self._predict_global(recent_logs)
+            result = self._predict_global(features)
             if result is not None:
                 return result
 

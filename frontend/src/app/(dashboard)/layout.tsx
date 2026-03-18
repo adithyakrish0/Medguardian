@@ -71,16 +71,16 @@ const seniorNav: NavGroup[] = [
 
 const caregiverNav: NavGroup[] = [
     {
-        label: "FLEET TELEMETRY",
+        label: "Overview",
         icon: LayoutDashboard,
         items: [
             { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
             { label: "My Seniors", href: "/caregiver", icon: Users },
-            { label: "War Room", href: "/war-room", icon: Activity },
+            { label: "Command Room", href: "/war-room", icon: Activity },
         ],
     },
     {
-        label: "CLINICAL INTELLIGENCE",
+        label: "Clinical",
         icon: Brain,
         items: [
             { label: "PK Simulations", href: "/pk-simulations", icon: LineChart },
@@ -89,10 +89,10 @@ const caregiverNav: NavGroup[] = [
         ],
     },
     {
-        label: "SYSTEM ANALYTICS",
+        label: "Analytics",
         icon: SettingsIcon,
         items: [
-            { label: "Explainability (SHAP)", href: "/explainability", icon: Eye },
+            { label: "AI Explainability", href: "/explainability", icon: Eye },
             { label: "Export Data", href: "/export", icon: Download },
             { label: "Settings", href: "/settings", icon: SettingsIcon },
         ],
@@ -115,9 +115,9 @@ export default function DashboardLayout({
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
         "Main": true,
         "My Profile": true,
-        "FLEET TELEMETRY": true,
-        "CLINICAL INTELLIGENCE": true,
-        "SYSTEM ANALYTICS": true,
+        "Fleet": true,
+        "Clinical": true,
+        "Analytics": true,
     });
 
     useEffect(() => {
@@ -147,123 +147,115 @@ export default function DashboardLayout({
 
     // ─── Sidebar Content ────────────────────────────────────────────────────
     const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
-        <div className="flex flex-col h-full bg-slate-950/80 backdrop-blur-xl border-r border-white/5 overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
+
             {/* Logo */}
-            <div className={`p-6 flex items-center ${isCollapsed && !mobile ? 'justify-center' : 'gap-4'} shrink-0 border-b border-white/5`}>
-                <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-[0_0_15px_rgba(37,99,235,0.4)] text-lg shrink-0">
+            <div className={`flex items-center gap-3 p-5 border-b border-[#1a2030] shrink-0 ${isCollapsed && !mobile ? 'justify-center px-3' : ''}`}>
+                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
                     M
                 </div>
                 {(!isCollapsed || mobile) && (
-                    <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="whitespace-nowrap"
-                    >
-                        <span className="text-lg font-black tracking-tighter text-white block leading-tight">MEDGUARDIAN</span>
-                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-500/80">Command Center</span>
-                    </motion.div>
+                    <div>
+                        <p className="text-[13px] font-bold text-white leading-tight">MedGuardian</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Command Center</p>
+                    </div>
                 )}
             </div>
 
-            {/* Navigation Groups */}
-            <nav className="flex-1 overflow-y-auto px-3 py-6 custom-scrollbar space-y-8">
-                {navGroups.map((group) => {
-                    const groupActive = isGroupActive(group);
-
-                    return (
-                        <div key={group.label} className="space-y-1">
-                            {/* Group Header */}
-                            {(!isCollapsed || mobile) && (
-                                <div className="px-3 mb-2">
-                                    <span className="text-[10px] uppercase tracking-[0.15em] text-slate-500 font-bold">
-                                        {group.label}
-                                    </span>
-                                </div>
-                            )}
-
-                            {isCollapsed && !mobile && (
-                                <div className="flex justify-center mb-4">
-                                    <div className={`w-1 h-1 rounded-full ${groupActive ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-800'}`} />
-                                </div>
-                            )}
-
-                            {/* Group Items */}
-                            <div className="space-y-0.5">
-                                {group.items.map((item) => {
-                                    const isActive = pathname === item.href;
-                                    return (
-                                        <Link
-                                            key={item.href}
-                                            href={item.href}
-                                            onClick={() => mobile && setIsMobileOpen(false)}
-                                            className={`flex items-center ${isCollapsed && !mobile ? 'justify-center' : 'justify-between'} px-3 py-2 rounded-lg font-medium transition-all group relative ${isActive
-                                                ? 'text-blue-400 bg-blue-500/5'
-                                                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                                                }`}
-                                            title={isCollapsed && !mobile ? item.label : undefined}
-                                        >
-                                            {/* Active Indicator Border */}
-                                            {isActive && (
-                                                <div className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-                                            )}
-
-                                            <div className="flex items-center gap-3">
-                                                <item.icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                                                {(!isCollapsed || mobile) && (
-                                                    <span className="text-[13px] tracking-tight whitespace-nowrap">
-                                                        {item.label}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
+            {/* Nav */}
+            <nav className="flex-1 overflow-y-auto p-3 space-y-4">
+                {navGroups.map((group, groupIdx) => (
+                    <div key={group.label}>
+                        {groupIdx > 0 && (
+                            <div className="h-px bg-[#0f1624] mx-2 mt-4 mb-2" />
+                        )}
+                        {(!isCollapsed || mobile) && (
+                            <p className="text-[10px] font-semibold text-[#1e293b] uppercase tracking-[0.08em] px-2 py-1 mb-1">
+                                {group.label}
+                            </p>
+                        )}
+                        <div className="space-y-0.5">
+                            {group.items.map((item) => {
+                                const isActive = pathname === item.href;
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        onClick={() => mobile && setIsMobileOpen(false)}
+                                        title={isCollapsed && !mobile ? item.label : undefined}
+                                        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all group relative ${isCollapsed && !mobile ? 'justify-center' : ''
+                                            } ${isActive
+                                                ? 'bg-[#111d35] text-[#e2e8f0]'
+                                                : 'text-[#475569] hover:text-[#94a3b8] hover:bg-[#111827]'
+                                            }`}
+                                    >
+                                        <item.icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-blue-500' : 'text-[#334155] group-hover:text-slate-300'}`} />
+                                        {(!isCollapsed || mobile) && (
+                                            <span className={`truncate text-[13px] ${isActive ? 'font-medium' : 'font-normal'}`}>
+                                                {item.label}
+                                            </span>
+                                        )}
+                                        {isActive && !isCollapsed && (
+                                            <div className="ml-auto w-[3px] h-4 bg-blue-600 rounded-full flex-shrink-0" />
+                                        )}
+                                    </Link>
+                                );
+                            })}
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </nav>
 
-            {/* Bottom Section */}
-            <div className="p-4 shrink-0 border-t border-white/5 space-y-4 bg-slate-950/40">
-                {/* Sign Out Link */}
+            {/* Bottom */}
+            <div className="p-3 border-t border-[#0f1624] shrink-0 space-y-2">
+                {/* Sign out */}
                 {(!isCollapsed || mobile) && (
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-500 hover:text-red-400 transition-colors group"
+                        className="flex items-center gap-[9px] w-full px-[10px] py-[7px] rounded-[7px] text-[12px] text-[#334155] hover:text-red-500 hover:bg-[#1a0a0a] transition-all group mb-2"
                     >
-                        <LogOut className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-                        <span>Sign Out System</span>
+                        <LogOut className="w-[14px] h-[14px] text-[#1e293b] group-hover:text-red-500 transition-colors" />
+                        <span>Sign Out</span>
                     </button>
                 )}
 
-                {/* Profile Card */}
+                {/* Profile */}
                 <Link
                     href="/settings"
                     onClick={() => mobile && setIsMobileOpen(false)}
-                    className={`flex items-center bg-white/5 border border-white/10 rounded-xl transition-all hover:bg-white/10 hover:border-white/20 group relative overflow-hidden ${isCollapsed && !mobile ? 'p-2 justify-center' : 'p-3 gap-3'}`}
+                    className={`flex items-center gap-3 p-2.5 rounded-[9px] bg-[#0d1422] hover:bg-[#111827] border border-[#1a2336] hover:border-[#1e2d44] transition-all group ${isCollapsed && !mobile ? 'justify-center' : ''
+                        }`}
                 >
-                    <div className="w-8 h-8 rounded-lg bg-slate-800 border border-white/5 flex items-center justify-center font-bold text-blue-400 shrink-0 text-xs">
+                    <div className="w-8 h-8 rounded-[8px] bg-[#172038] border border-[#1e2d44] flex items-center justify-center text-[12px] font-semibold tracking-[0.5px] text-blue-400 shrink-0">
                         {user?.username?.slice(0, 2).toUpperCase() || 'U'}
                     </div>
                     {(!isCollapsed || mobile) && (
-                        <div className="overflow-hidden flex-1">
-                            <p className="text-[13px] font-bold text-slate-200 truncate">{user?.full_name || user?.username || 'User'}</p>
-                            <p className="text-[9px] uppercase tracking-widest font-black text-slate-500 mt-0.5">{user?.role || 'operator'}</p>
+                        <div className="overflow-hidden flex-1 min-w-0 flex items-center">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-semibold text-[#cbd5e1] truncate leading-tight tracking-[-0.1px]">
+                                    {user?.full_name || user?.username || 'User'}
+                                </p>
+                                <p className="text-[11px] text-[#334155] capitalize mt-0.5">
+                                    {user?.role || 'user'}
+                                </p>
+                            </div>
+                            <div className="ml-auto flex flex-col gap-[3px] opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="w-[3px] h-[3px] rounded-full bg-[#1e293b]"></span>
+                                <span className="w-[3px] h-[3px] rounded-full bg-[#1e293b]"></span>
+                                <span className="w-[3px] h-[3px] rounded-full bg-[#1e293b]"></span>
+                            </div>
                         </div>
-                    )}
-                    {isCollapsed && !mobile && (
-                        <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-colors" />
                     )}
                 </Link>
             </div>
-            {/* Desktop Collapse Toggle */}
+
+            {/* Collapse toggle */}
             {!mobile && (
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center shadow-lg hover:bg-blue-600 hover:text-white transition-all z-[60]"
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center hover:bg-blue-600 transition-all z-[60]"
                 >
-                    {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                    {isCollapsed ? <ChevronRight className="w-3 h-3 text-slate-400" /> : <ChevronLeft className="w-3 h-3 text-slate-400" />}
                 </button>
             )}
         </div>
@@ -277,7 +269,7 @@ export default function DashboardLayout({
                 initial={false}
                 animate={{ width: isCollapsed ? 80 : 280 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="bg-gray-50 dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 hidden lg:flex flex-col z-50 sticky top-0 h-screen overflow-visible"
+                className="bg-[#0a0f1a] border-r border-[#1e2535] hidden lg:flex flex-col z-50 sticky top-0 h-screen overflow-hidden"
             >
                 <SidebarContent />
             </motion.aside>
@@ -313,7 +305,7 @@ export default function DashboardLayout({
             </AnimatePresence>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-w-0 relative bg-gray-100 dark:bg-slate-950 overflow-hidden">
+            <div className="flex-1 flex flex-col min-w-0 relative bg-background text-foreground overflow-hidden">
                 {/* Floating Mobile Menu Trigger */}
                 <button
                     onClick={() => setIsMobileOpen(true)}
@@ -322,8 +314,8 @@ export default function DashboardLayout({
                     <Menu className="w-6 h-6 text-primary group-hover:rotate-12 transition-transform" />
                 </button>
 
-                <main className="flex-1 py-8 lg:py-12 overflow-y-auto">
-                    <div className="max-w-7xl mx-auto px-6 lg:px-12 pb-4 lg:pb-0">
+                <main className={`flex-1 overflow-y-auto overflow-x-hidden outline-none ${pathname === '/chat' ? '' : 'py-8 lg:py-10'}`}>
+                    <div className={`${pathname === '/chat' ? 'h-full w-full' : 'max-w-7xl mx-auto px-6 lg:px-12'}`}>
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={pathname}
@@ -331,6 +323,7 @@ export default function DashboardLayout({
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 1.02, y: -10 }}
                                 transition={{ duration: 0.3, ease: "easeInOut" }}
+                                className={pathname === '/chat' ? 'h-full' : ''}
                             >
                                 {children}
                             </motion.div>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { apiFetch } from '@/lib/api';
+import { motion } from 'framer-motion';
 import { Camera, RefreshCcw, Scan as ScanIcon, Brain, CheckCircle2, AlertCircle, AlertTriangle, X, XCircle } from 'lucide-react';
 
 interface VerificationResult {
@@ -34,39 +35,60 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
     const scanIntervalRef = useRef<any>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    // Start Camera
-    useEffect(() => {
-        if (step === 'scanning') {
-            const startCamera = async () => {
-                try {
-                    // Always stop any existing stream first to get a fresh one
-                    if (streamRef.current) {
-                        streamRef.current.getTracks().forEach(track => track.stop());
-                        streamRef.current = null;
-                    }
-
-                    // Get fresh camera stream
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment" }
-                    });
-                    streamRef.current = stream;
-
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                        // Force play to ensure video displays
-                        await videoRef.current.play().catch(e => console.warn("Video play error:", e));
-                    }
-                } catch (err) {
-                    console.error("Camera failed:", err);
-                    setErrorMsg("Camera access failed. Please allow camera permission.");
-                }
+    // Use a callback ref to handle immediate assignment when the element mounts
+    const setVideoRef = (el: HTMLVideoElement | null) => {
+        (videoRef as any).current = el; // update the ref object for the interval/detect logic
+        const stream = streamRef.current;
+        
+        if (el && stream && el.srcObject !== stream) {
+            console.log("[Verification Camera] Callback Ref: Video element mounted, assigning stream...");
+            el.srcObject = stream;
+            el.onloadedmetadata = () => {
+                console.log("[Verification Camera] Callback Ref: Metadata loaded:", el.videoWidth, "x", el.videoHeight);
+                el.play()
+                    .then(() => console.log("[Verification Camera] Callback Ref: Playback started"))
+                    .catch(e => console.error('[Verification Camera] Callback Ref: Play failed:', e));
             };
-            startCamera();
+        }
+    };
+
+    // 1. Manage stream lifecycle
+    useEffect(() => {
+        if (step !== 'scanning') {
+            if (streamRef.current) {
+                console.log("[Verification Camera] Stopping stream due to step change");
+                streamRef.current.getTracks().forEach(t => t.stop());
+                streamRef.current = null;
+            }
+            return;
         }
 
-        return () => {
-            // Keep stream alive during processing
+        let cancelled = false;
+        const startCamera = async () => {
+            try {
+                console.log("[Verification Camera] Requesting stream...");
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment" }
+                });
+                console.log("[Verification Camera] Stream received:", stream.id);
+                
+                if (cancelled) {
+                    stream.getTracks().forEach(t => t.stop());
+                    return;
+                }
+                streamRef.current = stream;
+                
+                // If the video element is already in the DOM, assign it now
+                if (videoRef.current) {
+                    setVideoRef(videoRef.current);
+                }
+            } catch (err) {
+                console.error("[Verification Camera] Failed:", err);
+                if (!cancelled) setErrorMsg("Camera access failed. Please allow camera permission.");
+            }
         };
+        startCamera();
+        return () => { cancelled = true; };
     }, [step]);
 
     // Dedicated cleanup
@@ -230,268 +252,292 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
     if (typeof document === 'undefined') return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-            {/* Glassmorphism backdrop */}
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-xl" />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-black/75 backdrop-blur-md" />
 
-            <div className="relative bg-card w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] rounded-3xl shadow-2xl border border-white/10">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="relative bg-gray-900 w-full max-w-2xl overflow-hidden flex flex-col rounded-2xl shadow-2xl border border-gray-700/50"
+            >
                 {/* Header */}
-                <div className="p-6 border-b border-card-border flex justify-between items-center bg-secondary/5">
+                <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-bold text-foreground">
-                            {medicationId === 0 ? 'Emergency Checkup' : 'AI Verification'}
+                        <h2 className="text-base font-semibold text-white">
+                            {medicationId === 0 ? 'Caregiver Check-in' : 'Medication Verification'}
                         </h2>
-                        <p className="text-sm opacity-60">
-                            {medicationId === 0
-                                ? 'Live session with your caregiver'
-                                : `Zero-Trash Layer-4 Radar • ${medicationName}`}
+                        <p className="text-xs text-slate-400 mt-0.5">
+                            {medicationId === 0 ? 'Live camera session' : medicationName}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors font-bold">
-                        <X className="w-5 h-5" />
+                    <button
+                        onClick={onClose}
+                        className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                    >
+                        <X className="w-4 h-4 text-slate-400" />
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center min-h-[400px]">
+                <div className="p-6 flex flex-col items-center">
+
+                    {/* SCANNING STEP */}
                     {step === 'scanning' && (
-                        <div className="text-center space-y-6 w-full">
-                            <div className="relative w-full aspect-video rounded-3xl overflow-hidden border-4 border-card-border bg-black group">
+                        <div className="w-full space-y-4">
+                            {/* Camera Feed */}
+                            <div className="relative w-full h-[400px] rounded-xl overflow-hidden bg-black border border-gray-700/50">
                                 <video
-                                    ref={videoRef}
+                                    ref={setVideoRef}
                                     autoPlay
                                     playsInline
                                     muted
-                                    className="w-full h-full object-cover scale-x-[-1]"
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                    style={{ transform: 'translateZ(0)' }}
                                 />
 
-                                {/* Scanning Overlay */}
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <div className={`w-32 h-32 border-2 rounded-full flex items-center justify-center transition-all duration-300 ${handDetected ? 'border-primary scale-110 shadow-[0_0_30px_rgba(59,130,246,0.5)]' : 'border-white/50 animate-pulse'
+                                {/* Scan overlay */}
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className={`w-36 h-36 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${handDetected
+                                            ? 'border-teal-400 shadow-[0_0_20px_rgba(52,211,153,0.4)]'
+                                            : 'border-white/30'
                                         }`}>
-                                        <ScanIcon className={`w-12 h-12 ${handDetected ? 'text-primary' : 'text-white/50'}`} />
+                                        <ScanIcon className={`w-14 h-14 transition-colors ${handDetected ? 'text-teal-400' : 'text-white/30'}`} />
                                     </div>
+                                </div>
 
-                                    {/* Progress Ring */}
-                                    {handDetected && (
-                                        <div className="mt-8 px-6 py-2 bg-primary text-white rounded-full font-bold shadow-xl animate-bounce">
-                                            Locking: {scanProgress}%
+                                {/* Progress bar at bottom */}
+                                {handDetected && (
+                                    <div className="absolute bottom-0 left-0 right-0">
+                                        <div className="h-1 bg-gray-800">
+                                            <div
+                                                className="h-full bg-teal-400 transition-all duration-300"
+                                                style={{ width: `${scanProgress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Status badge top-left */}
+                                <div className="absolute top-3 left-3">
+                                    {handDetected ? (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-teal-500/20 border border-teal-500/30 rounded-full">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                                            <span className="text-xs font-medium text-teal-300">Hand detected</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-black/50 rounded-full">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                                            <span className="text-xs text-white/50">Scanning...</span>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Layer Indicators */}
-                                <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-                                    <div className="flex flex-col gap-2">
-                                        {medicationId !== 0 && (
-                                            <div className="flex gap-2">
-                                                <div className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${handDetected ? 'bg-primary text-white' : 'bg-black/50 text-white/50'}`}>
-                                                    STAGE 1: HAND-GATE
-                                                </div>
-                                                <div className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${handDetected ? 'bg-primary text-white' : 'bg-black/50 text-white/50'}`}>
-                                                    STAGE 2: AUTO-CROP
-                                                </div>
-                                            </div>
-                                        )}
-                                        {errorMsg && (
-                                            <div className="bg-red-50 dark:bg-red-900/20/80 backdrop-blur px-2 py-1 rounded text-[10px] text-white font-bold border border-red-500/20">
-                                                ERROR: {errorMsg}
-                                            </div>
-                                        )}
+                                {/* Manual capture button bottom-right */}
+                                {medicationId !== 0 && (
+                                    <button
+                                        onClick={() => handleAutoCapture()}
+                                        className="absolute bottom-3 right-3 w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-colors pointer-events-auto"
+                                        title="Capture manually"
+                                    >
+                                        <Camera className="w-5 h-5 text-white" />
+                                    </button>
+                                )}
+
+                                {/* Error */}
+                                {errorMsg && (
+                                    <div className="absolute top-3 right-3 px-2.5 py-1 bg-red-500/20 border border-red-500/30 rounded-lg">
+                                        <p className="text-xs text-red-300">{errorMsg}</p>
                                     </div>
-                                    {medicationId !== 0 && (
-                                        <button
-                                            onClick={() => handleAutoCapture()}
-                                            className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all hover:scale-110 active:scale-95 pointer-events-auto ${handDetected ? 'bg-primary/20 border-primary text-primary' : 'bg-black/40 border-white/10 text-white/20'
-                                                }`}
-                                            title="Manual Capture Fallback"
-                                        >
-                                            <Camera className="w-6 h-6" />
-                                        </button>
-                                    )}
-                                </div>
+                                )}
                             </div>
 
-                            <div className="space-y-4">
+                            {/* Instructions */}
+                            <div className="text-center">
                                 {medicationId === 0 ? (
-                                    <div className="flex flex-col items-center gap-4">
-                                        <div className="text-accent flex items-center gap-2 animate-pulse font-black">
-                                            <span className="w-3 h-3 bg-accent rounded-full" />
-                                            LIVE CHECKUP ACTIVE
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-center gap-2 text-teal-400">
+                                            <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+                                            <span className="text-sm font-medium">Live session active</span>
                                         </div>
                                         <button
                                             onClick={onClose}
-                                            className="px-10 py-4 bg-red-500 text-white rounded-2xl font-black shadow-xl hover:bg-red-600 transition-all flex items-center gap-2"
+                                            className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-semibold transition-colors"
                                         >
-                                            <Camera className="w-5 h-5" />
-                                            END SESSION
+                                            End Session
                                         </button>
                                     </div>
                                 ) : (
-                                    <>
-                                        <div className="flex items-center justify-center gap-3 text-sm font-bold">
-                                            {handDetected ? (
-                                                <div className="text-primary flex items-center gap-2 animate-pulse">
-                                                    <span className="w-2 h-2 bg-primary rounded-full" />
-                                                    Human Hand Detected
-                                                </div>
-                                            ) : (
-                                                <div className="text-foreground/40 flex items-center gap-2">
-                                                    <span className="w-2 h-2 bg-foreground/20 rounded-full" />
-                                                    Hold bottle in your hand or click icons
-                                                </div>
-                                            )}
-                                        </div>
-                                        <p className="text-xs opacity-50 max-w-xs mx-auto">
-                                            Zero-Trash system prevents false positives.
-                                            <br />Tip: If detection is slow, click the camera icon.
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-white">
+                                            {handDetected ? `Locking in... ${scanProgress}%` : 'Hold your medication up to the camera'}
                                         </p>
-                                    </>
+                                        <p className="text-xs text-slate-500">
+                                            Tap the camera button if auto-detection is slow
+                                        </p>
+                                    </div>
                                 )}
                             </div>
                         </div>
                     )}
 
+                    {/* VERIFYING STEP */}
                     {step === 'verifying' && (
-                        <div className="text-center space-y-8 w-full">
-                            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-4xl animate-spin">
-                                <RefreshCcw className="w-12 h-12 text-primary" />
+                        <div className="py-8 w-full space-y-6 text-center">
+                            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mx-auto">
+                                <RefreshCcw className="w-8 h-8 text-blue-400 animate-spin" />
                             </div>
-                            <div className="space-y-4">
-                                <h3 className="text-xl font-bold">Triple-Validation Protocol</h3>
-                                <div className="grid grid-cols-1 gap-3 max-w-xs mx-auto">
-                                    <div className="flex items-center gap-3 p-3 bg-secondary/5 rounded-2xl border border-card-border animate-in slide-in-from-left duration-300">
-                                        <CheckCircle2 className="w-5 h-5 text-primary" />
-                                        <span className="text-sm font-bold">Hand-Gatekeeper Pass</span>
+                            <div>
+                                <h3 className="text-base font-semibold text-white">Analyzing your medication...</h3>
+                                <p className="text-xs text-slate-400 mt-1">This takes just a moment</p>
+                            </div>
+                            <div className="space-y-2 max-w-xs mx-auto">
+                                {[
+                                    { label: 'Hand detected', done: true },
+                                    { label: 'Identifying medication...', done: false, active: true },
+                                    { label: 'Confirming match...', done: false },
+                                ].map((item, i) => (
+                                    <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border text-sm ${item.done ? 'bg-teal-500/10 border-teal-500/20 text-teal-300' :
+                                            item.active ? 'bg-blue-500/10 border-blue-500/20 text-blue-300' :
+                                                'bg-gray-800/50 border-gray-700/30 text-slate-500'
+                                        }`}>
+                                        {item.done ? (
+                                            <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
+                                        ) : item.active ? (
+                                            <RefreshCcw className="w-4 h-4 animate-spin shrink-0" />
+                                        ) : (
+                                            <div className="w-4 h-4 rounded-full border border-slate-600 shrink-0" />
+                                        )}
+                                        <span className="font-medium">{item.label}</span>
                                     </div>
-                                    <div className="flex items-center gap-3 p-3 bg-secondary/5 rounded-2xl border border-card-border animate-in slide-in-from-left delay-150 duration-300">
-                                        <RefreshCcw className="w-5 h-5 text-primary animate-spin" />
-                                        <span className="text-sm font-bold">YOLO Context Search...</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 p-3 bg-secondary/5 rounded-2xl border border-card-border animate-in slide-in-from-left delay-300 duration-300 opacity-50">
-                                        <Brain className="w-5 h-5 text-primary" />
-                                        <span className="text-sm font-bold">DNA Texture Lock...</span>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         </div>
                     )}
 
+                    {/* RESULT STEP */}
                     {step === 'result' && result && (
-                        <div className="text-center space-y-6 w-full animate-in fade-in zoom-in duration-300">
+                        <div className="py-4 w-full space-y-5 text-center animate-in fade-in duration-300">
                             {result.cognitive_emergency ? (
-                                <div className="space-y-6">
-                                    <div className="w-24 h-24 bg-red-600 text-white rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(220,38,38,0.5)] animate-pulse">
-                                        <AlertTriangle className="w-12 h-12" />
+                                <div className="space-y-4">
+                                    <div className="w-16 h-16 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-center mx-auto">
+                                        <AlertTriangle className="w-8 h-8 text-red-400" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <h3 className="text-3xl font-black text-red-600 uppercase tracking-tighter">Safety Lockdown</h3>
-                                        <p className="text-lg font-bold opacity-80">{result.message || "Unusual activity detected. Access restricted for safety."}</p>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-red-400">Safety Alert</h3>
+                                        <p className="text-sm text-slate-300 mt-1">{result.message || 'Unusual activity detected.'}</p>
                                     </div>
-                                    <div className="p-6 bg-red-50 dark:bg-red-900/10 border border-red-500/20 rounded-3xl text-sm font-medium text-red-700 dark:text-red-400">
-                                        Your caregiver has been notified. Please stay calm and wait for assistance.
+                                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-300">
+                                        Your caregiver has been notified. Please stay calm.
                                     </div>
-                                    <div className="flex flex-col gap-3">
-                                        <button
-                                            onClick={() => window.location.href = '/emergency'}
-                                            className="w-full py-5 bg-red-600 text-white rounded-[24px] font-black text-xl shadow-2xl hover:bg-red-700 transition-all flex items-center justify-center gap-3"
-                                        >
-                                            <AlertCircle className="w-6 h-6" />
-                                            EMERGENCY HELP
+                                    <div className="flex gap-3">
+                                        <button onClick={onClose} className="flex-1 py-3 border border-gray-700 text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors">
+                                            Close
                                         </button>
                                         <button
-                                            onClick={onClose}
-                                            className="w-full py-4 text-foreground/40 font-bold hover:text-foreground transition-colors"
+                                            onClick={() => window.location.href = '/emergency'}
+                                            className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
                                         >
-                                            Close & Reset
+                                            <AlertCircle className="w-4 h-4" />
+                                            Get Help
                                         </button>
                                     </div>
                                 </div>
                             ) : (
-                                <>
-                                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto shadow-2xl ${result.verified ? 'bg-primary text-white' :
-                                        result.message?.includes('PLEASE SHOW LABEL') ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
+                                <div className="space-y-4">
+                                    {/* Result icon */}
+                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto ${result.verified ? 'bg-teal-500/10 border border-teal-500/30' :
+                                            result.message?.includes('PLEASE SHOW LABEL') ? 'bg-yellow-500/10 border border-yellow-500/30' :
+                                                'bg-red-500/10 border border-red-500/30'
                                         }`}>
-                                        {result.verified ? <CheckCircle2 className="w-12 h-12" /> :
-                                            result.message?.includes('PLEASE SHOW LABEL') ? <AlertCircle className="w-12 h-12 animate-pulse" /> : <AlertCircle className="w-12 h-12" />}
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <h3 className={`text-2xl font-black ${result.verified ? 'text-primary' :
-                                            result.message?.includes('PLEASE SHOW LABEL') ? 'text-yellow-500' : 'text-red-500'}`}>
-                                            {result.verified ? 'Verification Confirmed' :
-                                                result.message?.includes('PLEASE SHOW LABEL') ? 'Visual Match Only' : 'Mismatch Detected!'}
-                                        </h3>
-                                        <p className="opacity-70 font-medium">{result.message}</p>
-
-                                        {/* Auto-close countdown for verified medications */}
-                                        {result.verified && autoCloseCountdown !== null && (
-                                            <div className="mt-4 p-4 bg-primary/10 rounded-2xl border border-primary/30 animate-pulse flex items-center justify-center gap-2">
-                                                <CheckCircle2 className="w-5 h-5 text-primary" />
-                                                <p className="text-lg font-black text-primary">
-                                                    Auto-closing in {autoCloseCountdown}...
-                                                </p>
-                                            </div>
+                                        {result.verified ? (
+                                            <CheckCircle2 className="w-8 h-8 text-teal-400" />
+                                        ) : (
+                                            <AlertCircle className={`w-8 h-8 ${result.message?.includes('PLEASE SHOW LABEL') ? 'text-yellow-400' : 'text-red-400'}`} />
                                         )}
                                     </div>
 
-
-                                    <div className="grid grid-cols-2 gap-4 w-full pt-4">
-                                        <div className={`p-4 rounded-2xl border transition-all ${result.verified ? 'bg-primary/5 border-white/5' : 'bg-red-50 dark:bg-red-900/5 border-white/5'
+                                    {/* Result text */}
+                                    <div>
+                                        <h3 className={`text-lg font-bold ${result.verified ? 'text-teal-400' :
+                                                result.message?.includes('PLEASE SHOW LABEL') ? 'text-yellow-400' : 'text-red-400'
                                             }`}>
-                                            <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">DNA Match</p>
-                                            <p className={`text-2xl font-black ${result.verified ? 'text-primary' : 'text-red-500'}`}>
-                                                {Math.round(result.confidence * 100)}%
+                                            {result.verified ? 'Medication Verified' :
+                                                result.message?.includes('PLEASE SHOW LABEL') ? 'Partial Match' : 'Not Matched'}
+                                        </h3>
+                                        <p className="text-sm text-slate-400 mt-1">{result.message}</p>
+                                    </div>
+
+                                    {/* Auto-close countdown */}
+                                    {result.verified && autoCloseCountdown !== null && autoCloseCountdown > 0 && (
+                                        <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-500/10 border border-teal-500/20 rounded-xl">
+                                            <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                                            <p className="text-sm font-medium text-teal-300">
+                                                Closing in {autoCloseCountdown}s...
                                             </p>
                                         </div>
-                                        <div className="p-4 bg-card/50 rounded-2xl border border-white/5">
-                                            <p className="text-[10px] uppercase tracking-widest opacity-50 font-bold">Stage 4 Lock</p>
-                                            <div className="flex flex-col gap-1 mt-1">
-                                                <div className="flex items-center gap-2 text-xs font-bold">
-                                                    <span className={result.details?.layer1_detection ? "text-green-500 flex items-center gap-1" : "text-red-500 flex items-center gap-1"}>
-                                                        {result.details?.layer1_detection ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} Shape
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-xs font-bold">
-                                                    <span className={result.details?.layer2_features ? "text-green-500 flex items-center gap-1" : "text-red-500 flex items-center gap-1"}>
-                                                        {result.details?.layer2_features ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} Texture
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-xs font-bold">
-                                                    <span className={result.details?.layer3_histogram ? "text-green-500 flex items-center gap-1" : "text-red-500 flex items-center gap-1"}>
-                                                        {result.details?.layer3_histogram ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} Color
-                                                    </span>
-                                                </div>
+                                    )}
+
+                                    {/* Stats row */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="p-3 bg-gray-800/60 border border-gray-700/50 rounded-xl text-left">
+                                            <p className="text-xs text-slate-500 mb-1">Match Score</p>
+                                            <p className={`text-xl font-bold ${result.verified ? 'text-teal-400' : 'text-red-400'}`}>
+                                                {(() => {
+                                                    const score = result.confidence;
+                                                    if (score == null || isNaN(score)) return '0';
+                                                    return Math.round(score * 100);
+                                                })()}%
+                                            </p>
+                                        </div>
+                                        <div className="p-3 bg-gray-800/60 border border-gray-700/50 rounded-xl text-left">
+                                            <p className="text-xs text-slate-500 mb-2">Checks</p>
+                                            <div className="space-y-1">
+                                                {[
+                                                    { label: 'Shape', pass: result.details?.layer1_detection },
+                                                    { label: 'Texture', pass: result.details?.layer2_features },
+                                                    { label: 'Color', pass: result.details?.layer3_histogram },
+                                                ].map(check => (
+                                                    <div key={check.label} className="flex items-center gap-1.5 text-xs">
+                                                        {check.pass ? (
+                                                            <CheckCircle2 className="w-3 h-3 text-teal-400" />
+                                                        ) : (
+                                                            <XCircle className="w-3 h-3 text-red-400" />
+                                                        )}
+                                                        <span className={check.pass ? 'text-teal-300' : 'text-red-300'}>{check.label}</span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="pt-6 w-full flex gap-3">
+                                    {/* Action buttons */}
+                                    <div className="flex gap-3 pt-1">
                                         <button
                                             onClick={() => {
                                                 setStep('scanning');
                                                 setScanProgress(0);
                                                 setResult(null);
-                                                setHandDetected(false); // Reset hand detection state
+                                                setHandDetected(false);
                                             }}
-                                            className="flex-1 py-4 border border-white/10 bg-white dark:bg-gray-800/5 rounded-2xl font-bold hover:bg-white dark:bg-gray-800/10 transition-all"
+                                            className="flex-1 py-2.5 border border-gray-700 text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
                                         >
-                                            Retry Radar
+                                            Try Again
                                         </button>
                                         {result.verified && (
                                             <button
                                                 onClick={onVerified}
-                                                className="flex-1 py-4 bg-primary text-white rounded-2xl font-bold shadow-lg hover:bg-primary/80 transition-all"
+                                                className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-sm font-semibold transition-colors"
                                             >
-                                                Seal Dose
+                                                Confirm Taken
                                             </button>
                                         )}
                                     </div>
-                                </>
+                                </div>
                             )}
                         </div>
                     )}
+
                 </div>
-            </div>
+            </motion.div>
             <canvas ref={canvasRef} className="hidden" />
         </div>,
         document.body

@@ -3,6 +3,7 @@
 
 // Skeleton Loaders - For loading states
 export {
+    PageLoader,
     SkeletonDashboard,
     SkeletonCaregiverView,
     SkeletonGraph,

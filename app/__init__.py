@@ -7,6 +7,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_mail import Mail
 from flask_cors import CORS
+from flask_login import current_user
 import os
 from dotenv import load_dotenv
 
@@ -57,7 +58,11 @@ def create_app(config_name=None):
     
     # Exempt API from CSRF protection
     from app.routes.api import api_v1
-    csrf.exempt(api_v1)
+    from app.routes.api.pk import pk_bp
+    from app.routes.telegram import telegram as telegram_bp
+    from app.routes.api.tts import tts_bp
+    for bp in [api_v1, pk_bp, telegram_bp, tts_bp]:
+        csrf.exempt(bp)
     
     mail.init_app(app)
     
@@ -71,7 +76,9 @@ def create_app(config_name=None):
         "http://localhost:3000", 
         "http://localhost:3001",
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001"
+        "http://127.0.0.1:3001",
+        "http://10.177.167.50:3000",
+        "http://10.177.167.50:3001"
     ]
     
     env_origins = os.getenv('CORS_ORIGINS', '')
@@ -114,45 +121,52 @@ def create_app(config_name=None):
     from .routes.api import api_v1  # REST API
     from .routes.health import health  # Health check
     from .routes.safety import safety  # Safety monitoring
+    from .routes.api.pk import pk_bp  # PK Simulations
+    from .routes.api.tts import tts_bp  # Kokoro TTS
     
     # Enable CORS for other key blueprints accessed via API
-    for bp in [analytics, medication, caregiver, interaction, emergency, contacts, prescription, insights, api_v1]:
+    for bp in [analytics, medication, caregiver, interaction, emergency, contacts, prescription, insights, api_v1, pk_bp, telegram, tts_bp]:
         CORS(bp, supports_credentials=True, origins=cors_origins)
     
     app.logger.info("CORS: Initialized with explicit origins and credentials support")
     
     # Initialize SocketIO with proper configuration
     # Production: Uses eventlet async mode with Redis for horizontal scaling
-    # Development: Uses threading mode (no Redis required)
+    # Development:    # Initialize SocketIO with proper configuration
     try:
-        socketio_config = {
-            'cors_allowed_origins': cors_origins if cors_origins != '*' else "*",
-            'logger': True,
-            'engineio_logger': False,
-            'async_mode': 'eventlet',  # Required for Gunicorn eventlet workers
-        }
+        # Flask-SocketIO cors_allowed_origins must be a list of strings or '*'
+        # It does not support regex Pattern objects used by flask-cors
+        socketio_origins = []
+        if cors_origins == '*':
+            socketio_origins = '*'
+        else:
+            for o in (cors_origins if isinstance(cors_origins, list) else []):
+                if isinstance(o, str):
+                    socketio_origins.append(o)
+                # Skip re.Pattern objects as socketio doesn't support them natively here
         
-        # Enable Redis message queue for production horizontal scaling
-        # This allows broadcasting events across multiple container instances
-        message_queue = app.config.get('SOCKETIO_MESSAGE_QUEUE')
-        if message_queue and message_queue.startswith('redis://'):
-            socketio_config['message_queue'] = message_queue
-            app.logger.info(f'SocketIO will use Redis message queue: {message_queue}')
-        
-        socketio.init_app(app, **socketio_config)
-        app.logger.info('SocketIO initialized successfully (eventlet mode)')
+        app.logger.info(f"SocketIO: Initializing with sanitized origins: {socketio_origins}")
+        socketio.init_app(app, 
+            cors_allowed_origins=socketio_origins,
+            logger=True, 
+            engineio_logger=True,
+            async_mode='eventlet'
+        )
+        app.logger.info('✅ SocketIO initialized successfully (eventlet mode)')
         
         # Register SocketIO event handlers for real-time detection
         from app import socket_events
         socket_events.register_handlers(socketio)
-        app.logger.info('SocketIO event handlers registered')
+        app.logger.info('✅ SocketIO event handlers registered')
         
         # Register camera sharing events
         from app.services.camera_share import register_camera_events
         register_camera_events(socketio)
-        app.logger.info('Camera sharing events registered')
+        app.logger.info('✅ Camera sharing events registered')
     except Exception as e:
-        app.logger.warning(f'SocketIO initialization failed: {e}. Real-time features disabled.')
+        app.logger.error(f'❌ SocketIO initialization failed: {e}')
+        import traceback
+        app.logger.error(traceback.format_exc())
         # SocketIO is optional - app can work without it
     
     # Initialize rate limiter
@@ -208,6 +222,8 @@ def create_app(config_name=None):
         app.logger.info('Debug routes enabled (development mode)')
     app.register_blueprint(health, url_prefix='/health')  # Health check endpoints
     app.register_blueprint(safety, url_prefix='/safety')  # Safety monitoring (fall detection, etc.)
+    app.register_blueprint(pk_bp, url_prefix='/api/v1')  # PK Simulations
+    app.register_blueprint(tts_bp, url_prefix='/api/v1')  # Kokoro TTS
     
     # Import all models to register with SQLAlchemy
     from .models.auth import User
@@ -320,8 +336,8 @@ def create_app(config_name=None):
             print('ERROR: seed_db is disabled in production mode.')
             return
         
-        # Generate secure random passwords for demo accounts
-        demo_password = secrets.token_urlsafe(16)
+        # Use a fixed password for demo accounts in development for easier testing
+        demo_password = 'MedGuardian123'
         
         # Create sample users if they don't exist
         if not User.query.filter_by(username='testsenior').first():

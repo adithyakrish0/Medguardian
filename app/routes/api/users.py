@@ -10,6 +10,9 @@ from . import api_v1
 def get_current_user():
     """Get current user profile"""
     try:
+        if not current_user.is_authenticated:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
         user_data = current_user.to_dict()
         user_data.pop('password_hash', None)
         return jsonify({
@@ -18,6 +21,12 @@ def get_current_user():
         }), 200
         
     except Exception as e:
+        import traceback
+        import sys
+        print(f"❌ Error in get_current_user: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        current_app.logger.error(f"❌ Error in get_current_user: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'error': str(e)
@@ -64,6 +73,9 @@ def get_user_by_id(user_id):
             'data': user_data
         }), 200
     except Exception as e:
+        import traceback
+        current_app.logger.error(f"❌ Error in get_fleet_telemetry_api: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

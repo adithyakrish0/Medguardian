@@ -28,7 +28,7 @@ import {
 } from '@/lib/api/interactions';
 import InteractionGraph from '@/components/InteractionGraph';
 
-import { SkeletonDashboard } from '@/components/ui/SkeletonLoaders';
+import { PageLoader } from '@/components/ui/SkeletonLoaders';
 
 import { SeniorOnly } from '@/components/RoleGuard';
 
@@ -65,15 +65,7 @@ export default function InteractionsPage() {
     }, [userLoading, fetchData]);
 
     if (userLoading || loading) {
-        return (
-            <div className="space-y-8 py-4">
-                <header className="space-y-2">
-                    <div className="h-12 bg-white dark:bg-gray-800/5 rounded-full w-64 animate-pulse" />
-                    <div className="h-4 bg-white dark:bg-gray-800/5 rounded-full w-48 animate-pulse" />
-                </header>
-                <SkeletonDashboard />
-            </div>
-        );
+        return <PageLoader message="Loading drug data..." />;
     }
 
     if (error) {

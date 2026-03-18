@@ -2,10 +2,11 @@
 from app.extensions import db
 from datetime import datetime
 
-class MedicationLog(db.Model):
+from app.models.base import BaseModel
+
+class MedicationLog(BaseModel):
     __tablename__ = 'medication_log'
     
-    id = db.Column(db.Integer, primary_key=True)
     medication_id = db.Column(db.Integer, db.ForeignKey('medication.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     

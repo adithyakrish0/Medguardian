@@ -63,7 +63,8 @@ htmlcov/
 *.bin
 *.safetensors
 *.onnx
-yolov5*.pt
+*.weights
+yolov*.pt
 backend/models/saved/
 backend/__pycache__/
 frontend/node_modules/
@@ -73,3 +74,4 @@ backend/venv/
 yolov8s-worldv2.pt
 chromadb_archive.zip
 /backend/models/saved/llama-medguardian/
+/backend/models/saved/*

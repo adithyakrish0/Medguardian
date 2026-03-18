@@ -263,10 +263,7 @@ class AnomalyDetector:
         if not new_sensitivity:
             return False
         
-        baseline.sensitivity = new_sensitivity
-        self._save_baseline(baseline)
-        logger.info(f"Updated sensitivity for patient {patient_id} to {sensitivity}")
-        return True
+            return True
     
     def detect(self, patient_id: int, recent_logs: List[Dict]) -> AnomalyResult:
         """

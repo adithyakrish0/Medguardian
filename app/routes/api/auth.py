@@ -59,6 +59,9 @@ def api_login():
             }
         }), 200
     except Exception as e:
+        import traceback, sys
+        print(f"❌ Login error: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         current_app.logger.error(f"Login error: {e}")
         current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'message': 'Login failed', 'error': str(e)}), 500

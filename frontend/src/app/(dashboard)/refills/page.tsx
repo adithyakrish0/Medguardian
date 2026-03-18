@@ -29,7 +29,7 @@ import {
     formatConfidenceInterval
 } from '@/lib/api/refills';
 
-import { SkeletonDashboard } from '@/components/ui/SkeletonLoaders';
+import { PageLoader } from '@/components/ui/SkeletonLoaders';
 import { PageTransition } from '@/components/animations/PageTransition';
 
 export default function RefillsPage() {
@@ -128,13 +128,7 @@ export default function RefillsPage() {
     if (loading && !predictions) {
         return (
             <PageTransition>
-                <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 p-6 space-y-8">
-                    <header className="space-y-4">
-                        <div className="h-4 bg-white dark:bg-gray-800/5 rounded-full w-24 animate-pulse" />
-                        <div className="h-10 bg-white dark:bg-gray-800/10 rounded-full w-64 animate-pulse" />
-                    </header>
-                    <SkeletonDashboard />
-                </div>
+                <PageLoader message="Loading refill data..." />
             </PageTransition>
         );
     }

@@ -1,25 +1,29 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiFetch } from '@/lib/api';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import {
-    Shield,
-    Activity,
-    AlertTriangle,
-    CheckCircle2,
-    TrendingUp,
-    RefreshCw,
-    Search,
-    Filter,
-    ChevronRight,
-    ArrowRight,
-    ChevronLeft,
-    ShieldX
+    Shield, Activity, AlertTriangle, CheckCircle2,
+    TrendingUp, RefreshCw, Search, ChevronLeft,
+    ArrowRight, ShieldX, Users, Clock
 } from 'lucide-react';
 import { useUser } from '@/hooks/useUser';
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import { useRouter } from 'next/navigation';
+
+// ─── Design tokens ────────────────────────────────────────
+const T = {
+    bg:       '#070c14',
+    surface:  '#0d1525',
+    card:     '#0f1c2e',
+    cardHi:   '#122035',
+    border:   '#182338',
+    borderHi: '#1f2e47',
+    text:     '#e2e8f0',
+    muted:    '#4a607a',
+    faint:    '#0a1628',
+};
 
 interface TelemetryPoint {
     senior_id: number;
@@ -27,259 +31,322 @@ interface TelemetryPoint {
     risk_score: number;
     status: 'Stable' | 'Attention' | 'Critical';
     sparkline: number[];
-    heatmap: Array<{
-        time: string;
-        hour: number;
-        status: 'taken' | 'missed' | 'upcoming';
-        med_name: string;
-    }>;
+    heatmap: Array<{ time: string; hour: number; status: 'taken' | 'missed' | 'upcoming'; med_name: string }>;
     last_updated: string;
 }
 
+const statusConfig = {
+    Stable:    { color: '#22c55e', bg: '#0a1f0a', border: '#22c55e22', label: 'Stable' },
+    Attention: { color: '#f59e0b', bg: '#1a1100', border: '#f59e0b22', label: 'Needs attention' },
+    Critical:  { color: '#ef4444', bg: '#1f0a0a', border: '#ef444422', label: 'Critical' },
+};
+
+const cardVariants: Variants = {
+    hidden: { opacity: 0, y: 12 },
+    visible: (i: number) => ({
+        opacity: 1,
+        y: 0,
+        transition: {
+            delay: i * 0.06,
+            duration: 0.32,
+            ease: 'easeOut'
+        }
+    }),
+};
+
 export default function WarRoomPage() {
     const { user, loading: userLoading } = useUser();
-    const [data, setData] = useState<TelemetryPoint[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [data, setData]           = useState<TelemetryPoint[]>([]);
+    const [loading, setLoading]     = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
     const router = useRouter();
 
     const fetchTelemetry = useCallback(async () => {
         try {
             setLoading(true);
             const res = await apiFetch('/caregiver/telemetry-fleet');
-            if (res.success && res.data) {
-                setData(res.data);
-            } else {
-                setData([]);
-            }
-        } catch (err) {
-            console.error('Failed to fetch fleet telemetry:', err);
-        } finally {
-            setLoading(false);
-        }
+            if (res.success && res.data) { setData(res.data); setLastRefresh(new Date()); }
+            else setData([]);
+        } catch { /* silent */ }
+        finally { setLoading(false); }
     }, []);
 
     useEffect(() => {
         fetchTelemetry();
-        const interval = setInterval(fetchTelemetry, 30000); // Auto refresh every 30s
-        return () => clearInterval(interval);
+        const t = setInterval(fetchTelemetry, 30000);
+        return () => clearInterval(t);
     }, [fetchTelemetry]);
 
-    const filteredData = (data || []).filter(s =>
+    const filtered = (data || []).filter(s =>
         s.senior_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'Critical': return 'text-red-500 border-red-500/30 bg-red-500/10';
-            case 'Attention': return 'text-amber-500 border-amber-500/30 bg-amber-500/10';
-            default: return 'text-teal-400 border-teal-500/30 bg-teal-500/10';
-        }
-    };
+    const stable   = filtered.filter(s => s.status === 'Stable').length;
+    const attn     = filtered.filter(s => s.status === 'Attention').length;
+    const critical = filtered.filter(s => s.status === 'Critical').length;
 
-    if (!userLoading && user?.role !== 'caregiver') {
-        return (
-            <div className="text-center py-24 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md shadow-2xl">
-                <ShieldX className="mx-auto h-20 w-20 text-slate-700 mb-8" />
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">SECURITY_PROTOCOL_VIOLATION</h2>
-                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-4">Restricted access: CAREGIVER_LEVEL_REQUIRED</p>
-                <button
-                    onClick={() => router.push('/dashboard')}
-                    className="mt-10 px-8 py-3 bg-white/5 border border-white/10 hover:bg-white hover:text-slate-950 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
-                >
-                    ABORT_COMMAND_AND_RETURN
-                </button>
+    // Access guard
+    if (!userLoading && user?.role !== 'caregiver') return (
+        <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-2"
+                style={{ background: '#1f0a0a', border: '1px solid #ef444422' }}>
+                <ShieldX className="w-6 h-6" style={{ color: '#ef4444' }} />
             </div>
-        );
-    }
+            <p className="text-[16px] font-semibold" style={{ color: T.text }}>Access restricted</p>
+            <p className="text-[13px]" style={{ color: T.muted }}>This page is only available to caregivers.</p>
+            <button onClick={() => router.push('/dashboard')}
+                className="mt-2 px-5 py-2.5 rounded-[10px] text-[13px] font-medium transition-colors"
+                style={{ background: T.surface, color: T.muted, border: `1px solid ${T.border}` }}>
+                Back to Dashboard
+            </button>
+        </div>
+    );
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8 pb-20 pt-16 lg:pt-0">
-            {/* Header Area */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative">
-                <div className="relative">
-                    <button
-                        onClick={() => router.back()}
-                        className="flex items-center gap-2 text-[10px] font-black text-slate-500 hover:text-blue-400 transition-all mb-4 group uppercase tracking-[0.2em]"
-                    >
-                        <ChevronLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
-                        EXIT_WAR_ROOM
+        <div className="max-w-5xl mx-auto pb-20 space-y-7">
+
+            {/* ── Header ── */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 pt-2">
+                <div>
+                    <button onClick={() => router.back()}
+                        className="inline-flex items-center gap-1.5 text-[12px] font-medium mb-5 transition-colors group"
+                        style={{ color: T.muted }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#94a3b8')}
+                        onMouseLeave={e => (e.currentTarget.style.color = T.muted)}>
+                        <ChevronLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                        Back
                     </button>
-                    <div className="absolute -left-4 bottom-0 w-1 h-12 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-                        STRATEGIC_COMMAND_WAR_ROOM <span className="text-blue-400 not-italic">v5.0</span>
+                    <h1 className="text-[26px] font-semibold tracking-[-0.4px]" style={{ color: T.text }}>
+                        Patient Monitor
                     </h1>
-                    <p className="text-[10px] font-black tracking-[0.3em] text-slate-500 uppercase">
-                        FLEET_STATUS: <span className="text-teal-400 font-black">MONITORING_ACTIVE</span>
+                    <p className="text-[13px] mt-1 flex items-center gap-2" style={{ color: T.muted }}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                        Live · Updates every 30s · Last synced {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="relative group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                <div className="flex items-center gap-3">
+                    {/* Search */}
+                    <div className="relative">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: T.muted }} />
                         <input
                             type="text"
-                            placeholder="SEARCH_FLEET_PATIENTS..."
+                            placeholder="Search patients…"
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3.5 text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all min-w-[280px] backdrop-blur-md shadow-xl"
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="pl-9 pr-4 py-2.5 rounded-[10px] text-[13px] font-normal focus:outline-none transition-all w-56"
+                            style={{
+                                background: T.surface,
+                                border: `1px solid ${T.border}`,
+                                color: T.text,
+                            }}
+                            onFocus={e => (e.currentTarget.style.borderColor = '#2563eb50')}
+                            onBlur={e => (e.currentTarget.style.borderColor = T.border)}
                         />
                     </div>
-                    <button
-                        onClick={fetchTelemetry}
-                        className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:bg-white hover:text-slate-950 transition-all active:scale-95 group shadow-xl"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+                    {/* Refresh */}
+                    <button onClick={fetchTelemetry}
+                        className="w-10 h-10 flex items-center justify-center rounded-[10px] transition-colors"
+                        style={{ background: T.surface, border: `1px solid ${T.border}`, color: T.muted }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = T.borderHi; (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = T.border; (e.currentTarget as HTMLElement).style.color = T.muted; }}>
+                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
             </div>
 
+            {/* ── Summary strip ── */}
+            {!loading && filtered.length > 0 && (
+                <div className="grid grid-cols-3 gap-3">
+                    {[
+                        { label: 'Stable',          value: stable,   color: '#22c55e', bg: '#0a1f0a' },
+                        { label: 'Needs attention', value: attn,     color: '#f59e0b', bg: '#1a1100' },
+                        { label: 'Critical',        value: critical, color: '#ef4444', bg: '#1f0a0a' },
+                    ].map(s => (
+                        <div key={s.label} className="rounded-xl px-4 py-3.5 flex items-center gap-3"
+                            style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+                            <div>
+                                <p className="text-[20px] font-semibold leading-none" style={{ color: T.text }}>{s.value}</p>
+                                <p className="text-[11px] mt-0.5" style={{ color: T.muted }}>{s.label}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* ── Loading ── */}
             {loading && data.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-40 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md shadow-2xl">
-                    <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 mt-10 animate-pulse">INITIATING_TELEMETRY_UPLINK...</p>
+                <div className="flex flex-col items-center justify-center py-40 rounded-2xl gap-4"
+                    style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+                    <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                    <p className="text-[13px]" style={{ color: T.muted }}>Loading patient data…</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <AnimatePresence mode="popLayout">
-                        {filteredData.map((senior, idx) => (
-                            <motion.div
-                                key={senior.senior_id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.05 }}
-                                className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-md shadow-2xl hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden group border-r-[4px] border-r-blue-500/30"
-                                onClick={() => router.push(`/dashboard?senior_id=${senior.senior_id}`)}
-                            >
-                                <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/5 rounded-full -mr-24 -mt-24 blur-[80px] pointer-events-none group-hover:bg-blue-500/10 transition-colors" />
+                        {filtered.map((senior, idx) => {
+                            const sc = statusConfig[senior.status] ?? statusConfig.Stable;
+                            const safeRisk = Math.min(100, Math.max(0, senior.risk_score));
 
-                                <div className="flex items-start justify-between mb-10 relative z-10">
-                                    <div className="flex items-center gap-6">
-                                        <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-2xl text-blue-400 shadow-inner backdrop-blur-sm group-hover:scale-110 transition-transform">
-                                            {senior.senior_name.slice(0, 2).toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <h3 className="text-xl font-black text-white uppercase tracking-tighter italic group-hover:text-blue-400 transition-colors">{senior.senior_name}</h3>
-                                            <div className={`mt-2 inline-flex items-center gap-2.5 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest shadow-sm ${getStatusColor(senior.status)}`}>
-                                                <div className={`w-1.5 h-1.5 rounded-full ${senior.status === 'Critical' ? 'bg-red-500 animate-pulse' : senior.status === 'Attention' ? 'bg-amber-400' : 'bg-teal-400'}`} />
-                                                {senior.status}_PRIORITY
+                            return (
+                                <motion.div
+                                    key={senior.senior_id}
+                                    custom={idx}
+                                    initial="hidden"
+                                    animate="visible"
+                                    variants={cardVariants}
+                                    onClick={() => router.push(`/dashboard?senior_id=${senior.senior_id}`)}
+                                    className="rounded-xl flex flex-col gap-5 p-5 cursor-pointer group transition-colors"
+                                    style={{
+                                        background: T.card,
+                                        border: `1px solid ${T.border}`,
+                                        borderLeft: `2px solid ${sc.color}`,
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = T.cardHi)}
+                                    onMouseLeave={e => (e.currentTarget.style.background = T.card)}
+                                >
+                                    {/* ── Card header ── */}
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {/* Avatar */}
+                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-semibold shrink-0"
+                                                style={{ background: T.faint, color: '#3b82f6', border: `1px solid ${T.borderHi}` }}>
+                                                {senior.senior_name.slice(0, 2).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="text-[15px] font-medium" style={{ color: T.text }}>{senior.senior_name}</p>
+                                                {/* Status badge */}
+                                                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md mt-1"
+                                                    style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+                                                    <span className="w-1.5 h-1.5 rounded-full"
+                                                        style={{ background: sc.color, animation: senior.status === 'Critical' ? 'pulse 1.5s infinite' : 'none' }} />
+                                                    {sc.label}
+                                                </span>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1.5">RISK_SCORE_INDEX</p>
-                                        <div className="flex items-baseline justify-end gap-1">
-                                            <p className={`text-5xl font-black italic tracking-tighter ${senior.risk_score > 100 ? 'text-red-500' : senior.risk_score > 40 ? 'text-amber-500' : 'text-blue-400'}`}>
-                                                {senior.risk_score}
-                                            </p>
-                                            <span className="text-[10px] font-black text-slate-600 italic">vRI</span>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                {/* Monitoring Cluster */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-black/40 rounded-2xl p-6 border border-white/5 relative z-10 group-hover:bg-black/60 transition-colors shadow-inner">
-                                    {/* Adherence Insight */}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 flex items-center gap-2">
-                                                <TrendingUp className="w-3 h-3 text-blue-500" />
-                                                7D_ADHERENCE_VECTOR
+                                        {/* Risk score */}
+                                        <div className="text-right">
+                                            <p className="text-[11px] mb-1" style={{ color: T.muted }}>Risk score</p>
+                                            <p className="text-[28px] font-semibold leading-none tracking-[-0.5px]"
+                                                style={{ color: safeRisk > 70 ? '#ef4444' : safeRisk > 40 ? '#f59e0b' : '#22c55e' }}>
+                                                {safeRisk}
                                             </p>
-                                            <span className="text-[8px] font-black text-slate-700">INF_STABLE</span>
-                                        </div>
-                                        <div className="h-20 w-full relative">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart data={senior.sparkline.map((val, i) => ({ val, i }))}>
-                                                    <YAxis hide domain={[0, 100]} />
-                                                    <Line
-                                                        type="monotone"
-                                                        dataKey="val"
-                                                        stroke={senior.status === 'Critical' ? '#ef4444' : '#60a5fa'}
-                                                        strokeWidth={4}
-                                                        dot={false}
-                                                        isAnimationActive={true}
-                                                    />
-                                                </LineChart>
-                                            </ResponsiveContainer>
                                         </div>
                                     </div>
 
-                                    {/* Pulse Field */}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 flex items-center gap-2">
-                                                <Activity className="w-3 h-3 text-teal-400" />
-                                                24H_DOSE_TOPOLOGY
+                                    {/* ── Charts row ── */}
+                                    <div className="grid grid-cols-2 gap-3">
+
+                                        {/* Sparkline */}
+                                        <div className="rounded-xl p-3"
+                                            style={{ background: T.faint, border: `1px solid ${T.border}` }}>
+                                            <p className="text-[11px] font-medium mb-2 flex items-center gap-1.5"
+                                                style={{ color: T.muted }}>
+                                                <TrendingUp className="w-3 h-3" /> 7-day adherence
                                             </p>
-                                            <span className="text-[8px] font-black text-slate-700">T_DOMAIN_LIVE</span>
+                                            <div className="h-14">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <LineChart data={senior.sparkline.map((v, i) => ({ v, i }))}>
+                                                        <YAxis hide domain={[0, 100]} />
+                                                        <Line
+                                                            type="monotone"
+                                                            dataKey="v"
+                                                            stroke={senior.status === 'Critical' ? '#ef4444' : '#3b82f6'}
+                                                            strokeWidth={2}
+                                                            dot={false}
+                                                            isAnimationActive
+                                                        />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            </div>
                                         </div>
-                                        <div className="flex gap-1.5 h-16">
-                                            {senior.heatmap.length > 0 ? (
-                                                senior.heatmap.map((dose, i) => (
-                                                    <div
-                                                        key={i}
-                                                        className={`flex-1 rounded-lg border backdrop-blur-md transition-all group/dose relative ${dose.status === 'taken' ? 'bg-teal-500/40 border-teal-500/30' :
-                                                            dose.status === 'missed' ? 'bg-red-500/40 border-red-500/30' :
-                                                                'bg-white/5 border-white/10'
-                                                            }`}
-                                                    >
-                                                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/dose:opacity-100 transition-opacity rounded-lg" />
+
+                                        {/* Dose heatmap */}
+                                        <div className="rounded-xl p-3"
+                                            style={{ background: T.faint, border: `1px solid ${T.border}` }}>
+                                            <p className="text-[11px] font-medium mb-2 flex items-center gap-1.5"
+                                                style={{ color: T.muted }}>
+                                                <Activity className="w-3 h-3" /> Today's doses
+                                            </p>
+                                            <div className="flex gap-1 h-14 items-end">
+                                                {senior.heatmap.length > 0 ? (
+                                                    senior.heatmap.map((dose, i) => (
+                                                        <div key={i} title={`${dose.med_name} · ${dose.time}`}
+                                                            className="flex-1 rounded-sm transition-opacity hover:opacity-80"
+                                                            style={{
+                                                                height: '100%',
+                                                                background:
+                                                                    dose.status === 'taken'    ? '#22c55e30' :
+                                                                    dose.status === 'missed'   ? '#ef444430' :
+                                                                    '#1e2d3d',
+                                                                border: `1px solid ${
+                                                                    dose.status === 'taken'    ? '#22c55e20' :
+                                                                    dose.status === 'missed'   ? '#ef444420' :
+                                                                    T.border
+                                                                }`,
+                                                            }} />
+                                                    ))
+                                                ) : (
+                                                    <div className="flex-1 flex items-center justify-center rounded-lg"
+                                                        style={{ border: `1px dashed ${T.border}` }}>
+                                                        <span className="text-[11px]" style={{ color: T.muted }}>No data</span>
                                                     </div>
-                                                ))
-                                            ) : (
-                                                <div className="flex-1 rounded-xl bg-white/5 flex items-center justify-center border border-dashed border-white/10">
-                                                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-700 italic">EMPTY_SET</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="mt-10 flex items-center justify-between relative z-10 px-1">
-                                    <div className="flex items-center gap-8">
-                                        <div className="flex flex-col">
-                                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 mb-1">TELEMETRY_FEED</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                                                <span className="text-[10px] font-black text-white italic tracking-widest uppercase">NODE_ACTIVE</span>
+                                                )}
                                             </div>
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 mb-1">LAST_SYNC_EVENT</span>
-                                            <span className="text-[10px] font-black text-slate-400 italic bg-white/5 px-2 py-0.5 rounded border border-white/5">
-                                                {new Date(senior.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                    </div>
+
+                                    {/* ── Card footer ── */}
+                                    <div className="flex items-center justify-between pt-1">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                            <span className="text-[11px]" style={{ color: T.muted }}>
+                                                Updated {new Date(senior.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
+                                        <div className="flex items-center gap-1.5 text-[12px] font-medium transition-colors"
+                                            style={{ color: T.muted }}
+                                            onMouseEnter={e => (e.currentTarget.style.color = '#3b82f6')}
+                                            onMouseLeave={e => (e.currentTarget.style.color = T.muted)}>
+                                            View details
+                                            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                                        </div>
                                     </div>
-                                    <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
-                                        <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
-
-                                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </motion.div>
-                        ))}
+                                </motion.div>
+                            );
+                        })}
                     </AnimatePresence>
                 </div>
             )}
 
-            {filteredData.length === 0 && !loading && (
-                <div className="text-center py-40 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-amber-500/5 rounded-full blur-[60px]" />
-                    <AlertTriangle className="w-20 h-20 text-slate-800 mx-auto mb-10" />
-                    <h3 className="text-3xl font-black text-slate-300 uppercase tracking-tighter italic">ZERO_NODES_FOUND</h3>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-6 max-w-xs mx-auto leading-relaxed">
-                        The current search parameter identifies no active nodes in the monitor fleet.
+            {/* ── Empty state ── */}
+            {filtered.length === 0 && !loading && (
+                <div className="flex flex-col items-center justify-center py-24 rounded-2xl gap-3 text-center"
+                    style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-1"
+                        style={{ background: T.faint, border: `1px solid ${T.border}` }}>
+                        <Users className="w-5 h-5" style={{ color: T.muted }} />
+                    </div>
+                    <p className="text-[15px] font-medium" style={{ color: T.text }}>
+                        {searchTerm ? 'No patients match your search' : 'No patients connected yet'}
                     </p>
-                    <button
-                        onClick={() => setSearchTerm('')}
-                        className="mt-10 px-6 py-2 border border-blue-500/30 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all shadow-lg shadow-blue-500/10"
-                    >
-                        CLEAR_FILTER_INDEX
-                    </button>
+                    <p className="text-[13px]" style={{ color: T.muted }}>
+                        {searchTerm ? 'Try a different name.' : 'Connect a patient from the My Patients page.'}
+                    </p>
+                    {searchTerm && (
+                        <button onClick={() => setSearchTerm('')}
+                            className="mt-2 px-4 py-2 rounded-[9px] text-[13px] font-medium transition-colors"
+                            style={{ background: T.faint, color: '#3b82f6', border: `1px solid ${T.border}` }}>
+                            Clear search
+                        </button>
+                    )}
                 </div>
             )}
+
+            <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
         </div>
     );
 }

@@ -58,6 +58,9 @@ def get_seniors():
             'data': seniors_data
         }), 200
     except Exception as e:
+        import traceback, sys
+        print(f"❌ get_seniors error: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         current_app.logger.error(f"❌ [CAREGIVER] Critical error in get_seniors: {str(e)}")
         current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -452,4 +455,7 @@ def get_fleet_telemetry_api():
             'data': data
         })
     except Exception as e:
+        import traceback
+        current_app.logger.error(f"❌ Error in get_fleet_telemetry_api: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500

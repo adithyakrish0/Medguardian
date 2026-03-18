@@ -1,7 +1,7 @@
 "use client";
 
-import { SkeletonCaregiverView } from "@/components/ui/SkeletonLoaders";
+import { PageLoader } from "@/components/ui/SkeletonLoaders";
 
 export default function CaregiverLoading() {
-    return <SkeletonCaregiverView />;
+    return <PageLoader message="Loading patient overview..." />;
 }

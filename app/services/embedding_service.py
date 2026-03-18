@@ -61,6 +61,7 @@ class EmbeddingService:
     def extract_embedding(self, image_base64: str) -> list:
         """Extract a 128-d metric embedding from a base64 image."""
         if not self.available:
+            logger.warning("[EMBED] Embedding service not available yet (model loading async)")
             return None
             
         try:
@@ -77,6 +78,7 @@ class EmbeddingService:
             
             # Flatten to list (128 dimensions)
             embedding = features.squeeze().numpy().tolist()
+            logger.info(f"[EMBED] Extracted embedding: dim={len(embedding)}, norm={np.linalg.norm(embedding):.4f}")
             return embedding
         except Exception as e:
             logger.error(f"Embedding extraction failed: {e}")
@@ -86,18 +88,28 @@ class EmbeddingService:
     def cosine_similarity(v1, v2):
         """Calculate cosine similarity between two feature vectors."""
         if v1 is None or v2 is None:
+            logger.warning(f"[EMBED] cosine_similarity called with None: v1={v1 is not None}, v2={v2 is not None}")
             return 0.0
-        vec1 = np.array(v1)
-        vec2 = np.array(v2)
+        vec1 = np.array(v1, dtype=np.float64)
+        vec2 = np.array(v2, dtype=np.float64)
         
         norm1 = np.linalg.norm(vec1)
         norm2 = np.linalg.norm(vec2)
         
-        if norm1 < 1e-6 or norm2 < 1e-6:
+        if norm1 < 1e-8 or norm2 < 1e-8:
             return 0.0
-            
-        sim = np.dot(vec1, vec2) / (norm1 * norm2)
-        return float(sim)
+        
+        # Normalize then dot product
+        vec1 = vec1 / norm1
+        vec2 = vec2 / norm2
+        sim = float(np.dot(vec1, vec2))
+        
+        # Clamp to valid range and guard against NaN
+        if np.isnan(sim) or np.isinf(sim):
+            logger.warning(f"[EMBED] NaN/Inf similarity detected, returning 0.0")
+            return 0.0
+        sim = max(0.0, min(1.0, sim))
+        return sim
 
 # Singleton
 embedding_service = EmbeddingService()
