@@ -64,9 +64,37 @@ function MenuBtn({ icon, label, color, onClick }: { icon: React.ReactNode; label
     );
 }
 
+// ─── Helper to get display times from a medication object ──
+function getMedicationTimes(med: any): string[] {
+    const times: string[] = [];
+    if (med.morning) times.push('8:00 AM');
+    if (med.afternoon) times.push('2:00 PM');
+    if (med.evening) times.push('6:00 PM');
+    if (med.night) times.push('9:00 PM');
+
+    if (med.custom_reminder_times) {
+        try {
+            const custom = typeof med.custom_reminder_times === 'string'
+                ? JSON.parse(med.custom_reminder_times)
+                : med.custom_reminder_times;
+            if (Array.isArray(custom)) {
+                custom.forEach((t: string) => {
+                    const [h, m] = t.split(':').map(Number);
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    const hour = h % 12 || 12;
+                    times.push(`${hour}:${m.toString().padStart(2, '0')} ${ampm}`);
+                });
+            }
+        } catch { }
+    }
+    return times;
+}
+
 // ─── Med card row ─────────────────────────────────────────
 function MedRow({ med, i, onVerify, onFeed, onEdit, onDelete, onMenuOpen, isMenuOpen }: any) {
     const high = med.priority === 'high';
+    const times = getMedicationTimes(med);
+
     return (
         <motion.div key={med.id} custom={i} initial="hidden" animate="visible" variants={cv}
             className="rounded-2xl transition-colors group"
@@ -139,7 +167,7 @@ function MedRow({ med, i, onVerify, onFeed, onEdit, onDelete, onMenuOpen, isMenu
                 <div className="flex items-center gap-1.5 mt-2">
                     <Clock className="w-3 h-3" style={{ color: T.muted }} />
                     <span className="text-[11px]" style={{ color: T.muted }}>
-                        {med.scheduled_times?.join(', ') || 'No schedule set'}
+                        {times.length > 0 ? times.join(' · ') : 'No schedule set'}
                     </span>
                 </div>
                 {med.notes && (

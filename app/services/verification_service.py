@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 import logging
 
+
 from app.vision.vision_v2 import vision_v2
 from app.vision.barcode_scanner import BarcodeScanner
 from app.extensions import db
@@ -51,6 +52,12 @@ class VerificationService:
                     'verified': False,
                     'error': 'Medication not found'
                 }
+            
+            print(f"[VERIFY DEBUG] medication_id={medication_id}, name={medication.name}")
+            print(f"[VERIFY DEBUG] has visual_fingerprint: {bool(medication.visual_fingerprint)}")
+            print(f"[VERIFY DEBUG] has histogram_fingerprint: {bool(medication.histogram_fingerprint)}")
+            print(f"[VERIFY DEBUG] has embedding_data: {bool(medication.embedding_data)}")
+            print(f"[VERIFY DEBUG] ai_trained: {medication.ai_trained}")
             
             # ===== TRIPLE-LAYER VERIFICATION ENGINE =====
             # Layer 2: ORB Feature Matching
@@ -119,7 +126,7 @@ class VerificationService:
             # Stage 4: Cognitive Guardrail (Alzheimer's Safety)
             from app.services.cognitive_engine import cognitive_engine
             cognitive_status = cognitive_engine.analyze_interaction(
-                current_user.id if hasattr(current_user, 'id') else None,
+                None,  # user_id not available in service layer
                 medication_id,
                 is_success=is_verified
             )
@@ -148,6 +155,17 @@ class VerificationService:
                 'verified': False,
                 'error': str(e)
             }
+        finally:
+            # CRITICAL: Release PyTorch VRAM and force GC to prevent demo lag
+            try:
+                import gc
+                import torch
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                # logger.debug("Backend: VRAM/GC Cleanup complete")
+            except Exception as e:
+                logger.error(f"Cleanup error: {e}")
     
     def _decode_image(self, image_data: str) -> Optional[np.ndarray]:
         """Decode base64 image data to numpy array"""

@@ -201,7 +201,17 @@ def feed_medication(medication_id):
         data = request.json
         if not data or 'image' not in data:
             return jsonify({'success': False, 'error': 'Image data required'}), 400
-            
+        
+        print(f"[FEED] medication_id={medication_id}, current_user.id={current_user.id}")
+        
+        # Debug: check if medication exists at all (regardless of ownership)
+        from app.models.medication import Medication
+        raw_med = Medication.query.get(medication_id)
+        if not raw_med:
+            print(f"[FEED] ERROR: Medication {medication_id} does not exist in DB at all!")
+        else:
+            print(f"[FEED] Medication {medication_id} found. Owner user_id={raw_med.user_id}, current_user.id={current_user.id}")
+        
         medication = MedicationService.feed_medication(
             medication_id,
             current_user.id,
@@ -209,8 +219,10 @@ def feed_medication(medication_id):
         )
         
         if not medication:
+            print(f"[FEED] feed_medication returned None for med_id={medication_id}, user_id={current_user.id}")
             return jsonify({'success': False, 'error': 'Medication not found or training failed'}), 404
             
+        print(f"[FEED] Training complete for medication {medication_id}")
         return jsonify({
             'success': True,
             'message': 'Neural training complete',
@@ -218,6 +230,8 @@ def feed_medication(medication_id):
         }), 200
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -243,6 +257,9 @@ def mark_medication_taken(medication_id):
         }), 200
         
     except Exception as e:
+        import traceback
+        print(f"[MARK-TAKEN ENDPOINT ERROR] {e}")
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)

@@ -5,6 +5,7 @@ import { AlertCircle, RefreshCcw, Home } from 'lucide-react';
 
 interface Props {
     children: ReactNode;
+    fallback?: string;
 }
 
 interface State {
@@ -39,9 +40,13 @@ export class ErrorBoundary extends Component<Props, State> {
                         </div>
 
                         <div className="space-y-2">
-                            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">System Malfunction</h2>
+                            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">
+                                {this.props.fallback || "System Malfunction"}
+                            </h2>
                             <p className="text-gray-400 text-sm font-medium">
-                                MedGuardian encountered an unexpected UI error. Your data is safe, but this component failed to render.
+                                {this.props.fallback 
+                                    ? "This section failed to load correctly. Please try again or refresh the page."
+                                    : "MedGuardian encountered an unexpected UI error. Your data is safe, but this component failed to render."}
                             </p>
                         </div>
 

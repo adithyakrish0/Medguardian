@@ -82,40 +82,35 @@ def webhook():
         if text.startswith('/start'):
             parts = text.split(' ')
             if len(parts) > 1 and parts[1].startswith('link_'):
-                # Extract user ID from link code
                 try:
-                    user_id = int(parts[1].replace('link_', ''))
-                    
-                    # Find user and link their account
-                    from app.models.auth import User
-                    user = User.query.get(user_id)
-                    
-                    if user:
-                        user.telegram_chat_id = str(chat_id)
-                        db.session.commit()
-                        
-                        telegram_service.send_message(
-                            chat_id,
-                            f"✅ <b>Account Linked!</b>\n\n"
-                            f"Hello {user.username}! Your MedGuardian account is now connected.\n\n"
-                            f"You will receive:\n"
-                            f"• 💊 Medication reminders\n"
-                            f"• 🆘 Emergency SOS alerts\n\n"
-                            f"Commands:\n"
-                            f"/status - Check your medications\n"
-                            f"/help - Get help"
-                        )
-                        return jsonify({'ok': True})
+                    user_id_str = parts[1].replace('link_', '')
+                    user_id = int(user_id_str)
+                    telegram_service._link_user(chat_id, user_id)
+                    return jsonify({'ok': True})
                 except:
                     pass
             
-            # Regular /start without link
+            # Manual /link fallback
             telegram_service.send_message(
                 chat_id,
                 "👋 <b>Welcome to MedGuardian!</b>\n\n"
                 "To receive medication reminders, please link your account through the MedGuardian website.\n\n"
-                "Go to: Settings → Telegram → Link Account"
+                "<b>Option 1:</b> Click 'Connect Bot' in Settings.\n"
+                "<b>Option 2:</b> Type <code>/link YOUR_ID</code> (e.g., <code>/link 17</code>)\n\n"
+                "Go to: Settings → Telegram to find your ID if needed."
             )
+        
+        elif text.startswith('/link'):
+            parts = text.split(' ')
+            try:
+                if len(parts) > 1:
+                    user_id = int(parts[1])
+                    telegram_service._link_user(chat_id, user_id)
+                else:
+                    telegram_service.send_message(chat_id, "❌ Please provide your User ID. Example: <code>/link 17</code>")
+            except:
+                telegram_service.send_message(chat_id, "❌ Invalid User ID format.")
+            return jsonify({'ok': True})
         
         elif text == '/help':
             telegram_service.send_message(
@@ -177,20 +172,21 @@ def poll_updates():
             if text and text.startswith('/start link_'):
                 parts = text.split(' ')
                 if len(parts) > 1:
-                    link_code = parts[1]
-                    user_id = int(link_code.replace('link_', ''))
-                    
-                    from app.models.auth import User
-                    user = User.query.get(user_id)
-                    
-                    if user:
-                        user.telegram_chat_id = str(chat_id)
-                        db.session.commit()
-                        
-                        telegram_service.send_message(
-                            chat_id,
-                            f"✅ Account linked successfully!\nHello {user.username}!"
-                        )
+                    try:
+                        link_code = parts[1]
+                        user_id = int(link_code.replace('link_', ''))
+                        telegram_service._link_user(chat_id, user_id)
+                    except:
+                        pass
+            
+            elif text and text.startswith('/link'):
+                parts = text.split(' ')
+                if len(parts) > 1:
+                    try:
+                        user_id = int(parts[1])
+                        telegram_service._link_user(chat_id, user_id)
+                    except:
+                        pass
         
         return jsonify({'ok': True, 'processed': len(updates)})
         

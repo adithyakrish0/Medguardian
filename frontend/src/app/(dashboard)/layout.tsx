@@ -57,6 +57,8 @@ const seniorNav: NavGroup[] = [
             { label: "Home", href: "/dashboard", icon: LayoutDashboard },
             { label: "Today's Meds", href: "/schedule", icon: Calendar },
             { label: "Guardian AI Chat", href: "/chat", icon: MessageCircle },
+            { label: "Analytics", href: "/analytics", icon: LineChart },
+            { label: "Scan Rx", href: "/prescription-scanner", icon: ScanLine },
         ],
     },
     {
@@ -64,6 +66,7 @@ const seniorNav: NavGroup[] = [
         icon: Shield,
         items: [
             { label: "My Medications", href: "/medications", icon: Pill },
+            { label: "Export Data", href: "/export", icon: Download },
             { label: "Settings", href: "/settings", icon: SettingsIcon },
         ],
     },
@@ -77,6 +80,7 @@ const caregiverNav: NavGroup[] = [
             { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
             { label: "My Seniors", href: "/caregiver", icon: Users },
             { label: "Command Room", href: "/war-room", icon: Activity },
+            { label: "Refill Alerts", href: "/refills", icon: Package },
         ],
     },
     {
@@ -249,15 +253,6 @@ export default function DashboardLayout({
                 </Link>
             </div>
 
-            {/* Collapse toggle */}
-            {!mobile && (
-                <button
-                    onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center hover:bg-blue-600 transition-all z-[60]"
-                >
-                    {isCollapsed ? <ChevronRight className="w-3 h-3 text-slate-400" /> : <ChevronLeft className="w-3 h-3 text-slate-400" />}
-                </button>
-            )}
         </div>
     );
 
@@ -269,9 +264,17 @@ export default function DashboardLayout({
                 initial={false}
                 animate={{ width: isCollapsed ? 80 : 280 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="bg-[#0a0f1a] border-r border-[#1e2535] hidden lg:flex flex-col z-50 sticky top-0 h-screen overflow-hidden"
+                className="bg-[#0a0f1a] border-r border-[#1e2535] hidden lg:flex flex-col z-50 sticky top-0 h-screen relative"
             >
                 <SidebarContent />
+                
+                {/* Collapse toggle */}
+                <button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center hover:bg-blue-600 transition-all z-[60]"
+                >
+                    {isCollapsed ? <ChevronRight className="w-3 h-3 text-slate-400" /> : <ChevronLeft className="w-3 h-3 text-slate-400" />}
+                </button>
             </motion.aside>
 
             {/* Mobile Sidebar Overlay */}

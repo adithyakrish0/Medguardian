@@ -30,7 +30,10 @@ def init_scheduler(app):
             trigger=IntervalTrigger(seconds=interval_seconds),
             id='missed_dose_checker',
             name='Check for missed medication doses',
-            replace_existing=True
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=30
         )
         
         # Job 2: Send real-time reminders every minute
@@ -39,7 +42,10 @@ def init_scheduler(app):
             trigger=IntervalTrigger(seconds=60),
             id='realtime_reminder',
             name='Send real-time medication reminders',
-            replace_existing=True
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=30
         )
         
         # Job 3: Send weekly reports every Sunday at 9 AM
@@ -48,7 +54,10 @@ def init_scheduler(app):
             trigger=CronTrigger(day_of_week='sun', hour=9, minute=0),
             id='weekly_reports',
             name='Send weekly compliance reports to caregivers',
-            replace_existing=True
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=30
         )
         
         # Job 4: Run anomaly detection at 2 AM daily
@@ -57,7 +66,10 @@ def init_scheduler(app):
             trigger=CronTrigger(hour=2, minute=0),
             id='nightly_anomaly_detection',
             name='Nightly adherence anomaly detection',
-            replace_existing=True
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=30
         )
         
         # Job 5: Run refill checks at 3 AM daily
@@ -66,7 +78,10 @@ def init_scheduler(app):
             trigger=CronTrigger(hour=3, minute=0),
             id='nightly_refill_check',
             name='Nightly refill prediction and alerts',
-            replace_existing=True
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=30
         )
     
     scheduler.start()

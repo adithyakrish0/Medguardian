@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import ConnectSeniorModal from '@/components/ConnectSeniorModal';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AdherenceChart from '@/components/AdherenceChart';
@@ -117,7 +118,7 @@ export default function CaregiverPage() {
                             My Patients
                         </h1>
                         <p className="text-[13px] text-slate-500 mt-1">
-                            {seniors.length} patients connected · All monitored
+                            {seniors.length > 0 ? `${seniors.length} patients connected · All monitored` : 'No patients connected yet'}
                         </p>
                     </div>
                 </div>
@@ -171,13 +172,13 @@ export default function CaregiverPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {loading ? (
+                        {loading && seniors.length === 0 ? (
                             <div className="md:col-span-3 py-32 flex flex-col items-center justify-center">
                                 <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
                                 <p className="font-bold opacity-40 animate-pulse uppercase tracking-widest text-[10px]">Loading patient data...</p>
                             </div>
                         ) : (
-                            <>
+                            <ErrorBoundary fallback="Patient Registry Error">
                                 {seniors.map((senior, index) => (
                                     <motion.div
                                         key={senior.id}
@@ -195,7 +196,7 @@ export default function CaregiverPage() {
                                                     <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0d1525] z-20 ${senior.status === 'Critical' ? 'bg-red-500 animate-pulse' : 'bg-teal-400'}`} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-[14px] font-medium text-slate-200 group-hover:text-blue-400 transition-colors uppercase">{senior.name}</h3>
+                                                    <h3 className="text-[14px] font-medium text-slate-200 group-hover:text-blue-400 transition-colors uppercase">{senior.name || 'Unknown Patient'}</h3>
                                                     <p className="text-[11px] text-slate-500">
                                                         {senior.connection_status === 'accepted' ? (senior.role === 'senior' ? 'Senior Patient' : senior.role) : 'Pending Link'}
                                                     </p>
@@ -203,7 +204,7 @@ export default function CaregiverPage() {
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <button
-                                                    onClick={() => handleRemoveSenior(senior.id, senior.name)}
+                                                    onClick={() => handleRemoveSenior(senior.id, senior.name || 'Patient')}
                                                     className="p-2 rounded-lg text-slate-600 hover:text-red-500 transition-all z-20"
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
@@ -232,7 +233,7 @@ export default function CaregiverPage() {
                                                 </div>
                                                 {senior.connection_status === 'accepted' && (
                                                     <div className="h-16 opacity-60">
-                                                        <AdherenceChart data={senior.adherence_history} variant="mini" />
+                                                        <AdherenceChart data={senior.adherence_history ?? []} variant="mini" />
                                                     </div>
                                                 )}
                                             </div>
@@ -241,13 +242,13 @@ export default function CaregiverPage() {
                                                 <div>
                                                     <p className="text-[11px] text-slate-500 font-medium mb-1">Medications</p>
                                                     <p className="text-[13px] font-medium text-white">
-                                                        {senior.connection_status === 'accepted' ? `${senior.medication_count} Active` : 'Locked'}
+                                                        {senior.connection_status === 'accepted' ? `${senior.medication_count ?? 0} Active` : 'Locked'}
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-[11px] text-slate-500 font-medium mb-1">Status</p>
                                                     <p className={`text-[13px] font-medium ${senior.status === 'Critical' ? 'text-red-400' : senior.status === 'Attention' ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                                        {senior.connection_status === 'accepted' ? senior.status : 'Waiting'}
+                                                        {senior.connection_status === 'accepted' ? (senior.status || 'Active') : 'Waiting'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -292,7 +293,7 @@ export default function CaregiverPage() {
                                     <h3 className="text-[14px] font-medium text-slate-500 group-hover:text-blue-400 transition-colors">Add a patient</h3>
                                     <p className="text-[12px] text-slate-600 mt-1 font-normal max-w-[180px]">Connect a senior with a share code</p>
                                 </motion.div>
-                            </>
+                            </ErrorBoundary>
                         )}
                     </div>
                 </div>

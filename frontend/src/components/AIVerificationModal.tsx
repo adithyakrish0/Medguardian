@@ -95,7 +95,15 @@ export default function AIVerificationModal({ medicationId, medicationName, onCl
     useEffect(() => {
         return () => {
             if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
+                console.log("[Camera] AIVerificationModal Unmount: Stopping all tracks");
+                streamRef.current.getTracks().forEach(track => {
+                    track.stop();
+                    console.log("[Camera] Track stopped:", track.kind);
+                });
+                streamRef.current = null;
+            }
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
             }
         };
     }, []);

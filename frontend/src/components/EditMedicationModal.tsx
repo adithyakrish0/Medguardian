@@ -58,7 +58,10 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
             let customTimes: string[] = [];
             if (medication.custom_reminder_times) {
                 try {
-                    customTimes = JSON.parse(medication.custom_reminder_times);
+                    const parsed = JSON.parse(medication.custom_reminder_times);
+                    // Filter out times that correspond to our fixed preset slots
+                    const PRESET_VALS = ['08:00', '8:00', '14:00', '2:00', '18:00', '6:00', '21:00', '9:00'];
+                    customTimes = parsed.filter((t: string) => !PRESET_VALS.includes(t));
                 } catch { customTimes = []; }
             }
 
@@ -182,7 +185,7 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-8">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     {error && (
                         <div className="bg-red-50 dark:bg-red-900/10 text-red-400 px-4 py-3 rounded-lg text-sm font-medium">
                             {error}
@@ -260,7 +263,7 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                         </div>
 
                         {/* Time Slots - No border, subtle backgrounds */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                             {TIME_SLOTS.map(slot => (
                                 <button
                                     key={slot.key}
@@ -282,39 +285,45 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                             ))}
                         </div>
 
-                        {/* Custom Times */}
-                        <div className="flex flex-wrap items-center gap-3 mb-5">
-                            <span className="text-xs text-white/40">Custom:</span>
-                            <input
-                                type="time"
-                                value={newCustomTime}
-                                onChange={(e) => setNewCustomTime(e.target.value)}
-                                className="px-3 py-2 bg-white/5 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary/50"
-                            />
-                            <button
-                                type="button"
-                                onClick={addCustomTime}
-                                disabled={!newCustomTime}
-                                className="px-3 py-2 bg-primary/20 text-primary rounded-lg font-medium text-sm hover:bg-primary/30 transition-all disabled:opacity-30 flex items-center gap-1"
-                            >
-                                <Plus className="w-4 h-4" /> Add
-                            </button>
-                            {formData.custom_reminder_times.map(time => (
-                                <span
-                                    key={time}
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full text-sm text-white/70"
+                        {/* Custom Times & All Active Display */}
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <span className="text-xs text-white/40">Add custom time:</span>
+                                <input
+                                    type="time"
+                                    value={newCustomTime}
+                                    onChange={(e) => setNewCustomTime(e.target.value)}
+                                    className="px-3 py-2 bg-white/5 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary/50"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={addCustomTime}
+                                    disabled={!newCustomTime}
+                                    className="px-3 py-2 bg-primary/20 text-primary rounded-lg font-medium text-sm hover:bg-primary/30 transition-all disabled:opacity-30 flex items-center gap-1"
                                 >
-                                    {time}
-                                    <button
-                                        type="button"
-                                        onClick={() => removeCustomTime(time)}
-                                        className="text-white/30 hover:text-red-400 transition-colors"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </span>
-                            ))}
-                        </div>
+                                    <Plus className="w-4 h-4" /> Add
+                                </button>
+                            </div>
+
+                        {/* Only show chips for ACTUAL custom times */}
+                        {formData.custom_reminder_times.length > 0 && (
+                            <div className="flex flex-wrap gap-2 pt-2">
+                                {formData.custom_reminder_times.map((t, i) => (
+                                    <span key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                                        <Clock className="w-3 h-3 opacity-50" />
+                                        {t}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeCustomTime(t)}
+                                            className="text-white/30 hover:text-red-400 transition-colors ml-0.5"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                         {/* Reminder Toggle */}
                         <div className="flex items-center justify-between py-3 px-4 bg-white/5 rounded-lg">

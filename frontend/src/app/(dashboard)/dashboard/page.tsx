@@ -7,19 +7,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import { useVoiceAlert } from '@/hooks/useVoiceAlert';
 import { apiFetch } from '@/lib/api';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import AIVerificationModal from '@/components/AIVerificationModal';
 import RouteLoader from '@/components/RouteLoader';
 import {
     Activity, Clock, CheckCircle2, AlertCircle, AlertTriangle,
     ArrowRight, Users, Shield, Camera, Loader2,
     Brain, Pill, MessageCircle, Eye, TrendingUp,
-    ChevronRight, Calendar, Star, Zap, Heart
+    ChevronRight, Calendar, Star, Zap, Heart, FlaskConical
 } from 'lucide-react';
 import AdherenceChart from '@/components/AdherenceChart';
 import PhoneSetupModal from '@/components/PhoneSetupModal';
 import { connectSocket } from '@/lib/socket';
 import { useToast } from '@/components/NiceToast';
+import { formatTimeForVoice } from '@/lib/utils';
 
 // ─── Tokens ───────────────────────────────────────────────
 const T = {
@@ -46,7 +47,7 @@ const T = {
 
 const cardV = {
     hidden:  { opacity: 0, y: 14 },
-    visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07, duration: 0.38, ease: 'easeOut' } }),
+    visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07, duration: 0.38, ease: 'easeOut' as const } }),
 };
 
 // ─── Pill icon ───────────────────────────────────────────
@@ -169,6 +170,29 @@ function SeniorDashboardView({ data, user, onRefresh, onRefreshUser, skippingId,
     const [greeting, setGreeting]       = useState('Good morning');
     const { speak }                     = useVoiceAlert();
     const hasSpokenRef                  = useRef(false);
+    const router                        = useRouter();
+
+    const [lastMedPK, setLastMedPK]     = useState<any>(null);
+    const [pkLoading, setPkLoading]     = useState(false);
+
+    useEffect(() => {
+        const fetchLastMedPK = async () => {
+            const taken = data?.schedule?.taken || [];
+            if (taken.length > 0) {
+                const last = taken[taken.length - 1];
+                setPkLoading(true);
+                try {
+                    const r = await apiFetch('/pk/simulate', {
+                        method: 'POST',
+                        body: JSON.stringify({ medication: last.name, dose_mg: last.dosage || '10mg' })
+                    });
+                    if (r.success) setLastMedPK(r.data);
+                } catch { }
+                finally { setPkLoading(false); }
+            }
+        };
+        if (data?.schedule?.taken) fetchLastMedPK();
+    }, [data?.schedule?.taken]);
 
     useEffect(() => {
         const h = new Date().getHours();
@@ -185,8 +209,8 @@ function SeniorDashboardView({ data, user, onRefresh, onRefreshUser, skippingId,
     useEffect(() => {
         if (data?.schedule && !hasSpokenRef.current) {
             hasSpokenRef.current = true;
-            if (overdueMeds.length > 0) speak(`You have ${overdueMeds.length} overdue medication${overdueMeds.length > 1 ? 's' : ''}. ${overdueMeds[0].name} was scheduled at ${overdueMeds[0].scheduled_time}.`);
-            else if (nextMed) speak(`Your next dose is ${nextMed.name} at ${nextMed.time}.`);
+            if (overdueMeds.length > 0) speak(`You have ${overdueMeds.length} overdue medication${overdueMeds.length > 1 ? 's' : ''}. ${overdueMeds[0].name} was scheduled at ${formatTimeForVoice(overdueMeds[0].scheduled_time)}.`);
+            else if (nextMed) speak(`Your next dose is ${nextMed.name} at ${formatTimeForVoice(nextMed.time)}.`);
         }
     }, [data]);
 
@@ -355,6 +379,39 @@ function SeniorDashboardView({ data, user, onRefresh, onRefreshUser, skippingId,
 
             {/* ── Adherence + quick links ── */}
             <div className="grid grid-cols-2 gap-3">
+                {/* Drug Level / PK Card */}
+                <motion.div custom={8} initial="hidden" animate="visible" variants={cardV}
+                    className="rounded-2xl p-5 flex flex-col gap-3"
+                    style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                    <div className="flex items-center justify-between">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                            style={{ background: T.tealDim }}>
+                            <FlaskConical className="w-[18px] h-[18px]" style={{ color: T.teal }} />
+                        </div>
+                        {lastMedPK && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                                style={{ background: T.tealDim, color: T.teal, border: `1px solid ${T.teal}22` }}>
+                                Live
+                            </span>
+                        )}
+                    </div>
+                    <div>
+                        <p className="text-[15px] font-semibold mb-0.5" style={{ color: T.text }}>
+                            {pkLoading ? 'Loading PK stats...' : lastMedPK ? `${lastMedPK.medication} Level` : 'No Recent Meds'}
+                        </p>
+                        <p className="text-[12px] leading-relaxed" style={{ color: T.muted }}>
+                            {pkLoading ? 'Calculating concentration curve...' : lastMedPK ? `Half-life: ${lastMedPK.half_life}h · Cmax: ${lastMedPK.cmax}` : 'Taken meds will show PK data here.'}
+                        </p>
+                    </div>
+                    {lastMedPK && (
+                        <button onClick={() => router.push(`/pk-simulations?medication=${encodeURIComponent(lastMedPK.medication)}`)}
+                            className="w-full mt-1 py-2 rounded-xl text-[11px] font-medium transition-colors flex items-center justify-center gap-1.5"
+                            style={{ background: T.tealDim, color: T.teal, border: `1px solid ${T.teal}22` }}>
+                            Full Simulation <ArrowRight className="w-3 h-3" />
+                        </button>
+                    )}
+                </motion.div>
+
                 {/* Adherence ring card */}
                 <motion.div custom={8} initial="hidden" animate="visible" variants={cardV}
                     className="rounded-2xl p-5 flex flex-col items-center justify-center gap-3"
@@ -435,7 +492,7 @@ function CircularProgress({ value, color }: { value: number; color: string }) {
         <div className="relative flex items-center justify-center w-12 h-12">
             <svg className="w-full h-full -rotate-90">
                 <circle cx="24" cy="24" r={r} fill="none" stroke={T.faint} strokeWidth="3" />
-                <circle cx="24" cy="24" r={r} fill="none" strokeDasharray={circ} strokeDashoffset={offset}
+                <circle cx="24" cy="24" r={r} strokeDasharray={circ} strokeDashoffset={offset}
                     strokeLinecap="round" stroke="currentColor" fill="transparent"
                     className={color} strokeWidth="3" />
             </svg>
@@ -464,13 +521,14 @@ function CaregiverDashboardView({ data, user, onSeniorChange, selectedSeniorId, 
                 if (lr.success) setRecentLogs(lr.logs);
             } catch { }
         })();
-        if (!user?.id) return;
-        const socket = connectSocket(user.id);
-        socket.on('fleet_activity_update', (u: any) => {
-            setRecentLogs(p => [{ id: Date.now(), senior_name: u.senior_name, medication_name: u.medication_name, status: u.event_type === 'taken' ? 'verified' : 'skipped', taken_at: u.timestamp }, ...p.slice(0, 14)]);
-            onRefresh();
-        });
-        return () => socket.off('fleet_activity_update');
+        if (user?.id) {
+            const socket = connectSocket(user.id);
+            socket.on('fleet_activity_update', (u: any) => {
+                setRecentLogs(p => [{ id: Date.now(), senior_name: u.senior_name, medication_name: u.medication_name, status: u.event_type === 'taken' ? 'verified' : 'skipped', taken_at: u.timestamp }, ...p.slice(0, 14)]);
+                onRefresh();
+            });
+            return () => { socket.off('fleet_activity_update'); };
+        }
     }, [user?.id]);
 
     const requestCamera = async (id: number) => { const r = await apiFetch(`/caregiver/request-camera/${id}`, { method: 'POST' }); if (r.success) showToast(r.message); };

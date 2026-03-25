@@ -1,0 +1,59 @@
+# MedGuardian Platform Refinement Checklist
+
+- [x] Debug Anomaly Training Error (500)
+    - [x] Refactor training to background thread
+    - [x] Reduce epochs for demo speed
+- [x] Fix Caregiver Access Restrictions
+    - [x] Unlock Drug Interactions page for Caregivers
+    - [x] Add patient selector to Interactions page
+    - [x] Verify PK Simulations access
+- [x] PK Simulations UI Overhaul
+    - [x] Refactor LineChart to AreaChart with gradients
+    - [x] Modernize terminology and labels
+    - [x] Redesign stat cards and clinical interpretation cards
+    - [x] Implement meaningful empty state and info cards
+- [x] Drug Interactions Redesign
+    - [x] Modernize terminology and clinical aesthetic
+    - [x] Implement StatCard system and Risk Assessment panel
+    - [x] Fix sidebar toggle button clipping (overflow-hidden issue)
+- [x] Analytics Page Modernization
+    - [x] Purge legacy terminal terminology
+    - [x] Implement clinical StatCards and insights layout
+- [x] Medication Scheduling Refinement
+    - [x] Fix "No schedule set" logic on cards
+    - [x] Support combined preset/custom chips in medals
+    - [x] Resolve `ai_trained` TypeScript lint errors
+- [x] Final Platform Verification
+    - [x] Run production build (`npm run build`) - SUCCESS (Exit 0)
+    - [x] Platform Restart after PC Reboot (Backend + Frontend Start) - SUCCESS
+    - [x] Bug Fix: Telegram 404 Error (Aligned API prefixes)
+- [x] UI/UX Refinement: Natural Voice Phrasing
+    - [x] Added `formatTimeForVoice` utility
+    - [x] Applied to Dashboard and Assistant checks
+- [x] UI/UX Refinement: Contact Modal (Clinical language)
+- [x] Demo Readiness: Seeded Adherence (0% -> ~95%)
+- [x] Final Production Launch: Frontend (next start) & Backend (flask) - RUNNING
+- [x] Landing Page Cleanup: Pointed dead links to #features
+- [x] Bug Fix: Landing Page Scrolling (Removed overflow: hidden)
+- [x] Bug Fix: Telegram Linking (Deep-link & Manual /link fallback)
+- [x] Research: AI Explainability Science (SHAP & GNN breakdown)
+- [x] Documentation Refinement: Verified File Map & Training Commands
+    - [x] Redo frontend mapping with verified paths
+    - [x] Update `docs/FEATURES.md` with verified file map
+    - [x] Update `docs/PROJECT_OVERVIEW.md` with ML training CLI
+- [x] Automation: One-Command Startup & Demo Reset Scripts
+    - [x] Create `start.ps1`, `stop.ps1`, `reset_demo.ps1`
+    - [x] Create `README_QUICKSTART.md`
+- [x] Integration: SHAP Explainability → Patient Context
+    - [x] Add "View AI Explanation" button to Anomalies page
+    - [x] Read URL params on Explainability page and show context banner
+    - [x] Pass senior_id to SHAP API call
+- [x] Integration: PK Simulation → Senior Dashboard
+    - [x] Add "Drug Level" card to SeniorDashboardView
+    - [x] Auto-fetch PK sim for last taken medication
+    - [x] Add pre-selection support to PK Simulations page
+- [x] Memory Leak Patching (Critical for Demo)
+    - [x] Implement Camera MediaStream cleanup (Verification & Feed Modals)
+    - [x] Verify Socket.IO listener cleanup in Dashboard
+    - [x] Add PyTorch VRAM garbage collection in backend services
+- [x] Final Verification: Production Build & Sanity Check

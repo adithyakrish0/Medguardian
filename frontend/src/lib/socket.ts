@@ -11,13 +11,23 @@ export const getSocket = () => {
         if (socketUrl) {
             socket = io(socketUrl, {
                 autoConnect: false,
-                transports: ['websocket', 'polling']
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                withCredentials: true
             });
         } else {
             // Standard Socket.IO path logic for proxy compatibility
             socket = io({
                 autoConnect: false,
                 transports: ['polling', 'websocket'], // Start with polling for faster connection over proxies
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                withCredentials: true
             });
         }
 
@@ -25,8 +35,12 @@ export const getSocket = () => {
             console.log('[Socket] Connected to MedGuardian Socket Relay');
         });
 
-        socket.on('disconnect', () => {
-            console.log('[Socket] Disconnected from MedGuardian Socket Relay');
+        socket.on('disconnect', (reason) => {
+            console.warn('[Socket] Disconnected:', reason);
+        });
+
+        socket.on('reconnect', (attempt) => {
+            console.log(`[Socket] Reconnected after ${attempt} attempts`);
         });
 
         socket.on('error', (err) => {

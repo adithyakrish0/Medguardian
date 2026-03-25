@@ -7,12 +7,13 @@ import {
     TrendingUp, Eye, HelpCircle, ChevronLeft, Cpu,
     ArrowUp, ArrowDown, Minus, Info, Sparkles
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     getGlobalExplanation, getExplainerStatus, compareScenarios,
     GlobalExplanationResponse, ExplainerStatusResponse, ComparisonResponse,
     getRiskLevelStyle, formatContribution
 } from '@/lib/api/explain';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageLoader } from '@/components/ui/SkeletonLoaders';
 import { PageTransition } from '@/components/animations/PageTransition';
 
@@ -46,7 +47,7 @@ const cardV: Variants = {
     visible: (i: number) => ({ 
         opacity: 1, 
         y: 0, 
-        transition: { delay: i * 0.06, duration: 0.32, ease: 'easeOut' } 
+        transition: { delay: i * 0.06, duration: 0.32, ease: 'easeOut' as const } 
     }),
 };
 
@@ -72,6 +73,10 @@ function ContribBadge({ value, label }: { value: number; label: string }) {
 
 export default function ExplainabilityPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const seniorId = searchParams.get('senior_id');
+    const seniorName = searchParams.get('name');
+
     const [loading, setLoading]       = useState(true);
     const [status, setStatus]         = useState<ExplainerStatusResponse | null>(null);
     const [globalData, setGlobalData] = useState<GlobalExplanationResponse | null>(null);
@@ -87,7 +92,9 @@ export default function ExplainabilityPage() {
                 setError('Model not trained. Run: python app/scripts/train_ml_pipeline.py');
                 return;
             }
-            const g = await getGlobalExplanation(200);
+            
+            // Modify the existing API call to include senior_id if present
+            const g = await getGlobalExplanation(200, seniorId || undefined);
             if (g.success) setGlobalData(g);
 
             const c = await compareScenarios(
@@ -139,14 +146,40 @@ export default function ExplainabilityPage() {
                     </button>
                 </div>
 
+                {/* Patient Context Banner */}
+                {seniorId && seniorName && (
+                    <div className="flex items-center gap-3 p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                        <Brain className="w-5 h-5 text-purple-400 shrink-0" />
+                        <div>
+                            <p className="text-sm font-semibold text-white">
+                                Showing explanation for {decodeURIComponent(seniorName)}
+                            </p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                AI analysis of why this patient was flagged as anomalous
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => router.back()}
+                            className="ml-auto text-xs text-slate-400 hover:text-white flex items-center gap-1"
+                        >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                            Back to Anomalies
+                        </button>
+                    </div>
+                )}
+
                 {/* ── Error ── */}
                 <AnimatePresence>
                     {error && (
                         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                            className="flex items-start gap-3 px-4 py-3.5 rounded-xl text-[13px]"
+                            className="flex items-center gap-4 px-5 py-4 rounded-xl text-[13px]"
                             style={{ background: T.roseDim, border: `1px solid ${T.roseBorder}`, color: '#fda4af' }}>
-                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <AlertCircle className="w-4 h-4 shrink-0" />
                             <span className="flex-1 font-normal">{error}</span>
+                            <button onClick={fetchData} className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-2">
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                Retry
+                            </button>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -307,8 +340,10 @@ export default function ExplainabilityPage() {
                                     </div>
                                     <div className="flex-1 rounded-lg overflow-hidden flex items-center justify-center p-3"
                                         style={{ background: '#fff', minHeight: 220 }}>
-                                        <img src={globalData.summary_plot} alt="SHAP Summary"
-                                            className="w-full h-auto rounded object-contain" />
+                                        <ErrorBoundary fallback="SHAP Plot Error">
+                                            <img src={globalData.summary_plot} alt="SHAP Summary"
+                                                className="w-full h-auto rounded object-contain" />
+                                        </ErrorBoundary>
                                     </div>
                                 </motion.div>
                             )}

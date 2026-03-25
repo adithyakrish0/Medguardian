@@ -97,8 +97,11 @@ export async function explainMedicationPrediction(medicationId: number): Promise
 /**
  * Get global feature importance
  */
-export async function getGlobalExplanation(samples: number = 200): Promise<GlobalExplanationResponse> {
-    return apiFetch(`/explain/global?samples=${samples}`);
+export async function getGlobalExplanation(samples: number = 200, seniorId?: string): Promise<GlobalExplanationResponse> {
+    const url = seniorId 
+        ? `/explain/global?samples=${samples}&senior_id=${seniorId}` 
+        : `/explain/global?samples=${samples}`;
+    return apiFetch(url);
 }
 
 /**

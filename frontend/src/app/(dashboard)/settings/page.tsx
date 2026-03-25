@@ -320,9 +320,14 @@ export default function SettingsPage() {
                         </div>
                         
                         <div className="flex-1 space-y-1">
-                            <p className="font-bold text-gray-100 text-lg">Real-time Telegram Alerts</p>
+                             <p className="font-bold text-gray-100 text-lg">Real-time Telegram Alerts</p>
                             <p className="text-sm text-gray-400 leading-relaxed max-w-md">
                                 Receive medication reminders, critical missed dose alerts, and emergency SOS notifications directly on your smartphone.
+                                {!user?.telegram_chat_id && user?.id && (
+                                    <span className="block mt-2 text-xs font-semibold text-sky-400/80">
+                                        Your Manual Link ID: <span className="bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20 text-sky-300 font-mono text-[13px]">{user.id}</span>
+                                    </span>
+                                )}
                             </p>
                         </div>
 

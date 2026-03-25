@@ -107,9 +107,21 @@ export default function AIFeedModal({ medicationId, medicationName, onClose, onC
     }, [step]);
 
     // Cleanup on unmount
-    useEffect(() => () => {
-        streamRef.current?.getTracks().forEach(t => t.stop());
-        clearInterval(scanIntervalRef.current);
+    useEffect(() => {
+        return () => {
+            if (streamRef.current) {
+                console.log("[Camera] AIFeedModal Unmount: Stopping all tracks");
+                streamRef.current.getTracks().forEach(track => {
+                    track.stop();
+                    console.log("[Camera] Track stopped:", track.kind);
+                });
+                streamRef.current = null;
+            }
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
+            }
+            clearInterval(scanIntervalRef.current);
+        };
     }, []);
 
     // YOLO polling

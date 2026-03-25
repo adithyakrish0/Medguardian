@@ -1,382 +1,498 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { 
-    Activity, 
-    Brain, 
-    Clock, 
-    Zap, 
-    TrendingUp, 
-    FlaskConical, 
-    ChevronRight,
-    Search,
-    AlertCircle,
-    CheckCircle2
+import { useSearchParams } from 'next/navigation';
+
+import { useState, useEffect, useCallback } from 'react';
+import {
+    Activity, Brain, Clock, Zap, TrendingUp, FlaskConical,
+    Search, AlertCircle, CheckCircle2, ChevronRight,
+    Loader2, BarChart3, Pill, ArrowRight, Info
 } from 'lucide-react';
-import { 
-    LineChart, 
-    Line, 
-    XAxis, 
-    YAxis, 
-    CartesianGrid, 
-    Tooltip, 
-    Legend, 
-    ReferenceArea, 
-    ReferenceLine, 
-    ResponsiveContainer 
+import {
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+    ReferenceArea, ReferenceLine, ResponsiveContainer, Area, AreaChart
 } from 'recharts';
 import { apiFetch } from '@/lib/api';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface Medication {
-    id: number;
-    name: string;
-    dosage: string;
+// ─── Tokens ────────────────────────────────────────────────────
+const T = {
+    bg:       '#070c14',
+    surface:  '#0d1525',
+    card:     '#0f1c2e',
+    cardHi:   '#122035',
+    border:   '#182338',
+    borderHi: '#253550',
+    text:     '#f1f5f9',
+    sub:      '#94a3b8',
+    muted:    '#4a607a',
+    faint:    '#0a1628',
+    blue:     '#3b82f6',
+    blueDim:  '#172038',
+    teal:     '#14b8a6',
+    tealDim:  '#071a18',
+    red:      '#ef4444',
+    redDim:   '#1f0a0a',
+    green:    '#22c55e',
+    greenDim: '#0a1f0a',
+    amber:    '#f59e0b',
+    amberDim: '#1a1100',
+    violet:   '#8b5cf6',
+    violetDim:'#1a1230',
+};
+
+const cv = {
+    hidden:  { opacity: 0, y: 14 },
+    visible: (i: number) => ({
+        opacity: 1, y: 0,
+        transition: { delay: i * 0.07, duration: 0.36, ease: 'easeOut' as const }
+    }),
+};
+
+interface Medication { id: number; name: string; dosage: string; }
+interface PKData {
+    medication: string; dose_mg: number;
+    timepoints: number[]; concentrations: number[];
+    cmax: number; tmax: number; half_life: number;
+    bioavailability: number; vd: number;
+    therapeutic_range: { min: number; max: number; unit: string; };
 }
 
-interface PKData {
-    medication: string;
-    dose_mg: number;
-    timepoints: number[];
-    concentrations: number[];
-    cmax: number;
-    tmax: number;
-    half_life: number;
-    bioavailability: number;
-    vd: number;
-    therapeutic_range: {
-        min: number;
-        max: number;
-        unit: string;
-    };
+// ─── Custom tooltip ────────────────────────────────────────────
+function CustomTooltip({ active, payload, label }: any) {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="rounded-xl px-4 py-3 shadow-2xl"
+            style={{ background: T.card, border: `1px solid ${T.borderHi}` }}>
+            <p className="text-[11px] mb-1.5" style={{ color: T.muted }}>Hour {label}</p>
+            <p className="text-[15px] font-semibold" style={{ color: T.blue }}>
+                {payload[0].value?.toFixed(2)}
+                <span className="text-[12px] font-normal ml-1" style={{ color: T.muted }}>ng/mL</span>
+            </p>
+        </div>
+    );
+}
+
+// ─── Stat card ─────────────────────────────────────────────────
+function StatCard({ label, value, unit, icon: Icon, color, dim, i }: any) {
+    return (
+        <motion.div custom={i} initial="hidden" animate="visible" variants={cv}
+            className="rounded-2xl px-5 py-4 relative overflow-hidden"
+            style={{ background: T.card, border: `1px solid ${T.border}` }}>
+            <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: color }} />
+            <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-medium" style={{ color: T.muted }}>{label}</p>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{ background: dim }}>
+                    <Icon className="w-3.5 h-3.5" style={{ color }} />
+                </div>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+                <span className="text-[26px] font-semibold leading-none" style={{ color: T.text }}>{value}</span>
+                <span className="text-[12px]" style={{ color: T.muted }}>{unit}</span>
+            </div>
+        </motion.div>
+    );
 }
 
 export default function PKSimulationsPage() {
-    const [medications, setMedications] = useState<Medication[]>([]);
-    const [selectedMed, setSelectedMed] = useState<Medication | null>(null);
-    const [doseOverride, setDoseOverride] = useState<string>('');
-    const [loadingMeds, setLoadingMeds] = useState(true);
-    const [simulating, setSimulating] = useState(false);
-    const [pkData, setPkData] = useState<PKData | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [medications, setMedications]   = useState<Medication[]>([]);
+    const [selectedMed, setSelectedMed]   = useState<Medication | null>(null);
+    const [doseOverride, setDoseOverride] = useState('');
+    const [loadingMeds, setLoadingMeds]   = useState(true);
+    const [simulating, setSimulating]     = useState(false);
+    const [pkData, setPkData]             = useState<PKData | null>(null);
+    const [error, setError]               = useState<string | null>(null);
+
+    const searchParams = useSearchParams();
+    const preselectedMed = searchParams.get('medication');
 
     useEffect(() => {
-        fetchMedications();
-    }, []);
+        (async () => {
+            setLoadingMeds(true);
+            try {
+                const r = await apiFetch('/pk/medications');
+                if (r.success) {
+                    setMedications(r.data);
+                    
+                    // Auto-select and run if param exists
+                    if (preselectedMed) {
+                        const found = r.data.find((m: any) => m.name.toLowerCase() === preselectedMed.toLowerCase());
+                        if (found) {
+                            setSelectedMed(found);
+                            // We need to trigger simulation after state update, but here we can just call the API directly or wait for another effect
+                        }
+                    }
+                }
+            } catch { }
+            finally { setLoadingMeds(false); }
+        })();
+    }, [preselectedMed]);
 
-    const fetchMedications = async () => {
-        setLoadingMeds(true);
-        try {
-            const res = await apiFetch('/pk/medications');
-            if (res.success) {
-                setMedications(res.data);
-            }
-        } catch (err) {
-            console.error('Failed to fetch meds:', err);
-        } finally {
-            setLoadingMeds(false);
+    // Secondary effect to run simulation once medication is selected via URL
+    useEffect(() => {
+        if (preselectedMed && selectedMed && selectedMed.name.toLowerCase() === preselectedMed.toLowerCase() && !pkData && !simulating) {
+            runSimulation();
         }
-    };
+    }, [selectedMed, pkData, simulating, preselectedMed]);
 
     const runSimulation = async () => {
         if (!selectedMed) return;
-        setSimulating(true);
-        setError(null);
+        setSimulating(true); setError(null);
         try {
-            const res = await apiFetch('/pk/simulate', {
+            const r = await apiFetch('/pk/simulate', {
                 method: 'POST',
-                body: JSON.stringify({
-                    medication: selectedMed.name,
-                    dose_mg: doseOverride || selectedMed.dosage
-                })
+                body: JSON.stringify({ medication: selectedMed.name, dose_mg: doseOverride || selectedMed.dosage })
             });
-            if (res.success) {
-                setPkData(res.data);
-            } else {
-                setError(res.message || 'Simulation failed');
-            }
-        } catch (err: any) {
-            setError(err.message || 'Simulation failed');
-        } finally {
-            setSimulating(false);
-        }
+            if (r.success) setPkData(r.data);
+            else setError(r.message || 'Simulation failed');
+        } catch (e: any) { setError(e.message || 'Simulation failed'); }
+        finally { setSimulating(false); }
     };
 
-    const chartData = pkData?.timepoints.map((t, i) => ({
-        time: t,
-        concentration: pkData.concentrations[i]
-    }));
+    const chartData = pkData?.timepoints?.map((t, i) => ({
+        time: t, concentration: pkData.concentrations?.[i] ?? 0
+    })) ?? [];
+
+    const inRange = pkData && pkData.cmax >= pkData.therapeutic_range.min && pkData.cmax <= pkData.therapeutic_range.max;
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8 pb-20 pt-16 lg:pt-0">
-            {/* Header */}
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                        <FlaskConical className="w-5 h-5 text-blue-500" />
-                    </div>
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-                        PK_SIMULATIONS <span className="text-blue-400 not-italic">v1.0</span>
+        <div className="max-w-6xl mx-auto pb-20 space-y-6">
+
+            {/* ── Page header ── */}
+            <div className="flex items-end justify-between gap-4 pt-2">
+                <div>
+                    <h1 className="text-[26px] font-semibold tracking-[-0.4px]" style={{ color: T.text }}>
+                        PK Simulations
                     </h1>
+                    <p className="text-[13px] mt-1 flex items-center gap-2" style={{ color: T.muted }}>
+                        <FlaskConical className="w-3.5 h-3.5" />
+                        Pharmacokinetic concentration modeling over 24 hours
+                    </p>
                 </div>
-                <p className="text-[10px] font-black tracking-[0.3em] text-slate-500 uppercase flex items-center gap-2">
-                    <Activity className="w-3 h-3 text-teal-400" />
-                    Advanced Pharmacokinetic Modeling Engine
-                </p>
+                {pkData && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+                        style={{ background: inRange ? `${T.green}15` : `${T.amber}15`, border: `1px solid ${inRange ? T.green : T.amber}30` }}>
+                        {inRange
+                            ? <CheckCircle2 className="w-3.5 h-3.5" style={{ color: T.green }} />
+                            : <AlertCircle className="w-3.5 h-3.5" style={{ color: T.amber }} />}
+                        <span className="text-[12px] font-medium" style={{ color: inRange ? T.green : T.amber }}>
+                            {inRange ? 'Within therapeutic range' : 'Review required'}
+                        </span>
+                    </div>
+                )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8">
-                {/* Sidebar */}
-                <aside className="space-y-6">
-                    <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-6 backdrop-blur-md">
-                        <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <Search className="w-3 h-3" /> Select Medication
-                        </h2>
-                        
-                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                            {loadingMeds ? (
-                                <div className="flex flex-col items-center justify-center py-8 gap-3">
-                                    <div className="relative">
-                                        <div className="w-8 h-8 rounded-full border-2 border-transparent border-t-blue-500 border-r-blue-500/30 animate-spin" />
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="w-4 h-4 rounded-md bg-blue-500/20 animate-pulse" />
-                                        </div>
-                                    </div>
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black animate-pulse">Loading medications...</p>
-                                </div>
-                            ) : medications.length === 0 ? (
-                                <div className="text-center py-8 space-y-2">
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">No active medications found</p>
-                                    <p className="text-[9px] text-slate-600 uppercase tracking-tighter leading-tight px-4 font-bold">Ensure your seniors have active medications in their profile.</p>
-                                </div>
-                            ) : (
-                                medications.map(med => (
-                                    <button
-                                        key={med.id}
-                                        onClick={() => {
-                                            setSelectedMed(med);
-                                            setDoseOverride('');
-                                        }}
-                                        className={`w-full p-4 rounded-xl border text-left transition-all group ${
-                                            selectedMed?.id === med.id 
-                                            ? 'bg-blue-600/10 border-blue-500/50' 
-                                            : 'bg-white/5 border-white/5 hover:border-white/20'
-                                        }`}
-                                    >
-                                        <p className={`text-sm font-black tracking-tight ${selectedMed?.id === med.id ? 'text-blue-400' : 'text-white'}`}>
-                                            {med.name}
-                                        </p>
-                                        <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase">{med.dosage}</p>
-                                    </button>
-                                ))
-                            )}
+            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
+
+                {/* ── Sidebar ── */}
+                <aside className="space-y-4">
+                    {/* Medication list */}
+                    <div className="rounded-2xl overflow-hidden"
+                        style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                        <div className="px-5 py-4 flex items-center gap-2"
+                            style={{ borderBottom: `1px solid ${T.border}` }}>
+                            <Search className="w-3.5 h-3.5" style={{ color: T.muted }} />
+                            <p className="text-[13px] font-semibold" style={{ color: T.text }}>Select medication</p>
                         </div>
 
+                        <div className="p-3 max-h-[380px] overflow-y-auto space-y-1.5 custom-scrollbar">
+                            {loadingMeds ? (
+                                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                                    <Loader2 className="w-6 h-6 animate-spin" style={{ color: T.blue }} />
+                                    <p className="text-[12px]" style={{ color: T.muted }}>Loading…</p>
+                                </div>
+                            ) : medications.length === 0 ? (
+                                <div className="py-10 text-center">
+                                    <Pill className="w-7 h-7 mx-auto mb-2" style={{ color: T.muted }} />
+                                    <p className="text-[13px]" style={{ color: T.muted }}>No medications found</p>
+                                    <p className="text-[11px] mt-1" style={{ color: T.muted }}>Add medications to patient profiles first.</p>
+                                </div>
+                            ) : (
+                                medications.map(med => {
+                                    const sel = selectedMed?.id === med.id;
+                                    return (
+                                        <button key={med.id}
+                                            onClick={() => { setSelectedMed(med); setDoseOverride(''); }}
+                                            className="w-full px-4 py-3 rounded-xl text-left transition-all"
+                                            style={{
+                                                background: sel ? `${T.blue}12` : 'transparent',
+                                                border: `1px solid ${sel ? T.blue : T.border}`,
+                                            }}
+                                            onMouseEnter={e => { if (!sel) (e.currentTarget.style.background = T.cardHi); }}
+                                            onMouseLeave={e => { if (!sel) (e.currentTarget.style.background = 'transparent'); }}>
+                                            <p className="text-[14px] font-medium" style={{ color: sel ? T.blue : T.text }}>{med.name}</p>
+                                            <p className="text-[12px] mt-0.5" style={{ color: T.muted }}>{med.dosage}</p>
+                                        </button>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Dose input + run button */}
+                    <AnimatePresence>
                         {selectedMed && (
-                            <motion.div 
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="mt-8 pt-8 border-t border-white/5 space-y-6"
-                            >
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Dose Override (mg)</label>
-                                    <input 
-                                        type="text" 
+                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                                className="rounded-2xl p-5 space-y-4"
+                                style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                                <div>
+                                    <p className="text-[11px] font-medium mb-2" style={{ color: T.muted }}>Dose override (mg)</p>
+                                    <input type="text" value={doseOverride}
+                                        onChange={e => setDoseOverride(e.target.value)}
                                         placeholder={selectedMed.dosage}
-                                        value={doseOverride}
-                                        onChange={(e) => setDoseOverride(e.target.value)}
-                                        className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-700"
-                                    />
+                                        className="w-full px-4 py-3 rounded-xl text-[14px] font-normal focus:outline-none transition-all"
+                                        style={{ background: T.faint, color: T.text, border: `1px solid ${T.border}` }}
+                                        onFocus={e => (e.currentTarget.style.borderColor = T.blue + '60')}
+                                        onBlur={e => (e.currentTarget.style.borderColor = T.border)} />
+                                    <p className="text-[11px] mt-1.5" style={{ color: T.muted }}>
+                                        Leave empty to use {selectedMed.dosage}
+                                    </p>
                                 </div>
 
-                                <button
-                                    onClick={runSimulation}
-                                    disabled={simulating}
-                                    className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl shadow-blue-500/20"
-                                >
-                                    {simulating ? <Activity className="w-4 h-4 animate-spin" /> : <Zap className="w-3 h-3" />}
-                                    {simulating ? 'Processing...' : 'Run Simulation'}
+                                <button onClick={runSimulation} disabled={simulating}
+                                    className="w-full py-3.5 rounded-xl text-[14px] font-semibold text-white flex items-center justify-center gap-2 transition-colors hover:bg-blue-500 disabled:opacity-50"
+                                    style={{ background: T.blue }}>
+                                    {simulating
+                                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Running…</>
+                                        : <><Zap className="w-4 h-4" /> Run Simulation</>}
                                 </button>
+
+                                {error && (
+                                    <p className="text-[12px] flex items-start gap-1.5" style={{ color: T.red }}>
+                                        <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {error}
+                                    </p>
+                                )}
                             </motion.div>
                         )}
+                    </AnimatePresence>
+
+                    {/* Info card */}
+                    <div className="rounded-2xl px-5 py-4 flex items-start gap-3"
+                        style={{ background: T.violetDim, border: `1px solid ${T.violet}22` }}>
+                        <Info className="w-4 h-4 mt-0.5 shrink-0" style={{ color: T.violet }} />
+                        <p className="text-[12px] leading-relaxed" style={{ color: T.sub }}>
+                            PK simulations model how a drug moves through the body over 24 hours using one-compartment pharmacokinetic equations.
+                        </p>
                     </div>
                 </aside>
 
-                {/* Main Content */}
-                <main className="space-y-8">
+                {/* ── Main content ── */}
+                <main className="space-y-5 min-w-0">
                     <AnimatePresence mode="wait">
                         {!pkData ? (
-                            <motion.div 
-                                key="empty"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="h-[600px] flex flex-col items-center justify-center bg-slate-900/30 border border-dashed border-white/10 rounded-2xl p-12 text-center"
-                            >
-                                <div className="w-16 h-16 rounded-3xl bg-slate-900 flex items-center justify-center mb-6 border border-white/5">
-                                    <Activity className="w-6 h-6 text-slate-700" />
+                            <motion.div key="empty"
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                className="flex flex-col items-center justify-center rounded-2xl"
+                                style={{ height: 560, background: T.card, border: `1px dashed ${T.border}` }}>
+                                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+                                    style={{ background: T.blueDim }}>
+                                    <BarChart3 className="w-7 h-7" style={{ color: T.blue }} />
                                 </div>
-                                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Ready for Simulation</h3>
-                                <p className="text-[10px] text-slate-600 mt-2 uppercase tracking-widest max-w-[180px]">Select a medication from the registry to generate PK curves.</p>
+                                <p className="text-[17px] font-semibold mb-2" style={{ color: T.text }}>Ready to simulate</p>
+                                <p className="text-[13px] text-center max-w-xs leading-relaxed" style={{ color: T.muted }}>
+                                    Select a medication from the list and click Run Simulation to generate the concentration-time curve.
+                                </p>
+                                {selectedMed && (
+                                    <button onClick={runSimulation} disabled={simulating}
+                                        className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-colors hover:bg-blue-500"
+                                        style={{ background: T.blue }}>
+                                        <Zap className="w-4 h-4" /> Simulate {selectedMed.name}
+                                    </button>
+                                )}
                             </motion.div>
                         ) : (
-                            <motion.div 
-                                key="results"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="space-y-8"
-                            >
-                                {/* Stats Cards */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                    {[
-                                        { label: 'Peak Concentration', value: `${pkData.cmax}`, unit: 'ng/mL', icon: TrendingUp, color: 'text-blue-400' },
-                                        { label: 'Time to Peak', value: `${pkData.tmax}`, unit: 'h', icon: Clock, color: 'text-amber-400' },
-                                        { label: 'Half-Life', value: `${pkData.half_life}`, unit: 'h', icon: Activity, color: 'text-pink-400' },
-                                        { label: 'Bioavailability', value: `${pkData.bioavailability}`, unit: '%', icon: Zap, color: 'text-teal-400' }
-                                    ].map((stat, i) => (
-                                        <div key={i} className="bg-slate-900/50 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3 flex justify-between items-center">
-                                                {stat.label}
-                                                <stat.icon className={`w-3 h-3 ${stat.color}`} />
-                                            </p>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-xl font-black text-white leading-none">{stat.value}</span>
-                                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter leading-none">{stat.unit}</span>
-                                            </div>
-                                        </div>
-                                    ))}
+                            <motion.div key="results"
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                className="space-y-5">
+
+                                {/* ── Stat strip ── */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <StatCard i={0} label="Peak concentration" value={pkData.cmax} unit="ng/mL"
+                                        icon={TrendingUp} color={T.blue}   dim={T.blueDim}   />
+                                    <StatCard i={1} label="Time to peak"       value={pkData.tmax}         unit="hours"
+                                        icon={Clock}      color={T.amber}  dim={T.amberDim}  />
+                                    <StatCard i={2} label="Half-life"          value={pkData.half_life}     unit="hours"
+                                        icon={Activity}   color={T.violet} dim={T.violetDim} />
+                                    <StatCard i={3} label="Bioavailability"    value={`${pkData.bioavailability}`} unit="%"
+                                        icon={Zap}        color={T.teal}   dim={T.tealDim}   />
                                 </div>
 
-                                {/* Chart Area */}
-                                <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-8 backdrop-blur-md shadow-2xl overflow-hidden relative group">
-                                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none group-hover:bg-blue-500/10 transition-colors" />
-                                    
-                                    <div className="flex items-center justify-between mb-8 relative z-10">
+                                {/* ── Chart ── */}
+                                <motion.div custom={4} initial="hidden" animate="visible" variants={cv}
+                                    className="rounded-2xl overflow-hidden"
+                                    style={{ background: T.card, border: `1px solid ${T.border}` }}>
+
+                                    {/* Chart header */}
+                                    <div className="px-6 py-5 flex items-center justify-between"
+                                        style={{ borderBottom: `1px solid ${T.border}` }}>
                                         <div>
-                                            <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-3">
-                                                Concentration Profile 
-                                                <span className="text-[9px] px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-md">NG/ML</span>
-                                            </h3>
-                                            <p className="text-[9px] font-black text-slate-500 mt-1 uppercase tracking-widest">24-Hour Simulation Cycle</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-[400px] w-full relative z-10">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
-                                                <defs>
-                                                    <linearGradient id="curveColor" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                                                <XAxis 
-                                                    dataKey="time" 
-                                                    stroke="#475569" 
-                                                    fontSize={9} 
-                                                    fontWeight="black" 
-                                                    axisLine={false}
-                                                    tickLine={false}
-                                                    label={{ value: 'Hours Post Dose', position: 'bottom', offset: 0, fill: '#475569', fontSize: 9, fontWeight: 'black' }}
-                                                />
-                                                <YAxis 
-                                                    stroke="#475569" 
-                                                    fontSize={9} 
-                                                    fontWeight="black" 
-                                                    axisLine={false}
-                                                    tickLine={false}
-                                                />
-                                                <Tooltip 
-                                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px', fontWeight: 'black' }}
-                                                    itemStyle={{ color: '#3b82f6' }}
-                                                    labelStyle={{ color: '#64748b', marginBottom: '4px' }}
-                                                />
-                                                
-                                                {/* Therapeutic Range Shaded Area */}
-                                                <ReferenceArea 
-                                                    y1={pkData.therapeutic_range.min} 
-                                                    y2={pkData.therapeutic_range.max} 
-                                                    fill="#22c55e" 
-                                                    fillOpacity={0.03} 
-                                                />
-                                                
-                                                <ReferenceLine y={pkData.therapeutic_range.min} stroke="#22c55e" strokeDasharray="3 3" strokeOpacity={0.2} label={{ position: 'right', value: 'Min Therapeutic', fill: '#22c55e', fontSize: 8, fontWeight: 'black' }} />
-                                                <ReferenceLine y={pkData.therapeutic_range.max} stroke="#22c55e" strokeDasharray="3 3" strokeOpacity={0.2} label={{ position: 'right', value: 'Max Therapeutic', fill: '#22c55e', fontSize: 8, fontWeight: 'black' }} />
-                                                
-                                                <Line 
-                                                    type="monotone" 
-                                                    dataKey="concentration" 
-                                                    stroke="#3b82f6" 
-                                                    strokeWidth={3}
-                                                    dot={false}
-                                                    activeDot={{ r: 4, stroke: '#3b82f6', strokeWidth: 2, fill: '#fff' }}
-                                                    animationDuration={2000}
-                                                />
-                                            </LineChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-
-                                {/* Interpretation Card */}
-                                <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-8 backdrop-blur-md">
-                                    <div className="flex items-start gap-6">
-                                        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20">
-                                            <Brain className="w-6 h-6 text-blue-500" />
-                                        </div>
-                                        <div className="space-y-4 flex-1">
-                                            <div className="flex items-center justify-between">
-                                                <h3 className="text-sm font-black text-white uppercase tracking-widest italic">AI_INTERPRETATION</h3>
-                                                {pkData.cmax >= pkData.therapeutic_range.min && pkData.cmax <= pkData.therapeutic_range.max ? (
-                                                    <div className="flex items-center gap-2 px-3 py-1 bg-teal-500/10 border border-teal-500/20 rounded-lg text-teal-400 text-[9px] font-black uppercase tracking-widest animate-pulse">
-                                                        <CheckCircle2 className="w-3 h-3" /> Within Therapeutic Zone
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-500 text-[9px] font-black uppercase tracking-widest animate-pulse">
-                                                        <AlertCircle className="w-3 h-3" /> Review Required
-                                                    </div>
-                                                )}
+                                            <div className="flex items-center gap-3 mb-1">
+                                                <p className="text-[16px] font-semibold" style={{ color: T.text }}>
+                                                    Concentration profile
+                                                </p>
+                                                <span className="text-[11px] px-2.5 py-1 rounded-lg font-medium"
+                                                    style={{ background: T.blueDim, color: T.blue, border: `1px solid ${T.blue}22` }}>
+                                                    {pkData.medication}
+                                                </span>
+                                                <span className="text-[11px] px-2.5 py-1 rounded-lg font-medium"
+                                                    style={{ background: T.faint, color: T.muted, border: `1px solid ${T.border}` }}>
+                                                    ng/mL
+                                                </span>
                                             </div>
-                                            
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                                                <div className="space-y-2">
-                                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Elimination Dynamics</p>
-                                                    <p className="text-xs text-slate-400 font-medium leading-relaxed">
-                                                        Peak concentration of <span className="text-white font-bold">{pkData.cmax} {pkData.therapeutic_range.unit}</span> reached at <span className="text-white font-bold">{pkData.tmax} hours</span>. 
-                                                        A half-life of <span className="text-white font-bold">{pkData.half_life} hours</span> suggests the drug will be substantially cleared by <span className="text-white font-bold">{Math.round(pkData.half_life * 5)} hours</span>.
-                                                    </p>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Steady State Impact</p>
-                                                    <p className="text-xs text-slate-400 font-medium leading-relaxed">
-                                                        The volume of distribution (<span className="text-white font-bold">{pkData.vd} L</span>) indicates the drug's affinity for tissue vs. plasma. 
-                                                        Model suggests <span className="text-white font-bold">{pkData.bioavailability}%</span> absorption across the metabolic barrier.
-                                                    </p>
-                                                </div>
+                                            <p className="text-[12px]" style={{ color: T.muted }}>
+                                                24-hour simulation · Therapeutic range shaded in green
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-4 text-[12px]">
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-8 h-0.5 rounded-full" style={{ background: T.blue }} />
+                                                <span style={{ color: T.muted }}>Concentration</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-3 h-3 rounded-sm opacity-40" style={{ background: T.green }} />
+                                                <span style={{ color: T.muted }}>Therapeutic</span>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+
+                                    {/* Chart */}
+                                    <div className="px-4 py-6 h-[360px]">
+                                        <ErrorBoundary fallback="Simulation Chart Error">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 30 }}>
+                                                    <defs>
+                                                        <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%"   stopColor={T.blue} stopOpacity={0.25} />
+                                                            <stop offset="100%" stopColor={T.blue} stopOpacity={0.02} />
+                                                        </linearGradient>
+                                                    </defs>
+
+                                                    <CartesianGrid stroke={T.border} strokeDasharray="0" vertical={false} />
+
+                                                    <XAxis dataKey="time" stroke="transparent" tick={{ fill: T.muted, fontSize: 11 }}
+                                                        tickLine={false} axisLine={false}
+                                                        label={{ value: 'Hours post dose', position: 'bottom', offset: 10, fill: T.muted, fontSize: 12 }} />
+                                                    <YAxis stroke="transparent" tick={{ fill: T.muted, fontSize: 11 }}
+                                                        tickLine={false} axisLine={false}
+                                                        label={{ value: 'ng/mL', angle: -90, position: 'insideLeft', offset: 10, fill: T.muted, fontSize: 12 }} />
+
+                                                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: T.borderHi, strokeWidth: 1 }} />
+
+                                                    {/* Therapeutic range fill */}
+                                                    <ReferenceArea y1={pkData.therapeutic_range.min} y2={pkData.therapeutic_range.max}
+                                                        fill={T.green} fillOpacity={0.06} />
+
+                                                    {/* Min / max lines */}
+                                                    <ReferenceLine y={pkData.therapeutic_range.min} stroke={T.green} strokeOpacity={0.4}
+                                                        strokeDasharray="5 4"
+                                                        label={{ value: 'Min', position: 'right', fill: T.green, fontSize: 11 }} />
+                                                    <ReferenceLine y={pkData.therapeutic_range.max} stroke={T.green} strokeOpacity={0.4}
+                                                        strokeDasharray="5 4"
+                                                        label={{ value: 'Max', position: 'right', fill: T.green, fontSize: 11 }} />
+
+                                                    <Area type="monotone" dataKey="concentration"
+                                                        stroke={T.blue} strokeWidth={2.5}
+                                                        fill="url(#grad)"
+                                                        dot={false}
+                                                        activeDot={{ r: 5, fill: T.blue, stroke: T.card, strokeWidth: 2 }}
+                                                        animationDuration={1600} />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </ErrorBoundary>
+                                    </div>
+                                </motion.div>
+
+                                {/* ── Interpretation ── */}
+                                <motion.div custom={5} initial="hidden" animate="visible" variants={cv}
+                                    className="rounded-2xl overflow-hidden"
+                                    style={{ background: T.card, border: `1px solid ${T.border}` }}>
+
+                                    <div className="px-6 py-4 flex items-center justify-between"
+                                        style={{ borderBottom: `1px solid ${T.border}` }}>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                                                style={{ background: T.blueDim }}>
+                                                <Brain className="w-4 h-4" style={{ color: T.blue }} />
+                                            </div>
+                                            <p className="text-[15px] font-semibold" style={{ color: T.text }}>Clinical interpretation</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-medium"
+                                            style={{
+                                                background: inRange ? T.greenDim : T.amberDim,
+                                                color: inRange ? T.green : T.amber,
+                                                border: `1px solid ${inRange ? T.green : T.amber}25`,
+                                            }}>
+                                            {inRange
+                                                ? <><CheckCircle2 className="w-3.5 h-3.5" /> Within therapeutic range</>
+                                                : <><AlertCircle className="w-3.5 h-3.5" /> Review recommended</>}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid md:grid-cols-2 gap-0">
+                                        {/* Elimination dynamics */}
+                                        <div className="px-6 py-5"
+                                            style={{ borderRight: `1px solid ${T.border}` }}>
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] mb-3" style={{ color: T.muted }}>
+                                                Elimination dynamics
+                                            </p>
+                                            <p className="text-[14px] leading-relaxed" style={{ color: T.sub }}>
+                                                Peak of{' '}
+                                                <strong style={{ color: T.text }}>{pkData.cmax} {pkData.therapeutic_range.unit}</strong>{' '}
+                                                reached at{' '}
+                                                <strong style={{ color: T.text }}>{pkData.tmax} hours</strong>. With a half-life of{' '}
+                                                <strong style={{ color: T.text }}>{pkData.half_life} hours</strong>, the drug will be substantially cleared by{' '}
+                                                <strong style={{ color: T.text }}>{Math.round(pkData.half_life * 5)} hours</strong>.
+                                            </p>
+                                        </div>
+
+                                        {/* Distribution */}
+                                        <div className="px-6 py-5">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] mb-3" style={{ color: T.muted }}>
+                                                Steady state impact
+                                            </p>
+                                            <p className="text-[14px] leading-relaxed" style={{ color: T.sub }}>
+                                                Volume of distribution{' '}
+                                                <strong style={{ color: T.text }}>{pkData.vd} L</strong>{' '}
+                                                indicates tissue vs. plasma affinity.{' '}
+                                                <strong style={{ color: T.text }}>{pkData.bioavailability}%</strong>{' '}
+                                                absorption estimated across the metabolic barrier.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Metric summary row */}
+                                    <div className="grid grid-cols-4 gap-0"
+                                        style={{ borderTop: `1px solid ${T.border}` }}>
+                                        {[
+                                            { label: 'Therapeutic min', value: `${pkData.therapeutic_range.min}`, unit: pkData.therapeutic_range.unit, color: T.green },
+                                            { label: 'Therapeutic max', value: `${pkData.therapeutic_range.max}`, unit: pkData.therapeutic_range.unit, color: T.green },
+                                            { label: 'Peak / Cmax',     value: `${pkData.cmax}`,                 unit: pkData.therapeutic_range.unit, color: inRange ? T.blue : T.amber },
+                                            { label: 'Volume of dist.', value: `${pkData.vd}`,                  unit: 'L',                           color: T.violet },
+                                        ].map((m, i) => (
+                                            <div key={i} className="px-5 py-4"
+                                                style={{ borderRight: i < 3 ? `1px solid ${T.border}` : 'none' }}>
+                                                <p className="text-[11px] mb-1" style={{ color: T.muted }}>{m.label}</p>
+                                                <p className="text-[18px] font-semibold" style={{ color: m.color }}>
+                                                    {m.value}
+                                                    <span className="text-[12px] font-normal ml-1" style={{ color: T.muted }}>{m.unit}</span>
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </motion.div>
+
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </main>
             </div>
-            
+
             <style jsx global>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                    width: 4px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: #1e293b;
-                    border-radius: 10px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: #334155;
-                }
+                .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: ${T.border}; border-radius: 4px; }
             `}</style>
         </div>
     );

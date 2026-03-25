@@ -14,7 +14,8 @@ import {
     Loader2,
     ArrowRight,
     UserCircle,
-    ShieldHalf
+    ShieldHalf,
+    ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ export default function LoginPage() {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [showDemo, setShowDemo] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const router = useRouter();
@@ -56,10 +58,9 @@ export default function LoginPage() {
         }
     }, [identifier, password, router]);
 
-    const triggerDemo = (type: 'senior' | 'caregiver') => {
-        const ident = type === 'senior' ? 'testsenior' : 'testcaregiver';
-        const pass = 'MedGuardian123';
-        setIdentifier(ident);
+    const triggerDemo = (username: string) => {
+        const pass = 'Demo@2026';
+        setIdentifier(username);
         setPassword(pass);
         
         // Use a small timeout to ensure state has updated before submission
@@ -213,38 +214,82 @@ export default function LoginPage() {
 
                         {/* Demo Access Section */}
                         <div className="pt-6">
-                            <div className="relative flex items-center justify-center mb-5">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-white/5"></div>
+                            <button 
+                                type="button"
+                                onClick={() => setShowDemo(!showDemo)}
+                                className="relative w-full flex items-center justify-center mb-5 group outline-none"
+                            >
+                                <div className="absolute inset-0 flex items-center px-1">
+                                    <div className="w-full border-t border-white/5 group-hover:border-white/10 transition-colors"></div>
                                 </div>
-                                <div className="relative px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
-                                    Quick Demo Access
+                                <div className="relative px-3 flex items-center gap-2 bg-[#070d1a]">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 group-hover:text-slate-400 transition-colors">
+                                        Quick Demo Access
+                                    </span>
+                                    <motion.div
+                                        animate={{ rotate: showDemo ? 180 : 0 }}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        <ChevronDown className="h-3 w-3 text-slate-600 group-hover:text-slate-400 transition-colors" />
+                                    </motion.div>
                                 </div>
-                            </div>
+                            </button>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div
-                                    onClick={() => triggerDemo('senior')}
-                                    className="group flex flex-col items-center gap-2.5 rounded-xl border border-white/10 bg-[#111827] p-3 transition-all hover:border-blue-500/50 cursor-pointer"
-                                >
-                                    <UserCircle className="h-5 w-5 text-slate-500 group-hover:text-blue-400 transition-colors" />
-                                    <div className="text-center">
-                                        <span className="text-xs font-bold text-slate-400 group-hover:text-white block">Senior</span>
-                                        <span className="text-[10px] font-medium text-slate-500 block mt-0.5">testsenior · MedGuardian123</span>
-                                    </div>
-                                </div>
+                            <AnimatePresence>
+                                {showDemo && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                                        animate={{ height: 'auto', opacity: 1, marginBottom: 12 }}
+                                        exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                                        transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                                        className="overflow-hidden"
+                                    >
+                                        {/* Senior tiles row */}
+                                        <div className="grid grid-cols-3 gap-2 mb-2">
+                                            {[
+                                                { user: 'grandma_mary', name: 'Mary', tag: 'High adherence', color: '#10b981', initial: 'M' },
+                                                { user: 'grandpa_raj',  name: 'Raj',  tag: 'Irregular',      color: '#f59e0b', initial: 'R' },
+                                                { user: 'aunt_priya',   name: 'Priya', tag: 'Interactions',   color: '#8b5cf6', initial: 'P' },
+                                            ].map((s) => (
+                                                <div
+                                                    key={s.user}
+                                                    onClick={() => triggerDemo(s.user)}
+                                                    className="group flex flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-[#111827] p-3 transition-all hover:border-opacity-60 cursor-pointer"
+                                                    style={{ ['--accent' as string]: s.color }}
+                                                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = s.color + '80'; (e.currentTarget as HTMLElement).style.boxShadow = `0 0 20px ${s.color}15`; }}
+                                                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+                                                >
+                                                    <div
+                                                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white/90 transition-transform group-hover:scale-110"
+                                                        style={{ background: s.color + '25', border: `1.5px solid ${s.color}50` }}
+                                                    >
+                                                        {s.initial}
+                                                    </div>
+                                                    <span className="text-[11px] font-bold text-slate-400 group-hover:text-white transition-colors">{s.name}</span>
+                                                    <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: s.color + '15', color: s.color }}>{s.tag}</span>
+                                                </div>
+                                            ))}
+                                        </div>
 
-                                <div
-                                    onClick={() => triggerDemo('caregiver')}
-                                    className="group flex flex-col items-center gap-2.5 rounded-xl border border-white/10 bg-[#111827] p-3 transition-all hover:border-blue-500/50 cursor-pointer"
-                                >
-                                    <ShieldHalf className="h-5 w-5 text-slate-500 group-hover:text-blue-400 transition-colors" />
-                                    <div className="text-center">
-                                        <span className="text-xs font-bold text-slate-400 group-hover:text-white block">Caregiver</span>
-                                        <span className="text-[10px] font-medium text-slate-500 block mt-0.5">testcaregiver · MedGuardian123</span>
-                                    </div>
-                                </div>
-                            </div>
+                                        {/* Caregiver tile */}
+                                        <div
+                                            onClick={() => triggerDemo('democaregiver')}
+                                            className="group flex items-center gap-3 rounded-xl border border-white/10 bg-[#111827] p-3 transition-all hover:border-blue-500/50 cursor-pointer"
+                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(59,130,246,0.1)'; }}
+                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+                                        >
+                                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-500/15 border border-blue-500/30">
+                                                <ShieldHalf className="h-4 w-4 text-blue-400" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <span className="text-[11px] font-bold text-slate-400 group-hover:text-white block transition-colors">Caregiver Dashboard</span>
+                                                <span className="text-[9px] text-slate-600">Dr. Arun Kumar · Manages 3 patients</span>
+                                            </div>
+                                            <ArrowRight className="h-3.5 w-3.5 text-slate-600 group-hover:text-blue-400 transition-all group-hover:translate-x-0.5" />
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </form>
 

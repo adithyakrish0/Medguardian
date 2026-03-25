@@ -10,8 +10,12 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
         'Content-Type': 'application/json',
     };
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const defaultOptions: RequestInit = {
         ...options,
+        signal: controller.signal,
         headers: {
             ...defaultHeaders,
             ...(options.headers as Record<string, string> || {}),
@@ -21,21 +25,27 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
 
     try {
         const response = await fetch(url, defaultOptions);
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
             let errorMessage = `HTTP error! status: ${response.status}`;
             try {
                 const errorData = await response.json();
                 errorMessage = errorData.error || errorData.message || errorMessage;
             } catch (jsonError) {
-                // If not JSON, use the status text or code
                 errorMessage = `${response.statusText || 'Error'} (Code: ${response.status})`;
             }
             throw new Error(errorMessage);
         }
         return await response.json();
     } catch (error: any) {
+        clearTimeout(timeoutId);
         console.error('API Fetch Error:', error);
-        // Ensure we throw a descriptive error even for network failures
+
+        if (error.name === 'AbortError') {
+            throw new Error('Connection Timeout: The server is taking too long to respond. Please check your network.');
+        }
+
         if (error.message === 'Failed to fetch') {
             throw new Error('System Offline: Could not connect to the medical server. Please check your connection.');
         }

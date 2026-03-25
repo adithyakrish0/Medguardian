@@ -29,6 +29,7 @@ import {
     formatConfidenceInterval
 } from '@/lib/api/refills';
 
+import { apiFetch } from '@/lib/api';
 import { PageLoader } from '@/components/ui/SkeletonLoaders';
 import { PageTransition } from '@/components/animations/PageTransition';
 
@@ -38,19 +39,21 @@ export default function RefillsPage() {
     const [loading, setLoading] = useState(true);
     const [predictions, setPredictions] = useState<PredictionsResponse | null>(null);
     const [alerts, setAlerts] = useState<AlertsResponse | null>(null);
+    const [patients, setPatients] = useState<any[]>([]);
+    const [selectedId, setSelectedId] = useState<number | null>(null);
     const [selectedMed, setSelectedMed] = useState<RefillPrediction | null>(null);
     const [refillQuantity, setRefillQuantity] = useState('');
     const [showRefillModal, setShowRefillModal] = useState(false);
 
-    // Get patient ID (for demo, use 1 or current user)
-    const patientId = 1;
-
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (targetId?: number) => {
+        const id = targetId || selectedId;
+        if (!id) return;
+        
         try {
             setLoading(true);
             const [predResult, alertResult] = await Promise.all([
-                getRefillPredictions(patientId),
-                getRefillAlerts(patientId)
+                getRefillPredictions(id),
+                getRefillAlerts(id)
             ]);
 
             if (predResult.success) setPredictions(predResult);
@@ -60,11 +63,35 @@ export default function RefillsPage() {
         } finally {
             setLoading(false);
         }
-    }, [patientId]);
+    }, [selectedId]);
+
+    const fetchPatients = useCallback(async () => {
+        try {
+            const res = await apiFetch('/caregiver/seniors');
+            if (res.success && res.data) {
+                setPatients(res.data);
+                if (res.data.length > 0 && !selectedId) {
+                    const firstId = res.data[0].senior_id || res.data[0].id;
+                    setSelectedId(firstId);
+                    fetchData(firstId);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load patients', e);
+        }
+    }, [selectedId, fetchData]);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        if (!userLoading && user) {
+            if (user.role === 'caregiver') {
+                fetchPatients();
+            } else {
+                // If somehow a senior gets here (though restricted)
+                setSelectedId(user.id);
+                fetchData(user.id);
+            }
+        }
+    }, [userLoading, user, fetchPatients, fetchData]);
 
     const handleRefill = async () => {
         if (!selectedMed || !refillQuantity) return;
@@ -99,8 +126,9 @@ export default function RefillsPage() {
     };
 
     const handleTriggerCheck = async () => {
+        if (!selectedId) return;
         try {
-            await triggerRefillCheck(patientId);
+            await triggerRefillCheck(selectedId);
             fetchData();
         } catch (err) {
             console.error('Failed to trigger check:', err);
@@ -154,13 +182,35 @@ export default function RefillsPage() {
                         </p>
                     </div>
 
-                    <button
-                        onClick={handleTriggerCheck}
-                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm uppercase tracking-widest transition-all shadow-lg shadow-blue-500/10"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                        Run Refill Check
-                    </button>
+                    <div className="flex items-center gap-4">
+                        {user?.role === 'caregiver' && patients.length > 0 && (
+                            <div className="relative flex flex-col items-end">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1 mr-1">MONITORING_SUBJECT</span>
+                                <select 
+                                    value={selectedId || ''} 
+                                    onChange={(e) => {
+                                        const id = parseInt(e.target.value);
+                                        setSelectedId(id);
+                                        fetchData(id);
+                                    }}
+                                    className="appearance-none bg-white/5 border border-white/10 text-white text-xs font-bold px-4 py-2 rounded-xl focus:outline-none focus:border-blue-500 cursor-pointer min-w-[160px]"
+                                >
+                                    {patients.map(p => (
+                                        <option key={p.senior_id || p.id} value={p.senior_id || p.id}>
+                                            {p.senior_name || p.username}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        <button
+                            onClick={handleTriggerCheck}
+                            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm uppercase tracking-widest transition-all shadow-lg shadow-blue-500/10"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            Run Refill Check
+                        </button>
+                    </div>
                 </div>
 
                 {loading ? (

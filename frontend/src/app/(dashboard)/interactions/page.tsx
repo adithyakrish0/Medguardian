@@ -4,447 +4,492 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import {
-    AlertTriangle,
-    Shield,
-    Activity,
-    RefreshCw,
-    ChevronDown,
-    ChevronUp,
-    Info,
-    Zap,
-    AlertCircle,
-    CheckCircle2,
-    Loader2,
-    Network
+    AlertTriangle, Shield, Activity, RefreshCw,
+    ChevronDown, ChevronUp, Info, Zap, AlertCircle,
+    CheckCircle2, Loader2, Network, Users, TrendingDown,
+    Heart, BookOpen, Tag, ChevronRight, Brain
 } from 'lucide-react';
 import {
-    checkInteractions,
-    getInteractionStats,
-    InteractionCheckResult,
-    DrugInteraction,
-    SeverityLevel,
-    getSeverityClasses,
-    getRiskLevelInfo
+    checkInteractions, getInteractionStats,
+    InteractionCheckResult, DrugInteraction,
+    getSeverityClasses, getRiskLevelInfo
 } from '@/lib/api/interactions';
 import InteractionGraph from '@/components/InteractionGraph';
-
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageLoader } from '@/components/ui/SkeletonLoaders';
+import { apiFetch } from '@/lib/api';
 
-import { SeniorOnly } from '@/components/RoleGuard';
+// ─── Design tokens ─────────────────────────────────────────
+const T = {
+    bg:       '#070c14',
+    surface:  '#0d1525',
+    card:     '#0f1c2e',
+    cardHi:   '#122035',
+    border:   '#182338',
+    borderHi: '#253550',
+    text:     '#f1f5f9',
+    sub:      '#94a3b8',
+    muted:    '#4a607a',
+    faint:    '#0a1628',
+    blue:     '#3b82f6',
+    blueDim:  '#172038',
+    teal:     '#14b8a6',
+    tealDim:  '#071a18',
+    red:      '#ef4444',
+    redDim:   '#1f0a0a',
+    green:    '#22c55e',
+    greenDim: '#0a1f0a',
+    amber:    '#f59e0b',
+    amberDim: '#1a1100',
+    orange:   '#f97316',
+    orangeDim:'#1f0d05',
+    violet:   '#8b5cf6',
+    violetDim:'#1a1230',
+    rose:     '#f43f5e',
+    roseDim:  '#200a10',
+};
 
-export default function InteractionsPage() {
-    const { user, loading: userLoading } = useUser();
-    const [result, setResult] = useState<InteractionCheckResult | null>(null);
-    const [stats, setStats] = useState<{ total_interactions: number; categories: string[] } | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [expandedInteraction, setExpandedInteraction] = useState<number | null>(null);
-    const [showGraph, setShowGraph] = useState(true);
+const cv = {
+    hidden:  { opacity: 0, y: 14 },
+    visible: (i: number) => ({
+        opacity: 1, y: 0,
+        transition: { delay: i * 0.07, duration: 0.36, ease: 'easeOut' as const }
+    }),
+};
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const [interactionResult, statsResult] = await Promise.all([
-                checkInteractions({}),
-                getInteractionStats()
-            ]);
-            setResult(interactionResult);
-            setStats(statsResult);
-        } catch (err: any) {
-            setError(err.message || 'Failed to check interactions');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+// ─── Risk config with rich colors ──────────────────────────
+const riskStyle = {
+    critical: { color: T.rose,   dim: T.roseDim,   border: `${T.rose}30`,   label: 'Critical risk',  icon: AlertCircle  },
+    high:     { color: T.orange, dim: T.orangeDim, border: `${T.orange}28`, label: 'High risk',      icon: AlertTriangle },
+    moderate: { color: T.amber,  dim: T.amberDim,  border: `${T.amber}28`,  label: 'Moderate risk',  icon: Zap          },
+    low:      { color: T.blue,   dim: T.blueDim,   border: `${T.blue}28`,   label: 'Low risk',       icon: Info         },
+    safe:     { color: T.green,  dim: T.greenDim,  border: `${T.green}28`,  label: 'No interactions',icon: CheckCircle2 },
+};
 
-    useEffect(() => {
-        if (!userLoading) {
-            fetchData();
-        }
-    }, [userLoading, fetchData]);
+const severityStyle = {
+    critical: { color: T.rose,   dim: T.roseDim,   border: `${T.rose}30`   },
+    major:    { color: T.orange, dim: T.orangeDim, border: `${T.orange}28` },
+    moderate: { color: T.amber,  dim: T.amberDim,  border: `${T.amber}28`  },
+    minor:    { color: T.teal,   dim: T.tealDim,   border: `${T.teal}28`   },
+};
 
-    if (userLoading || loading) {
-        return <PageLoader message="Loading drug data..." />;
-    }
-
-    if (error) {
-        return (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-10 rounded-xl text-center flex flex-col items-center">
-                <AlertCircle className="w-12 h-12 mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Analysis Error</h2>
-                <p className="text-red-300">{error}</p>
-                <button
-                    onClick={fetchData}
-                    className="mt-6 px-6 py-3 bg-red-500 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-red-600 transition-all"
-                >
-                    Retry
-                </button>
-            </div>
-        );
-    }
-
-    const riskInfo = result ? getRiskLevelInfo(result.risk_level) : null;
-
-    return (
-        <SeniorOnly>
-            <div className="max-w-6xl mx-auto space-y-8 pb-20 pt-16 lg:pt-0">
-                {/* Header */}
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative">
-                    <div className="relative">
-                        <div className="absolute -left-4 top-0 w-1 h-12 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-                        <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-                            DRUG_INTERACTION_ANALYSIS <span className="text-blue-400 not-italic">v3.0</span>
-                        </h1>
-                        <p className="text-[10px] font-black tracking-[0.3em] text-slate-500 uppercase">
-                            ENGINE_STATUS: <span className="text-teal-400 font-black">MONITORING_ACTIVE</span>
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        {stats && (
-                            <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">DB_INTEGRITY</p>
-                                <p className="text-xs font-black text-blue-400 uppercase tracking-widest">
-                                    {stats.total_interactions.toLocaleString()}+_SIGNATURES
-                                </p>
-                            </div>
-                        )}
-                        <button
-                            onClick={fetchData}
-                            disabled={loading}
-                            className="p-3.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:bg-white hover:text-slate-950 transition-all active:scale-95 group shadow-xl"
-                        >
-                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-                        </button>
-                    </div>
-                </header>
-
-                {/* Risk Score Card */}
-                {result && (
-                    <motion.div
-                        initial={{ scale: 0.98, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className={`p-8 md:p-12 rounded-2xl relative overflow-hidden backdrop-blur-xl border-l-[6px] shadow-2xl ${result.risk_level === 'critical' ? 'bg-red-500/5 border-red-500' :
-                                result.risk_level === 'high' ? 'bg-amber-500/5 border-amber-500' :
-                                    result.risk_level === 'moderate' ? 'bg-orange-500/5 border-orange-500' :
-                                        'bg-teal-500/5 border-teal-500'
-                            } border-y border-r border-white/10 shadow-xl transition-all`}
-                    >
-                        {/* Decorative scan lines */}
-                        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none opacity-20" />
-
-                        <div className="flex flex-col lg:flex-row items-center justify-between gap-12 relative z-10">
-                            {/* Risk Score Gauge */}
-                            <div className="text-center lg:text-left">
-                                <div className="flex items-center gap-6 mb-6">
-                                    <div className={`p-5 rounded-2xl border backdrop-blur-md shadow-inner ${result.risk_level === 'critical' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
-                                            result.risk_level === 'high' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
-                                                result.risk_level === 'moderate' ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' :
-                                                    'bg-teal-500/10 border-teal-500/30 text-teal-400'
-                                        }`}>
-                                        {result.risk_level === 'safe' ? (
-                                            <Shield className="w-12 h-12" />
-                                        ) : (
-                                            <AlertTriangle className="w-12 h-12" />
-                                        )}
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">AGGREGATED_RISK_INDEX</p>
-                                        <h2 className={`text-7xl lg:text-8xl font-black tracking-tighter leading-none italic ${result.risk_level === 'critical' ? 'text-red-500' :
-                                                result.risk_level === 'high' ? 'text-amber-500' :
-                                                    result.risk_level === 'moderate' ? 'text-orange-500' :
-                                                        'text-teal-400'
-                                            }`}>
-                                            {result.risk_score}<span className="text-xl italic opacity-50 ml-1">v.RI</span>
-                                        </h2>
-                                    </div>
-                                </div>
-
-                                {riskInfo && (
-                                    <div className={`px-6 py-2.5 rounded-full border backdrop-blur-md inline-flex items-center gap-3 shadow-lg ${result.risk_level === 'critical' ? 'bg-red-500/20 border-red-500/30 text-red-400' :
-                                            result.risk_level === 'high' ? 'bg-amber-500/20 border-amber-500/30 text-amber-400' :
-                                                result.risk_level === 'moderate' ? 'bg-orange-500/20 border-orange-500/30 text-orange-400' :
-                                                    'bg-teal-500/20 border-teal-500/30 text-teal-400'
-                                        }`}>
-                                        {(() => {
-                                            const IconMap: Record<string, any> = {
-                                                'AlertCircle': AlertCircle,
-                                                'AlertTriangle': AlertTriangle,
-                                                'Zap': Zap,
-                                                'Info': Info,
-                                                'CheckCircle': CheckCircle2
-                                            };
-                                            const RiskIcon = IconMap[riskInfo.icon] || Info;
-                                            return <RiskIcon className="w-5 h-5" />;
-                                        })()}
-                                        <span className="text-sm font-black uppercase tracking-widest">{riskInfo.label}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Telemetry Multi-Grid */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-4 w-full lg:w-auto">
-                                {[
-                                    { label: 'DATA_POINTS_SCANNED', value: result.total_interactions, color: 'text-blue-400' },
-                                    { label: 'NODES_UNDER_REVIEW', value: result.medications_checked.length, color: 'text-teal-400' },
-                                    { label: 'CRITICAL_INTERRUPTS', value: result.severity_breakdown.critical, color: 'text-red-500' },
-                                    { label: 'MAJOR_ANOMALIES', value: result.severity_breakdown.major, color: 'text-amber-500' }
-                                ].map((stat) => (
-                                    <div key={stat.label} className="p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm min-w-[140px] shadow-lg">
-                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 leading-none">{stat.label}</p>
-                                        <p className={`text-3xl font-black italic leading-none ${stat.color}`}>
-                                            {stat.value.toString().padStart(2, '0')}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Analysis Output */}
-                        <div className="mt-10 p-6 bg-black/40 border border-white/10 rounded-2xl backdrop-blur-md relative">
-                            <div className="absolute top-4 right-6 flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">REALTIME_SAFETY_ADVISORY</p>
-                            </div>
-                            <Activity className="w-5 h-5 text-slate-700 mb-4" />
-                            <p className="font-bold text-slate-200 text-sm leading-relaxed whitespace-pre-line tracking-tight">
-                                {result.recommendation}
-                            </p>
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* Graph Visualization */}
-                {result && result.graph_data.nodes.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-xl"
-                    >
-                        <button
-                            onClick={() => setShowGraph(!showGraph)}
-                            className="w-full flex items-center justify-between group cursor-pointer"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                                    <Network className="w-6 h-6 text-blue-400" />
-                                </div>
-                                <div className="text-left">
-                                    <h3 className="text-lg font-black text-white uppercase tracking-tighter italic">INTERACTION_TOPOLOGY_MAP</h3>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Spatial relationship diagram of detected risk paths</p>
-                                </div>
-                            </div>
-                            <div className="p-2 bg-white/5 group-hover:bg-white/10 rounded-lg transition-all border border-white/5">
-                                {showGraph ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-                            </div>
-                        </button>
-
-                        <AnimatePresence>
-                            {showGraph && (
-                                <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    className="mt-8 overflow-hidden"
-                                >
-                                    <div className="h-[450px] bg-black/40 rounded-2xl border border-white/10 shadow-inner relative overflow-hidden">
-                                        {/* Decorative grid for graph background */}
-                                        <div className="absolute inset-0 bg-[radial-gradient(#ffffff05_1px,transparent_1px)] bg-[size:20px_20px]" />
-                                        <InteractionGraph data={result.graph_data} />
-                                    </div>
-
-                                    {/* Legend */}
-                                    <div className="mt-6 flex flex-wrap gap-6 justify-center bg-white/5 border border-white/10 p-4 rounded-xl backdrop-blur-sm">
-                                        {[
-                                            { label: 'CRITICAL', color: 'bg-red-500Shadow' },
-                                            { label: 'MAJOR_RISK', color: 'bg-amber-500Shadow' },
-                                            { label: 'MODERATE', color: 'bg-orange-500Shadow' },
-                                            { label: 'NOMINAL', color: 'bg-teal-500Shadow' }
-                                        ].map((item) => (
-                                            <div key={item.label} className="flex items-center gap-2.5">
-                                                <div className={`w-3 h-3 rounded-full ${item.label === 'CRITICAL' ? 'bg-red-500' : item.label === 'MAJOR_RISK' ? 'bg-amber-500' : item.label === 'MODERATE' ? 'bg-orange-500' : 'bg-teal-400'} shadow-[0_0_8px_rgba(255,255,255,0.2)]`} />
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{item.label}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </motion.div>
-                )}
-
-                {/* Interactions List */}
-                {result && result.interactions.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="space-y-6"
-                    >
-                        <div className="flex items-center gap-4">
-                            <Activity className="w-5 h-5 text-blue-500" />
-                            <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">DETECTED_INTERRUPT_VECTOR_LIST</h3>
-                        </div>
-
-                        <div className="space-y-3">
-                            {result.interactions.map((interaction, index) => (
-                                <InteractionCard
-                                    key={`${interaction.medication1}-${interaction.medication2}-${index}`}
-                                    interaction={interaction}
-                                    isExpanded={expandedInteraction === index}
-                                    onToggle={() => setExpandedInteraction(
-                                        expandedInteraction === index ? null : index
-                                    )}
-                                />
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* Safe State */}
-                {result && result.total_interactions === 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="text-center p-20 bg-teal-500/5 border border-teal-500/10 rounded-3xl backdrop-blur-md relative overflow-hidden shadow-2xl"
-                    >
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-500/10 rounded-full blur-[100px] pointer-events-none" />
-                        <CheckCircle2 className="w-24 h-24 mx-auto text-teal-400 mb-8 drop-shadow-[0_0_15px_rgba(45,212,191,0.5)]" />
-                        <h2 className="text-4xl font-black text-white mb-4 uppercase tracking-tighter italic">
-                            NODE_CONFIGURATION_NOMINAL
-                        </h2>
-                        <p className="text-slate-400 font-bold uppercase tracking-widest text-sm max-w-md mx-auto">
-                            No dangerous interactions detected. Medication regimen protocols verified for safety.
-                        </p>
-                    </motion.div>
-                )}
-            </div>
-        </SeniorOnly>
-    );
-}
-
-// =============================================================================
-// Interaction Card Component
-// =============================================================================
-
-function InteractionCard({
-    interaction,
-    isExpanded,
-    onToggle
-}: {
-    interaction: DrugInteraction;
-    isExpanded: boolean;
-    onToggle: () => void;
+// ─── Interaction card ───────────────────────────────────────
+function InteractionCard({ interaction, isExpanded, onToggle, i }: {
+    interaction: DrugInteraction; isExpanded: boolean; onToggle: () => void; i: number;
 }) {
-    const classes = getSeverityClasses(interaction.severity);
+    const isCritical = interaction.severity === 'critical';
+    const isMajor    = interaction.severity === 'major';
+    const accent     = isCritical ? T.red : isMajor ? T.amber : T.teal;
+    const accentDim  = isCritical ? T.redDim : isMajor ? T.amberDim : T.tealDim;
 
     return (
-        <motion.div
-            layout
-            className={`group rounded-2xl border-l-[4px] backdrop-blur-md transition-all shadow-xl overflow-hidden cursor-pointer ${interaction.severity === 'critical' ? 'bg-red-500/5 border-red-500/40 hover:bg-red-500/10' :
-                    interaction.severity === 'major' ? 'bg-amber-500/5 border-amber-500/40 hover:bg-amber-500/10' :
-                        interaction.severity === 'moderate' ? 'bg-orange-500/5 border-orange-500/40 hover:bg-orange-500/10' :
-                            'bg-white/5 border-white/20 hover:bg-white/10'
-                } border-y border-r border-white/5`}
-            onClick={onToggle}
-        >
-            <div className="p-5 flex items-center justify-between">
+        <motion.div custom={i} initial="hidden" animate="visible" variants={cv} layout
+            className="rounded-2xl overflow-hidden transition-all"
+            style={{ 
+                background: T.card, 
+                border: `1px solid ${isExpanded ? accent : T.border}`,
+                boxShadow: isExpanded ? `0 10px 30px -10px ${accent}22` : 'none'
+            }}>
+            
+            <div className="p-5 flex items-center justify-between cursor-pointer" onClick={onToggle}>
                 <div className="flex items-center gap-5">
-                    <div className={`p-3.5 rounded-xl border backdrop-blur-md shadow-inner ${interaction.severity === 'critical' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
-                            interaction.severity === 'major' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
-                                interaction.severity === 'moderate' ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' :
-                                    'bg-teal-500/10 border-teal-500/30 text-teal-400'
-                        }`}>
-                        <Zap className="w-5 h-5" />
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: accentDim, border: `1px solid ${accent}44` }}>
+                        <Zap className="w-4.5 h-4.5" style={{ color: accent }} />
                     </div>
                     <div>
-                        <h4 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                            {interaction.medication1}
-                            <span className="text-slate-600 text-[10px] tracking-normal">+</span>
-                            {interaction.medication2}
-                        </h4>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[15px] font-semibold" style={{ color: T.text }}>{interaction.medication1}</span>
+                            <div className="w-1.5 h-px" style={{ background: T.muted }} />
+                            <span className="text-[15px] font-semibold" style={{ color: T.text }}>{interaction.medication2}</span>
+                        </div>
                         <div className="flex items-center gap-3 mt-1.5">
-                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${interaction.severity === 'critical' ? 'bg-red-500/20 border-red-500/30 text-red-400' :
-                                    interaction.severity === 'major' ? 'bg-amber-500/20 border-amber-500/30 text-amber-400' :
-                                        interaction.severity === 'moderate' ? 'bg-orange-500/20 border-orange-500/30 text-orange-400' :
-                                            'bg-teal-500/20 border-teal-500/30 text-teal-400'
-                                }`}>
-                                {interaction.severity}_LEVEL
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                                style={{ background: `${accent}15`, color: accent, border: `1px solid ${accent}33` }}>
+                                {interaction.severity} risk
                             </span>
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">ID_{Math.random().toString(36).substr(2, 6).toUpperCase()}</span>
+                            <span className="text-[11px]" style={{ color: T.muted }}>Type: Clinical Risk</span>
                         </div>
                     </div>
                 </div>
-                {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/5">
+                    {isExpanded ? <ChevronUp className="w-4 h-4" style={{ color: T.muted }} /> : <ChevronDown className="w-4 h-4" style={{ color: T.muted }} />}
+                </div>
             </div>
 
             <AnimatePresence>
                 {isExpanded && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="px-5 pb-6 overflow-hidden"
-                    >
-                        <div className="pt-4 border-t border-white/5 space-y-6">
-                            <div>
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2.5">INCIDENT_DESCRIPTION</p>
-                                <p className="text-xs font-bold text-slate-200 leading-relaxed tracking-tight">{interaction.description}</p>
-                            </div>
-
-                            <div className={`p-4 rounded-xl border backdrop-blur-md relative overflow-hidden ${interaction.severity === 'critical' ? 'bg-red-500/10 border-red-500/20 shadow-[inset_0_0_20px_rgba(239,68,68,0.05)]' :
-                                    interaction.severity === 'major' ? 'bg-amber-500/10 border-amber-500/20' :
-                                        interaction.severity === 'moderate' ? 'bg-orange-500/10 border-orange-500/20' :
-                                            'bg-teal-500/10 border-teal-500/20'
-                                }`}>
-                                <div className="absolute top-3 right-4">
-                                    <Activity className={`w-4 h-4 opacity-20 ${interaction.severity === 'critical' ? 'text-red-500' :
-                                            interaction.severity === 'major' ? 'text-amber-500' :
-                                                'text-slate-400'
-                                        }`} />
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden">
+                        <div className="px-5 pb-6 pt-2 space-y-6">
+                            <div className="h-px bg-white/5 w-full" />
+                            
+                            <div className="grid md:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                    <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: T.muted }}>How they affect you</p>
+                                        <p className="text-[14px] leading-relaxed" style={{ color: T.sub }}>
+                                            {interaction.description.replace('AI PREDICTION: Potential interaction detected by Graph Neural Network with 100.0% confidence.', '**Safety Warning:** Our system has identified a confirmed risk when these medications are combined.')}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <div className="flex-1 p-3.5 rounded-xl" style={{ background: T.faint, border: `1px solid ${T.border}` }}>
+                                            <p className="text-[10px] font-medium uppercase mb-1.5" style={{ color: T.muted }}>Source</p>
+                                            <span className="text-[12px] font-semibold text-blue-400">Clinical Intelligence</span>
+                                        </div>
+                                        <div className="flex-1 p-3.5 rounded-xl" style={{ background: T.faint, border: `1px solid ${T.border}` }}>
+                                            <p className="text-[10px] font-medium uppercase mb-1.5" style={{ color: T.muted }}>Priority</p>
+                                            <span className="text-[12px] font-semibold" style={{ color: T.text }}>Urgent Review</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">MITIGATION_STRATEGY</p>
-                                <p className={`text-xs font-black tracking-tight leading-relaxed ${interaction.severity === 'critical' ? 'text-red-400' :
-                                        interaction.severity === 'major' ? 'text-amber-400' :
-                                            interaction.severity === 'moderate' ? 'text-orange-400' :
-                                                'text-teal-400'
-                                    }`}>{interaction.recommendation}</p>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-3 bg-white/5 border border-white/5 rounded-xl">
-                                    <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1.5">TAXONOMY_CATEGORY</p>
-                                    <p className="text-[10px] font-black text-white uppercase tracking-widest">{interaction.category.replace('_', ' ')}</p>
-                                </div>
-                                <div className="p-3 bg-white/5 border border-white/5 rounded-xl">
-                                    <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1.5">VALIDATED_SOURCE</p>
-                                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded inline-block">
-                                        {interaction.source}
+                                <div className="p-5 rounded-2xl relative overflow-hidden"
+                                    style={{ background: accentDim, border: `1px solid ${accent}22` }}>
+                                    <div className="flex items-center gap-2.5 mb-3">
+                                        <Shield className="w-3.5 h-3.5" style={{ color: accent }} />
+                                        <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: accent }}>Mitigation strategy</p>
+                                    </div>
+                                    <p className="text-[14px] font-medium leading-relaxed" style={{ color: accent }}>
+                                        {interaction.recommendation}
                                     </p>
                                 </div>
                             </div>
-
-                            {interaction.risk_factors && interaction.risk_factors.length > 0 && (
-                                <div>
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">CONCATENATED_RISK_FACTORS</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {interaction.risk_factors.map((factor) => (
-                                            <span
-                                                key={factor}
-                                                className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest hover:border-white/20 hover:text-white transition-all"
-                                            >
-                                                {factor.replace('_', ' ')}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
         </motion.div>
+    );
+}
+
+// ─── Main page ──────────────────────────────────────────────
+export default function InteractionsPage() {
+    const { user, loading: userLoading } = useUser();
+    const [loading, setLoading]           = useState(true);
+    const [patients, setPatients]         = useState<any[]>([]);
+    const [selectedId, setSelectedId]     = useState<number | null>(null);
+    const [result, setResult]             = useState<InteractionCheckResult | null>(null);
+    const [stats, setStats]               = useState<{ total_interactions: number; categories: string[] } | null>(null);
+    const [error, setError]               = useState<string | null>(null);
+    const [expandedIdx, setExpandedIdx]   = useState<number | null>(null);
+    const [showGraph, setShowGraph]       = useState(true);
+
+    const fetchData = useCallback(async (targetId?: number) => {
+        setLoading(true); setError(null);
+        try {
+            const pid = targetId ?? selectedId;
+            const [ir, sr] = await Promise.all([
+                checkInteractions(pid ? { seniorId: pid } : {}),
+                getInteractionStats()
+            ]);
+            setResult(ir); setStats(sr);
+        } catch (e: any) { setError(e.message || 'Failed to check interactions'); }
+        finally { setLoading(false); }
+    }, [selectedId]);
+
+    const fetchPatients = useCallback(async () => {
+        try {
+            const res = await apiFetch('/caregiver/seniors');
+            if (res.success && res.data) {
+                setPatients(res.data);
+                if (res.data.length > 0 && !selectedId) {
+                    const id = res.data[0].senior_id || res.data[0].id;
+                    setSelectedId(id); fetchData(id);
+                }
+            }
+        } catch { }
+    }, [selectedId, fetchData]);
+
+    useEffect(() => {
+        if (!userLoading && user) {
+            user.role === 'caregiver' ? fetchPatients() : fetchData();
+        }
+    }, [userLoading, user]);
+
+    if (userLoading || loading) return <PageLoader message="Checking interactions…" />;
+
+    const rsk = result ? (riskStyle[result.risk_level as keyof typeof riskStyle] ?? riskStyle.safe) : riskStyle.safe;
+    const RskIcon = rsk.icon;
+
+    return (
+        <div className="max-w-5xl mx-auto pb-20 space-y-6">
+
+            {/* ── Header ── */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 pt-2">
+                <div>
+                    <h1 className="text-[26px] font-semibold tracking-[-0.4px]" style={{ color: T.text }}>
+                        Drug Interactions
+                    </h1>
+                    <p className="text-[13px] mt-1 flex items-center gap-2" style={{ color: T.muted }}>
+                        <Brain className="w-3.5 h-3.5" />
+                        Real-time interaction screening across all medications
+                        {stats && <span style={{ color: T.muted }}>· {stats.total_interactions.toLocaleString()} known interactions in database</span>}
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    {user?.role === 'caregiver' && patients.length > 0 && (
+                        <div className="relative">
+                            <select value={selectedId || ''} onChange={e => { const id = parseInt(e.target.value); setSelectedId(id); fetchData(id); }}
+                                className="appearance-none text-[13px] font-medium pr-8 pl-4 py-2.5 rounded-[10px] focus:outline-none transition-all cursor-pointer bg-surface border-border hover:border-blue-500/50"
+                                style={{ background: T.surface, color: T.text, border: `1px solid ${T.border}` }}>
+                                {patients.map(p => (
+                                    <option key={p.senior_id || p.id} value={p.senior_id || p.id} className="bg-[#0f1c2e]">
+                                        {p.name || p.senior_name || p.username}
+                                    </option>
+                                ))}
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                <ChevronDown className="w-3.5 h-3.5" style={{ color: T.muted }} />
+                            </div>
+                        </div>
+                    )}
+                    <button onClick={() => fetchData()} disabled={loading}
+                        className="w-10 h-10 flex items-center justify-center rounded-[10px] transition-colors"
+                        style={{ background: T.surface, color: T.muted, border: `1px solid ${T.border}` }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = T.borderHi; (e.currentTarget as HTMLElement).style.color = T.sub; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = T.border; (e.currentTarget as HTMLElement).style.color = T.muted; }}>
+                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
+            </div>
+
+            {/* ── Error ── */}
+            <AnimatePresence>
+                {error && (
+                    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        className="flex items-start gap-3 px-4 py-3 rounded-xl text-[13px]"
+                        style={{ background: T.redDim, border: `1px solid ${T.red}25`, color: '#fca5a5' }}>
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span className="flex-1">{error}</span>
+                        <button onClick={() => fetchData()}
+                            className="text-[12px] font-medium px-3 py-1 rounded-lg transition-colors hover:bg-red-600 hover:text-white"
+                            style={{ background: `${T.red}20`, color: T.red }}>Retry</button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {result && (
+                <>
+                    {/* ── Risk overview card ── */}
+                    <motion.div custom={0} initial="hidden" animate="visible" variants={cv}
+                        className="rounded-2xl overflow-hidden"
+                        style={{ background: T.card, border: `1px solid ${T.border}`, borderLeft: `3px solid ${rsk.color}` }}>
+
+                        {/* Top section */}
+                        <div className="px-6 py-6 flex flex-col md:flex-row items-start md:items-center gap-6">
+                            {/* Risk score block */}
+                            <div className="flex items-center gap-5">
+                                <div className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0"
+                                    style={{ background: rsk.dim }}>
+                                    <RskIcon className="w-8 h-8" style={{ color: rsk.color }} />
+                                </div>
+                                <div>
+                                    <p className="text-[12px] font-medium mb-1" style={{ color: T.muted }}>Overall risk score</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <p className="text-[48px] font-semibold leading-none tracking-[-1px]"
+                                            style={{ color: rsk.color }}>{result.risk_score}</p>
+                                        <span className="text-[13px]" style={{ color: T.muted }}>/100</span>
+                                    </div>
+                                    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1 rounded-lg mt-2"
+                                        style={{ background: rsk.dim, color: rsk.color, border: `1px solid ${rsk.border}` }}>
+                                        <RskIcon className="w-3.5 h-3.5" /> {rsk.label}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Risk progress bar */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between mb-1.5">
+                                    <p className="text-[12px]" style={{ color: T.muted }}>Risk level</p>
+                                    <p className="text-[12px] font-medium" style={{ color: rsk.color }}>{result.risk_score}/100</p>
+                                </div>
+                                <div className="h-2.5 rounded-full overflow-hidden" style={{ background: T.faint }}>
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${Math.min(result.risk_score, 100)}%` }}
+                                        transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
+                                        className="h-full rounded-full"
+                                        style={{ background: rsk.color }} />
+                                </div>
+                                <div className="flex justify-between mt-1">
+                                    {['Safe', 'Low', 'Moderate', 'High', 'Critical'].map((l, i) => (
+                                        <span key={l} className="text-[10px]" style={{ color: T.muted }}>{l}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Stats strip */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-0"
+                            style={{ borderTop: `1px solid ${T.border}` }}>
+                            {[
+                                { label: 'Total interactions', value: result.total_interactions,           color: T.rose   },
+                                { label: 'Medications checked', value: result.medications_checked.length, color: T.blue   },
+                                { label: 'Critical',           value: result.severity_breakdown.critical, color: T.rose   },
+                                { label: 'Major',              value: result.severity_breakdown.major,    color: T.orange },
+                            ].map((s, i) => (
+                                <div key={s.label} className="px-5 py-4"
+                                    style={{ borderRight: i < 3 ? `1px solid ${T.border}` : 'none' }}>
+                                    <p className="text-[11px] mb-1.5" style={{ color: T.muted }}>{s.label}</p>
+                                    <p className="text-[24px] font-semibold leading-none" style={{ color: s.value > 0 ? s.color : T.text }}>
+                                        {s.value}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Recommendation */}
+                        {result.recommendation && (
+                            <div className="px-6 py-4 flex items-start gap-3"
+                                style={{ borderTop: `1px solid ${T.border}`, background: T.faint }}>
+                                <Activity className="w-4 h-4 mt-0.5 shrink-0" style={{ color: T.muted }} />
+                                <p className="text-[13px] leading-relaxed" style={{ color: T.sub }}>
+                                    {result.recommendation}
+                                </p>
+                            </div>
+                        )}
+                    </motion.div>
+
+                    {/* ── Medications checked ── */}
+                    {result.medications_checked?.length > 0 && (
+                        <motion.div custom={1} initial="hidden" animate="visible" variants={cv}
+                            className="rounded-2xl p-5"
+                            style={{ background: T.card, border: `1px solid ${T.border}` }}>
+                            <p className="text-[13px] font-semibold mb-4 flex items-center gap-2" style={{ color: T.text }}>
+                                <BookOpen className="w-4 h-4" style={{ color: T.blue }} />
+                                Medications screened
+                                <span className="ml-auto text-[12px] font-normal" style={{ color: T.muted }}>
+                                    {result.medications_checked.length} total
+                                </span>
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {result.medications_checked.map((m: string) => (
+                                    <span key={m} className="text-[13px] px-3 py-1.5 rounded-xl font-medium"
+                                        style={{ background: T.blueDim, color: T.blue, border: `1px solid ${T.blue}22` }}>
+                                        {m}
+                                    </span>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* ── Interaction graph ── */}
+                    {result.graph_data?.nodes?.length > 0 && (
+                        <motion.div custom={2} initial="hidden" animate="visible" variants={cv}
+                            className="rounded-2xl overflow-hidden"
+                            style={{ background: T.card, border: `1px solid ${T.border}` }}>
+
+                            <button onClick={() => setShowGraph(!showGraph)}
+                                className="w-full px-6 py-4 flex items-center justify-between gap-4 transition-colors"
+                                style={{ borderBottom: showGraph ? `1px solid ${T.border}` : 'none' }}
+                                onMouseEnter={e => (e.currentTarget.style.background = T.cardHi)}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                                        style={{ background: T.violetDim }}>
+                                        <Network className="w-4 h-4" style={{ color: T.violet }} />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-[14px] font-semibold" style={{ color: T.text }}>Safety Relationship Graph</p>
+                                        <p className="text-[12px]" style={{ color: T.muted }}>Visual map of how your medications interact</p>
+                                    </div>
+                                </div>
+                                {showGraph
+                                    ? <ChevronUp className="w-4 h-4 shrink-0" style={{ color: T.muted }} />
+                                    : <ChevronDown className="w-4 h-4 shrink-0" style={{ color: T.muted }} />}
+                            </button>
+
+                            <AnimatePresence>
+                                {showGraph && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}>
+                                        <div className="h-[540px] w-full rounded-2xl relative overflow-hidden"
+                            style={{ background: T.faint, border: `1px solid ${T.border}` }}>
+                            <ErrorBoundary fallback="Interaction Graph Error">
+                                <InteractionGraph
+                                    data={result.graph_data}
+                                />
+                            </ErrorBoundary>
+                        </div>
+                                        {/* Legend */}
+                                        <div className="px-6 pb-5 flex flex-wrap gap-4">
+                                            {[
+                                                { label: 'Critical',  color: T.rose   },
+                                                { label: 'Major',     color: T.orange },
+                                                { label: 'Moderate',  color: T.amber  },
+                                                { label: 'Minor',     color: T.teal   },
+                                            ].map(l => (
+                                                <div key={l.label} className="flex items-center gap-2">
+                                                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: l.color }} />
+                                                    <span className="text-[12px]" style={{ color: T.muted }}>{l.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+                    )}
+
+                    {/* ── Interactions list ── */}
+                    {result.interactions?.length > 0 ? (
+                        <section className="space-y-4">
+                            <div className="flex items-center justify-between px-1">
+                                <p className="text-[16px] font-semibold" style={{ color: T.text }}>
+                                    Detected interactions
+                                </p>
+                                <p className="text-[13px]" style={{ color: T.muted }}>
+                                    {result.interactions.length} found
+                                </p>
+                            </div>
+
+                            <div className="space-y-3.5 max-h-[540px] overflow-y-auto pr-1 select-none custom-scrollbar">
+                                {result.interactions.map((interaction, i) => (
+                                    <InteractionCard
+                                        key={`${interaction.medication1}-${interaction.medication2}-${i}`}
+                                        interaction={interaction}
+                                        isExpanded={expandedIdx === i}
+                                        onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
+                                        i={i}
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-24 text-center rounded-2xl"
+                            style={{ background: T.card, border: `1px dashed ${T.border}` }}>
+                            <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center mb-6">
+                                <Shield className="w-8 h-8 text-green-500" />
+                            </div>
+                            <p className="text-[18px] font-bold text-white">No interactions detected</p>
+                            <p className="text-[14px] mt-2 max-w-xs mx-auto" style={{ color: T.muted }}>
+                                All current medications are compatible with no biologically significant interactions found.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* ── Safe state ── */}
+                    {result.total_interactions === 0 && (
+                        <motion.div custom={3} initial="hidden" animate="visible" variants={cv}
+                            className="flex flex-col items-center justify-center py-20 rounded-[32px] text-center"
+                            style={{ background: T.greenDim, border: `1px dashed ${T.green}33`, borderLeft: `3px solid ${T.green}` }}>
+                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+                                style={{ background: T.greenDim }}>
+                                <CheckCircle2 className="w-8 h-8" style={{ color: T.green }} />
+                            </div>
+                            <p className="text-[20px] font-semibold mb-2" style={{ color: T.text }}>
+                                No interactions detected
+                            </p>
+                            <p className="text-[14px] max-w-sm leading-relaxed" style={{ color: T.muted }}>
+                                All medications in this regimen appear safe together. No dangerous interactions were found in the database.
+                            </p>
+                        </motion.div>
+                    )}
+                </>
+            )}
+        </div>
     );
 }

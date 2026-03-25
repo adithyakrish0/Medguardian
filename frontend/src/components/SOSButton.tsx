@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import { Phone, X, Loader2, AlertTriangle, Bell } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useToast } from '@/components/NiceToast';
 
@@ -12,6 +13,8 @@ export default function SOSButton() {
     const [sending, setSending] = useState(false);
     const { showToast } = useToast();
     const { user } = useUser();
+    const pathname = usePathname();
+    const isChat = pathname === '/chat';
 
     const handleSOS = async () => {
         setSending(true);
@@ -32,7 +35,7 @@ export default function SOSButton() {
 
     if (user?.role === 'caregiver') {
         return (
-            <div className="fixed bottom-8 right-8 z-50 group">
+            <div className={`fixed ${isChat ? 'bottom-24' : 'bottom-8'} right-8 z-50 group`}>
                 <button
                     className="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 hover:border-red-500/40 flex items-center justify-center shadow-lg transition-all active:scale-95 group"
                     onClick={() => showToast("Alert Inbox: No active emergencies.", "info")}
@@ -47,7 +50,7 @@ export default function SOSButton() {
     }
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 group">
+        <div className={`fixed ${isChat ? 'bottom-24' : 'bottom-6'} right-6 z-50 flex flex-col items-end gap-2 group`}>
             {/* SOS Label - Hover Only */}
             <span className="text-[10px] font-medium text-slate-400 bg-slate-900/80 px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
                 Emergency

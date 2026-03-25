@@ -8,6 +8,7 @@ import {
     ChevronLeft, ShieldX, Loader2, Brain, Info
 } from 'lucide-react';
 import AnomalyAlertWidget from '@/components/AnomalyAlertWidget';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
     getAnomalyHistory, triggerDemoDetection,
     configureAnomalySensitivity, trainAnomalyBaseline,
@@ -91,7 +92,7 @@ export default function AnomaliesPage() {
                     const pid  = senior.senior_id || senior.id;
                     summaries.push({
                         id: pid,
-                        name: senior.senior_name || senior.username || `Patient ${senior.id}`,
+                        name: senior.name || senior.senior_name || senior.username || `Patient ${pid}`,
                         hasBaseline: hist.has_baseline,
                         lastCheck: hist.anomalies?.[0]?.date,
                         status: !hist.has_baseline ? 'no_baseline' : hist.anomalies?.length > 0 ? 'anomaly' : 'normal',
@@ -111,7 +112,8 @@ export default function AnomaliesPage() {
                         }]);
                     }
                 } catch {
-                    summaries.push({ id: senior.senior_id || senior.id, name: senior.senior_name || senior.username || `Patient ${senior.id}`, hasBaseline: false, status: 'no_baseline' });
+                    const pid = senior.senior_id || senior.id;
+                    summaries.push({ id: pid, name: senior.name || senior.senior_name || senior.username || `Patient ${pid}`, hasBaseline: false, status: 'no_baseline' });
                 }
             }
             setPatients(summaries);
@@ -271,100 +273,112 @@ export default function AnomaliesPage() {
                             <p className="text-[13px]" style={{ color: T.muted }}>Add seniors from the My Patients page.</p>
                         </div>
                     ) : (
-                        <div className="space-y-2.5">
-                            {patients.map((patient, i) => {
-                                const sc   = statusCfg[patient.status];
-                                const Icon = sc.icon;
-                                const tid  = trainingId === patient.id;
-                                const did  = demoRunning === patient.id;
+                        <ErrorBoundary fallback="Patient Patterns Error">
+                            <div className="space-y-2.5">
+                                {patients.map((patient, i) => {
+                                    const sc   = statusCfg[patient.status];
+                                    const Icon = sc.icon;
+                                    const tid  = trainingId === patient.id;
+                                    const did  = demoRunning === patient.id;
 
-                                return (
-                                    <motion.div key={patient.id}
-                                        custom={i} initial="hidden" animate="visible" variants={cardVariants}
-                                        className="rounded-xl px-5 py-4 flex items-center gap-4 transition-colors"
-                                        style={{
-                                            background: T.card,
-                                            border: `1px solid ${T.border}`,
-                                            borderLeft: `2px solid ${sc.color}`,
-                                        }}
-                                        onMouseEnter={e => (e.currentTarget.style.background = T.cardHi)}
-                                        onMouseLeave={e => (e.currentTarget.style.background = T.card)}
-                                    >
-                                        {/* Icon */}
-                                        <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0"
-                                            style={{ background: sc.bg, border: `1px solid ${sc.border}` }}>
-                                            <Icon className="w-4 h-4" style={{ color: sc.color }} />
-                                        </div>
-
-                                        {/* Info */}
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-[14px] font-medium truncate" style={{ color: T.text }}>{patient.name}</p>
-                                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-medium"
-                                                    style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
-                                                    {sc.label}
-                                                </span>
-                                                {patient.lastCheck && (
-                                                    <span className="text-[11px]" style={{ color: T.muted }}>
-                                                        Last checked {formatAnomalyTime(patient.lastCheck)}
-                                                    </span>
-                                                )}
-                                                {patient.anomalyType && patient.status === 'anomaly' && (
-                                                    <span className="text-[11px]" style={{ color: '#fca5a5' }}>
-                                                        · {getAnomalyTypeInfo(patient.anomalyType as any).label}
-                                                    </span>
-                                                )}
+                                    return (
+                                        <motion.div key={patient.id}
+                                            custom={i} initial="hidden" animate="visible" variants={cardVariants}
+                                            className="rounded-xl px-5 py-4 flex items-center gap-4 transition-colors"
+                                            style={{
+                                                background: T.card,
+                                                border: `1px solid ${T.border}`,
+                                                borderLeft: `2px solid ${sc.color}`,
+                                            }}
+                                            onMouseEnter={e => (e.currentTarget.style.background = T.cardHi)}
+                                            onMouseLeave={e => (e.currentTarget.style.background = T.card)}
+                                        >
+                                            {/* Icon */}
+                                            <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0"
+                                                style={{ background: sc.bg, border: `1px solid ${sc.border}` }}>
+                                                <Icon className="w-4 h-4" style={{ color: sc.color }} />
                                             </div>
-                                        </div>
 
-                                        {/* Controls */}
-                                        <div className="flex items-center gap-2.5 shrink-0">
-                                            {/* Sensitivity selector */}
-                                            <div className="relative">
-                                                <select
-                                                    value={sensitivityCfg[patient.id] || 'medium'}
-                                                    onChange={e => handleSensitivity(patient.id, e.target.value as Sensitivity)}
-                                                    disabled={!patient.hasBaseline}
-                                                    className="appearance-none text-[12px] font-medium pr-6 pl-3 py-2 rounded-[8px] focus:outline-none transition-all cursor-pointer disabled:opacity-40"
-                                                    style={{ background: T.faint, color: T.muted, border: `1px solid ${T.border}` }}
-                                                >
-                                                    <option value="high">High</option>
-                                                    <option value="medium">Medium</option>
-                                                    <option value="low">Low</option>
-                                                </select>
-                                                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"
-                                                        style={{ color: T.muted }}>
-                                                        <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
-                                                    </svg>
+                                            {/* Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[14px] font-medium truncate" style={{ color: T.text }}>{patient.name}</p>
+                                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-medium"
+                                                        style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+                                                        {sc.label}
+                                                    </span>
+                                                    {patient.lastCheck && (
+                                                        <span className="text-[11px]" style={{ color: T.muted }}>
+                                                            Last checked {formatAnomalyTime(patient.lastCheck)}
+                                                        </span>
+                                                    )}
+                                                    {patient.anomalyType && patient.status === 'anomaly' && (
+                                                        <span className="text-[11px]" style={{ color: '#fca5a5' }}>
+                                                            · {getAnomalyTypeInfo(patient.anomalyType as any).label}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
 
-                                            {/* Action button */}
-                                            {!patient.hasBaseline ? (
-                                                <button onClick={() => handleTrain(patient.id)} disabled={!!tid}
-                                                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] text-[12px] font-medium transition-colors"
-                                                    style={{ background: '#1a1100', color: '#f59e0b', border: '1px solid #f59e0b22' }}
-                                                    onMouseEnter={e => { if (!tid) { (e.currentTarget as HTMLElement).style.background = '#292000'; } }}
-                                                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#1a1100'; }}>
-                                                    {tid ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
-                                                    {tid ? 'Training…' : 'Train baseline'}
-                                                </button>
-                                            ) : (
-                                                <button onClick={() => handleDemo(patient.id)} disabled={!!did}
-                                                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] text-[12px] font-medium transition-colors"
-                                                    style={{ background: T.faint, color: '#3b82f6', border: `1px solid #3b82f622` }}
-                                                    onMouseEnter={e => { if (!did) { (e.currentTarget as HTMLElement).style.background = '#172038'; } }}
-                                                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = T.faint; }}>
-                                                    {did ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-                                                    {did ? 'Analysing…' : 'Run analysis'}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
+                                            {/* Controls */}
+                                            <div className="flex items-center gap-2.5 shrink-0">
+                                                {/* Sensitivity selector */}
+                                                <div className="relative">
+                                                    <select
+                                                        value={sensitivityCfg[patient.id] || 'medium'}
+                                                        onChange={e => handleSensitivity(patient.id, e.target.value as Sensitivity)}
+                                                        disabled={!patient.hasBaseline}
+                                                        className="appearance-none text-[12px] font-medium pr-6 pl-3 py-2 rounded-[8px] focus:outline-none transition-all cursor-pointer disabled:opacity-40"
+                                                        style={{ background: T.faint, color: T.muted, border: `1px solid ${T.border}` }}
+                                                    >
+                                                        <option value="high">High</option>
+                                                        <option value="medium">Medium</option>
+                                                        <option value="low">Low</option>
+                                                    </select>
+                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"
+                                                            style={{ color: T.muted }}>
+                                                            <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+
+                                                {/* Action buttons */}
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => router.push(`/explainability?senior_id=${patient.id}&name=${encodeURIComponent(patient.name)}`)}
+                                                        className="flex items-center gap-1.5 px-3 py-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 rounded-lg text-xs font-medium transition-colors"
+                                                    >
+                                                        <Brain className="w-3.5 h-3.5" />
+                                                        View AI Explanation
+                                                    </button>
+
+                                                    {!patient.hasBaseline ? (
+                                                        <button onClick={() => handleTrain(patient.id)} disabled={!!tid}
+                                                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] text-[12px] font-medium transition-colors"
+                                                            style={{ background: '#1a1100', color: '#f59e0b', border: '1px solid #f59e0b22' }}
+                                                            onMouseEnter={e => { if (!tid) { (e.currentTarget as HTMLElement).style.background = '#292000'; } }}
+                                                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#1a1100'; }}>
+                                                            {tid ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+                                                            {tid ? 'Training…' : 'Train baseline'}
+                                                        </button>
+                                                    ) : (
+                                                        <button onClick={() => handleDemo(patient.id)} disabled={!!did}
+                                                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] text-[12px] font-medium transition-colors"
+                                                            style={{ background: T.faint, color: '#3b82f6', border: `1px solid #3b82f622` }}
+                                                            onMouseEnter={e => { if (!did) { (e.currentTarget as HTMLElement).style.background = '#172038'; } }}
+                                                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = T.faint; }}>
+                                                            {did ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                                                            {did ? 'Analysing…' : 'Run analysis'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
+                            </div>
+                        </ErrorBoundary>
                     )}
                 </section>
 

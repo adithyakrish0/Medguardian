@@ -156,6 +156,16 @@ class MedicationService:
             import traceback
             traceback.print_exc()
             return False
+        finally:
+            # CRITICAL: Release PyTorch VRAM after training
+            try:
+                import gc
+                import torch
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception as e:
+                print(f"Cleanup error in medication service: {e}")
 
     @staticmethod
     def feed_medication(medication_id: int, user_id: int, image_uri: str) -> Optional[Medication]:
@@ -166,6 +176,15 @@ class MedicationService:
             
         if MedicationService.process_neural_training(medication, image_uri):
             db.session.commit()
+            
+            # Verify it was actually saved
+            check = Medication.query.get(medication_id)
+            print(f"[FEED VERIFY] After commit: med_id={medication_id}, name={check.name}, "
+                  f"ai_trained={check.ai_trained}, "
+                  f"has_visual={bool(check.visual_fingerprint)}, "
+                  f"has_histogram={bool(check.histogram_fingerprint)}, "
+                  f"has_embedding={bool(check.embedding_data)}")
+            
             return medication
         return None
     

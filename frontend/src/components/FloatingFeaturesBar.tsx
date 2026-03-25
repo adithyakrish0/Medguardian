@@ -10,7 +10,7 @@ const features = [
         label: "Neural Voice", 
         description: "Engage with seniors using natural, human-like voice synthesis.",
         color: "cyan", 
-        href: "/features/neural-voice",
+        href: "#features",
         accent: "from-cyan-500/20 to-blue-500/20",
         glow: "shadow-cyan-500/20"
     },
@@ -19,7 +19,7 @@ const features = [
         label: "YOLO Vision", 
         description: "Precision pill verification using state-of-the-art computer vision.",
         color: "emerald", 
-        href: "/features/yolo-vision",
+        href: "#features",
         accent: "from-emerald-500/20 to-teal-500/20",
         glow: "shadow-emerald-500/20"
     },
@@ -28,7 +28,7 @@ const features = [
         label: "Predictive AI", 
         description: "Forecasting health trends before symptoms even appear.",
         color: "violet", 
-        href: "/features/predictive-ai",
+        href: "#features",
         accent: "from-violet-500/20 to-purple-500/20",
         glow: "shadow-violet-500/20"
     },
@@ -37,7 +37,7 @@ const features = [
         label: "Critical SOS", 
         description: "Instant emergency triage for families when every second counts.",
         color: "red", 
-        href: "/features/critical-sos",
+        href: "#features",
         accent: "from-red-500/20 to-rose-500/20",
         glow: "shadow-red-500/20",
         pulse: true 

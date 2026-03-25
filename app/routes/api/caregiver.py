@@ -39,7 +39,9 @@ def get_seniors():
                 
             seniors_data.append({
                 'id': senior.id,
-                'name': senior.username,
+                'name': senior.full_name or senior.username,
+                'username': senior.username,
+                'full_name': senior.full_name,
                 'phone': senior.phone,
                 'medication_count': len(meds),
                 'role': senior.role,

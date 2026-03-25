@@ -131,6 +131,31 @@ If you've taken it, reply /taken
             print(f"Failed to get updates: {e}")
             return []
     
+    def _link_user(self, chat_id, user_id):
+        """Internal helper to link chat_id to user_id"""
+        from app.models.auth import User
+        from app.extensions import db
+        
+        user = User.query.get(user_id)
+        if user:
+            user.telegram_chat_id = str(chat_id)
+            db.session.commit()
+            
+            self.send_message(
+                chat_id,
+                f"✅ <b>Account Linked!</b>\n\n"
+                f"Hello {user.username}! Your MedGuardian account is now connected.\n\n"
+                f"You will receive:\n"
+                f"• 💊 Medication reminders\n"
+                f"• 🆘 Emergency SOS alerts\n\n"
+                f"Commands:\n"
+                f"/status - Check your medications\n"
+                f"/help - Get help"
+            )
+            print(f"✅ Telegram linked: user {user_id} -> chat {chat_id}")
+        else:
+            self.send_message(chat_id, f"❌ User ID {user_id} not found.")
+
     def process_update(self, update):
         """Process a single Telegram update"""
         try:
@@ -144,39 +169,37 @@ If you've taken it, reply /taken
             if text.startswith('/start'):
                 parts = text.split(' ')
                 if len(parts) > 1 and parts[1].startswith('link_'):
-                    # Link account
+                    # Link account via deep link
                     try:
-                        user_id = int(parts[1].replace('link_', ''))
-                        from app.models.auth import User
-                        from app.extensions import db
-                        
-                        user = User.query.get(user_id)
-                        if user:
-                            user.telegram_chat_id = str(chat_id)
-                            db.session.commit()
-                            
-                            self.send_message(
-                                chat_id,
-                                f"✅ <b>Account Linked!</b>\n\n"
-                                f"Hello {user.username}! Your MedGuardian account is now connected.\n\n"
-                                f"You will receive:\n"
-                                f"• 💊 Medication reminders\n"
-                                f"• 🆘 Emergency SOS alerts\n\n"
-                                f"Commands:\n"
-                                f"/status - Check your medications\n"
-                                f"/help - Get help"
-                            )
-                            print(f"✅ Telegram linked: user {user_id} -> chat {chat_id}")
-                            return
+                        user_id_str = parts[1].replace('link_', '')
+                        user_id = int(user_id_str)
+                        self._link_user(chat_id, user_id)
+                        return
                     except Exception as e:
-                        print(f"Link error: {e}")
+                        print(f"Deep link error: {e}")
+                
+                # New: Manual /link command
+                if text.startswith('/link'):
+                    try:
+                        if len(parts) > 1:
+                            user_id = int(parts[1])
+                            self._link_user(chat_id, user_id)
+                            return
+                        else:
+                            self.send_message(chat_id, "❌ Please provide your User ID. Example: <code>/link 17</code>")
+                            return
+                    except:
+                        self.send_message(chat_id, "❌ Invalid User ID format.")
+                        return
                 
                 # Regular /start
                 self.send_message(
                     chat_id,
                     "👋 <b>Welcome to MedGuardian!</b>\n\n"
                     "To receive medication reminders, please link your account through the MedGuardian website.\n\n"
-                    "Go to: Settings → Telegram → Link Account"
+                    "<b>Option 1:</b> Click 'Connect Bot' in Settings.\n"
+                    "<b>Option 2:</b> Type <code>/link YOUR_ID</code> (e.g., <code>/link 17</code>)\n\n"
+                    "Go to: Settings → Telegram to find your ID if needed."
                 )
             
             elif text == '/help':

@@ -14,6 +14,10 @@ export interface Medication {
     afternoon: boolean;
     evening: boolean;
     night: boolean;
+    ai_trained?: boolean;
+    custom_reminder_times?: string;
+    notes?: string;
+    scheduled_times?: string[];
     last_taken?: string;
 }
 

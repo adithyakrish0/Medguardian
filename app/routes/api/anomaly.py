@@ -90,27 +90,42 @@ def train_anomaly_baseline():
         baseline = anomaly_detector.train(patient_id, logs, sensitivity)
         
         # Train LSTM Autoencoder (New Deep Learning layer)
-        try:
-            logger.info(f"Starting LSTM training for patient {patient_id}...")
-            lstm_detector.train_for_patient(patient_id, logs, epochs=100)
-            lstm_trained = True
-        except Exception as e:
-            logger.error(f"LSTM training failed: {e}")
-            lstm_trained = False
+        def run_lstm_training():
+            try:
+                logger.info(f"🚀 Starting background LSTM training for patient {patient_id}...")
+                # Reduce epochs to 20 for immediate demo results without timing out
+                lstm_detector.train_for_patient(patient_id, logs, epochs=20)
+                logger.info(f"✅ LSTM training complete for patient {patient_id}")
+                
+                # Notify UI via socket if training finished
+                from app.extensions import socketio
+                socketio.emit('training_complete', {'patient_id': patient_id}, room=f'user_{current_user.id}')
+            except Exception as e:
+                import traceback
+                logger.error(f"❌ LSTM background training failed: {e}")
+                logger.error(traceback.format_exc())
+
+        import threading
+        thread = threading.Thread(target=run_lstm_training)
+        thread.daemon = True
+        thread.start()
         
         return jsonify({
             'success': True,
             'model_saved': True,
-            'lstm_trained': lstm_trained,
+            'lstm_training_started': True,
             'patient_id': patient_id,
             'threshold': baseline.sensitivity.value,
             'sensitivity': baseline.sensitivity.name.lower(),
             'training_samples': baseline.sample_count,
-            'baseline': baseline.to_dict()
+            'baseline': baseline.to_dict(),
+            'message': 'Baseline saved. Advanced LSTM training continuing in background.'
         }), 200
         
     except Exception as e:
-        logger.error(f"Error training anomaly baseline: {e}", exc_info=True)
+        import traceback
+        logger.error(f"Error training anomaly baseline: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

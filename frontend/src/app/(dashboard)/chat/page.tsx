@@ -96,8 +96,9 @@ export default function AskGuardianPage() {
             ? firstUserMsg.content.slice(0, 55)
             : 'New Chat';
 
+        console.log('[CHAT SAVE] Saving session:', id, 'messages:', data.length);
         try {
-            await apiFetch('/chat/history/save', {
+            const res = await apiFetch('/chat/history/save', {
                 method: 'POST',
                 body: JSON.stringify({
                     session_id: id,
@@ -109,8 +110,13 @@ export default function AskGuardianPage() {
                     })),
                 }),
             });
+            console.log('[CHAT SAVE] Result:', res);
+            if (res.success) {
+                // Refresh history list after successful save
+                loadHistory();
+            }
         } catch (e) {
-            console.error('Failed to save chat history:', e);
+            console.error('[CHAT SAVE] Failed:', e);
         }
     }, [sessionId, messages]);
 
@@ -127,24 +133,31 @@ export default function AskGuardianPage() {
 
     // ── Load history list ──────────────────────────────────
     const loadHistory = async () => {
+        console.log('[CHAT HISTORY] Fetching...');
         setHistoryLoading(true);
         try {
             const res = await apiFetch('/chat/history');
+            console.log('[CHAT HISTORY] Response:', res);
             if (res.success) {
-                setConversations(res.conversations);
+                // If conversations is returned as 'data', 'conversations', or 'histories'
+                const list = res.conversations || res.data || res.histories || [];
+                setConversations(list);
             }
         } catch (e) {
-            console.error('Failed to load history:', e);
+            console.error('[CHAT HISTORY] Failed:', e);
         } finally {
             setHistoryLoading(false);
         }
     };
 
     const toggleHistory = () => {
-        const opening = !historyOpen;
-        setHistoryOpen(opening);
-        if (opening) loadHistory();
+        setHistoryOpen(!historyOpen);
     };
+
+    // Load history on mount
+    useEffect(() => {
+        loadHistory();
+    }, []);
 
     // ── Load a past conversation ───────────────────────────
     const loadConversation = async (sid: string) => {
@@ -224,7 +237,8 @@ export default function AskGuardianPage() {
                 setMessages(finalMessages);
 
                 // Auto-save after each exchange
-                saveConversation(sessionId, finalMessages);
+                await saveConversation(sessionId, finalMessages);
+                // History list is refreshed inside saveConversation
             } else {
                 setMessages(prev => [
                     ...prev,

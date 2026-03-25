@@ -21,7 +21,7 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_size': 10,
         'max_overflow': 20,
-        'pool_timeout': 30,
+        'pool_timeout': 10,       # Fail fast instead of hanging 30s
         'pool_recycle': 1800,
         'pool_pre_ping': True,
     }

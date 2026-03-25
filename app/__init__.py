@@ -210,7 +210,7 @@ def create_app(config_name=None):
     app.register_blueprint(emergency, url_prefix='/emergency')
     app.register_blueprint(export_bp, url_prefix='/export')
     app.register_blueprint(contacts, url_prefix='/contacts')
-    app.register_blueprint(telegram, url_prefix='/telegram')
+    app.register_blueprint(telegram, url_prefix='/api/v1/telegram')
     app.register_blueprint(prescription, url_prefix='/prescription')
     app.register_blueprint(insights, url_prefix='/insights')
     app.register_blueprint(print_schedule, url_prefix='/print')
@@ -254,57 +254,8 @@ def create_app(config_name=None):
         return response
     
     # Error handlers
-    @app.errorhandler(400)
-    def bad_request_error(error):
-        if request.path.startswith('/api/'):
-            return jsonify({'success': False, 'message': 'Bad Request', 'error': str(error)}), 400
-        return render_template('errors/404.html', message="Bad Request"), 400
-    
-    @app.errorhandler(404)
-    def not_found_error(error):
-        if request.path.startswith('/api/'):
-            return jsonify({'success': False, 'message': 'Not Found'}), 404
-        return render_template('errors/404.html'), 404
-    
-    @app.errorhandler(403)
-    def forbidden_error(error):
-        if request.path.startswith('/api/'):
-            return jsonify({'success': False, 'message': 'Forbidden', 'error': 'CSRF or permission denied'}), 403
-        return render_template('errors/403.html'), 403
-    
-    @app.errorhandler(500)
-    def internal_error(error):
-        db.session.rollback()
-        import traceback
-        import sys
-        from datetime import datetime
-        
-        # Log to stderr
-        app.logger.error(f"[GLOBAL] Internal Server Error: {error}")
-        traceback.print_exc(file=sys.stderr)
-        
-        # Log to file for diagnostics
-        try:
-            with open('error_traceback.log', 'a') as f:
-                f.write(f"\n--- ERROR at {datetime.now()} ---\n")
-                f.write(f"Url: {request.url}\n")
-                f.write(f"Method: {request.method}\n")
-                f.write(f"User: {current_user.id if current_user.is_authenticated else 'Anonymous'}\n")
-                traceback.print_exc(file=f)
-        except:
-            pass
-            
-        app.logger.error(f'Internal server error: {error}')
-        if request.path.startswith('/api/'):
-            return jsonify({'success': False, 'message': 'Internal Server Error', 'error': str(error)}), 500
-        return render_template('errors/500.html'), 500
-    
-    from flask_wtf.csrf import CSRFError
-    @app.errorhandler(CSRFError)
-    def handle_csrf_error(e):
-        if request.path.startswith('/api/'):
-            return jsonify({'success': False, 'message': 'CSRF error', 'reason': e.description}), 400
-        return render_template('errors/400.html', message="CSRF Error"), 400
+    from app.error_handlers import register_error_handlers
+    register_error_handlers(app)
     
     # Initialize scheduler if enabled
     if app.config.get('SCHEDULER_ENABLED', True):

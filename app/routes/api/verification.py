@@ -28,6 +28,8 @@ def verify_medication():
         return jsonify(result), 200
         
     except Exception as e:
+        print(f"[VERIFY ENDPOINT ERROR] {e}")
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)

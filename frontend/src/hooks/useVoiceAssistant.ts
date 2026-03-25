@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { formatTimeForVoice } from '@/lib/utils';
 
 export function useVoiceAssistant() {
     const [isListening, setIsListening] = useState(false);
@@ -41,7 +42,7 @@ export function useVoiceAssistant() {
                 const data = await apiFetch('/medication-status');
                 if (data.upcoming?.length > 0) {
                     const next = data.upcoming[0];
-                    speak(`Your next medication is ${next.name} at ${next.time}.`);
+                    speak(`Your next medication is ${next.name} at ${formatTimeForVoice(next.time)}.`);
                 } else {
                     speak("You have no more medications scheduled for today.");
                 }
